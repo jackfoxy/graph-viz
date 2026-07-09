@@ -1,0 +1,5 @@
+digraph se {
+  {a b} -> c;
+  subgraph named { d } -> {e} -> f;
+  x -> subgraph s2 { y z };
+}

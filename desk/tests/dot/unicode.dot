@@ -1,0 +1,5 @@
+graph unicode {
+  a [label="日本語のラベル"];
+  b [label="ünïcödé ßtríng"];
+  a -- b [label="←→"];
+}

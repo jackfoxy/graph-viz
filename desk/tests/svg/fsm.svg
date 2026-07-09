@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="575.79pt" height="275.39pt" viewBox="0.00 0.00 575.79 275.39" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="translate(4 4) scale(1.00)">
+<title>finite_state_machine</title>
+<g id="node1" class="node">
+<title>LR_0</title>
+<polygon fill="none" stroke="#000000" points="0.00,142.43 54.00,142.43 54.00,178.43 0.00,178.43"/>
+<text text-anchor="middle" x="27.00" y="165.47" font-family="Times,serif" font-size="14.00" fill="#000000">LR_0</text>
+</g>
+<g id="node2" class="node">
+<title>LR_3</title>
+<polygon fill="none" stroke="#000000" points="203.92,214.42 257.92,214.42 257.92,250.42 203.92,250.42"/>
+<text text-anchor="middle" x="230.92" y="237.46" font-family="Times,serif" font-size="14.00" fill="#000000">LR_3</text>
+</g>
+<g id="node3" class="node">
+<title>LR_4</title>
+<polygon fill="none" stroke="#000000" points="203.92,160.42 257.92,160.42 257.92,196.42 203.92,196.42"/>
+<text text-anchor="middle" x="230.92" y="183.46" font-family="Times,serif" font-size="14.00" fill="#000000">LR_4</text>
+</g>
+<g id="node4" class="node">
+<title>LR_8</title>
+<polygon fill="none" stroke="#000000" points="513.79,70.45 567.79,70.45 567.79,106.45 513.79,106.45"/>
+<text text-anchor="middle" x="540.79" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">LR_8</text>
+</g>
+<g id="node5" class="node">
+<title>LR_2</title>
+<ellipse fill="none" stroke="#000000" cx="124.97" cy="88.45" rx="34.97" ry="34.97"/>
+<text text-anchor="middle" x="124.97" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">LR_2</text>
+</g>
+<g id="node6" class="node">
+<title>LR_1</title>
+<ellipse fill="none" stroke="#000000" cx="124.97" cy="232.42" rx="34.97" ry="34.97"/>
+<text text-anchor="middle" x="124.97" y="237.46" font-family="Times,serif" font-size="14.00" fill="#000000">LR_1</text>
+</g>
+<g id="node7" class="node">
+<title>LR_6</title>
+<ellipse fill="none" stroke="#000000" cx="230.92" cy="34.97" rx="34.97" ry="34.97"/>
+<text text-anchor="middle" x="230.92" y="40.01" font-family="Times,serif" font-size="14.00" fill="#000000">LR_6</text>
+</g>
+<g id="node8" class="node">
+<title>LR_5</title>
+<ellipse fill="none" stroke="#000000" cx="336.87" cy="88.45" rx="34.97" ry="34.97"/>
+<text text-anchor="middle" x="336.87" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">LR_5</text>
+</g>
+<g id="node9" class="node">
+<title>LR_7</title>
+<ellipse fill="none" stroke="#000000" cx="442.81" cy="88.45" rx="34.97" ry="34.97"/>
+<text text-anchor="middle" x="442.81" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">LR_7</text>
+</g>
+<g id="edge1" class="edge">
+<title>LR_0-&gt;LR_2</title>
+<path fill="none" stroke="#000000" d="M51.50,142.43C59.66,136.44 92.32,112.44 96.79,109.16"/>
+<polygon fill="#000000" stroke="#000000" points="96.79,109.16 86.66,112.26 90.80,117.90"/>
+<text text-anchor="middle" x="102.32" y="117.48" font-family="Times,serif" font-size="14.00" fill="#000000">SS(B)</text>
+</g>
+<g id="edge2" class="edge">
+<title>LR_0-&gt;LR_1</title>
+<path fill="none" stroke="#000000" d="M51.50,178.43C59.66,184.43 92.32,208.42 96.79,211.71"/>
+<polygon fill="#000000" stroke="#000000" points="96.79,211.71 90.80,202.97 86.66,208.61"/>
+<text text-anchor="middle" x="102.32" y="213.46" font-family="Times,serif" font-size="14.00" fill="#000000">SS(S)</text>
+</g>
+<g id="edge3" class="edge">
+<title>LR_1-&gt;LR_3</title>
+<path fill="none" stroke="#000000" d="M159.95,232.42C160.29,232.42 195.60,232.42 203.92,232.42"/>
+<polygon fill="#000000" stroke="#000000" points="203.92,232.42 193.92,228.92 193.92,235.92"/>
+<text text-anchor="middle" x="205.60" y="237.46" font-family="Times,serif" font-size="14.00" fill="#000000">S($end)</text>
+</g>
+<g id="edge4" class="edge">
+<title>LR_2-&gt;LR_6</title>
+<path fill="none" stroke="#000000" d="M156.20,72.69C160.29,70.62 195.60,52.80 199.70,50.73"/>
+<polygon fill="#000000" stroke="#000000" points="199.70,50.73 189.19,52.11 192.35,58.36"/>
+<text text-anchor="middle" x="205.60" y="57.84" font-family="Times,serif" font-size="14.00" fill="#000000">SS(b)</text>
+</g>
+<g id="edge5" class="edge">
+<title>LR_2-&gt;LR_5</title>
+<path fill="none" stroke="#000000" d="M159.95,88.45C183.60,88.45 207.26,88.45 230.92,88.45 254.58,88.45 278.24,88.45 301.89,88.45"/>
+<polygon fill="#000000" stroke="#000000" points="301.89,88.45 291.89,84.95 291.89,91.95"/>
+<text text-anchor="middle" x="240.92" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">SS(a)</text>
+</g>
+<g id="edge6" class="edge">
+<title>LR_2-&gt;LR_4</title>
+<path fill="none" stroke="#000000" d="M151.63,111.09C160.29,118.44 195.60,148.43 209.72,160.42"/>
+<polygon fill="#000000" stroke="#000000" points="209.72,160.42 204.37,151.28 199.84,156.62"/>
+<text text-anchor="middle" x="205.60" y="153.47" font-family="Times,serif" font-size="14.00" fill="#000000">S(A)</text>
+</g>
+<g id="edge7" class="edge">
+<title>LR_5-&gt;LR_7</title>
+<path fill="none" stroke="#000000" d="M371.17,95.25C372.18,95.45 407.50,95.45 408.51,95.25"/>
+<polygon fill="#000000" stroke="#000000" points="408.51,95.25 398.02,93.76 399.38,100.62"/>
+<text text-anchor="middle" x="417.50" y="100.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge8" class="edge">
+<title>LR_5-&gt;LR_5</title>
+<path fill="none" stroke="#000000" d="M367.79,72.11C389.84,60.47 389.84,116.43 367.79,104.78"/>
+<polygon fill="#000000" stroke="#000000" points="367.79,104.78 375.00,112.55 378.27,106.36"/>
+<text text-anchor="middle" x="399.84" y="121.47" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+<g id="edge9" class="edge">
+<title>LR_6-&gt;LR_6</title>
+<path fill="none" stroke="#000000" d="M261.85,18.64C283.89,6.99 283.89,62.95 261.85,51.31"/>
+<polygon fill="#000000" stroke="#000000" points="261.85,51.31 269.05,59.07 272.32,52.88"/>
+<text text-anchor="middle" x="293.89" y="67.99" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge10" class="edge">
+<title>LR_6-&gt;LR_5</title>
+<path fill="none" stroke="#000000" d="M262.14,50.73C266.24,52.80 301.55,70.62 305.65,72.69"/>
+<polygon fill="#000000" stroke="#000000" points="305.65,72.69 298.30,65.06 295.14,71.31"/>
+<text text-anchor="middle" x="311.55" y="75.66" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+<g id="edge11" class="edge">
+<title>LR_7-&gt;LR_8</title>
+<path fill="none" stroke="#000000" d="M477.79,88.45C475.47,88.45 508.13,88.45 513.79,88.45"/>
+<polygon fill="#000000" stroke="#000000" points="513.79,88.45 503.79,84.95 503.79,91.95"/>
+<text text-anchor="middle" x="518.13" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge12" class="edge">
+<title>LR_5-&gt;LR_7</title>
+<path fill="none" stroke="#000000" d="M371.17,81.65C372.18,81.45 407.50,81.45 408.51,81.65"/>
+<polygon fill="#000000" stroke="#000000" points="371.17,81.65 381.66,83.14 380.30,76.27"/>
+<text text-anchor="middle" x="417.50" y="86.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+<g id="edge13" class="edge">
+<title>LR_6-&gt;LR_8</title>
+<path fill="none" stroke="#000000" d="M265.89,34.97C289.55,34.97 313.21,34.97 336.87,34.97 372.18,34.97 407.50,34.97 442.81,34.97 466.47,47.89 490.13,60.80 513.79,73.71"/>
+<polygon fill="#000000" stroke="#000000" points="265.89,34.97 275.89,38.47 275.89,31.47"/>
+<text text-anchor="middle" x="417.50" y="40.01" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge14" class="edge">
+<title>LR_5-&gt;LR_8</title>
+<path fill="none" stroke="#000000" d="M368.09,104.21C393.00,116.78 417.91,129.35 442.81,141.92 466.47,129.01 490.13,116.10 513.79,103.18"/>
+<polygon fill="#000000" stroke="#000000" points="368.09,104.21 375.44,111.84 378.59,105.59"/>
+<text text-anchor="middle" x="452.81" y="146.96" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+</g>
+</svg>

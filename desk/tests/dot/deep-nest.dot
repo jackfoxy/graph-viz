@@ -1,0 +1,4 @@
+digraph deep {
+  { { { { { { { { x } } } } } } } }
+  subgraph s1 { subgraph s2 { subgraph s3 { y } } }
+}
