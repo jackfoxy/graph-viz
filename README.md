@@ -7,7 +7,9 @@ poke-driven Urbit agent. `dot` engine and SVG output only in v1.
 ## LLM Skills
 
 [Graphviz DOT language reference](https://github.com/jackfoxy/foxy-skills/tree/master/gviz-dot-syntax)
+
 [%graph-viz Gall agent API reference](https://github.com/jackfoxy/foxy-skills/tree/master/gviz-gall-api/)
+
 [Practical recipes and best practices](https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns/)
 
 ## Layout
