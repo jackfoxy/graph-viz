@@ -30,7 +30,11 @@ desk/                     the %graph-viz desk (zuse 409/408)
   lib/route.hoon            edge routing, splines, arrowheads
   lib/svg.hoon              SVG codegen
   lib/gviz.hoon             top-level pipeline gate (command → response)
-  app/graph-viz.hoon        Gall agent
+  lib/gviz-web.hoon         browser page, styles, script, and JSON
+  lib/server.hoon           vendored Eyre response helper
+  app/graph-viz.hoon        noun API/render agent
+  app/graph-viz-web.hoon    Eyre/Sail browser agent
+  desk.docket-0             direct site metadata (no frontend glob)
   mar/gviz/*.hoon           poke/response marks; mar/dot, mar/svg
   tests/lib/*, tests/app/*  per-stage unit suites (~125 arms)
   tests/dot/*.dot           parser/layout corpus
@@ -46,6 +50,14 @@ same uid, receive one `%gviz-result` `%fact` on the path, then a
 `%kick`. Errors (parse, unsupported engine/format/feature, layout) are
 structured results, not nacks. A poke with no matching subscriber is
 nacked with an explanation.
+
+## Browser editor
+
+Installing the desk starts both agents. Docket opens the editor at
+`/apps/graph-viz`; its HTML, CSS, and JavaScript are generated directly
+from Hoon, so no external frontend build or glob is required. The editor
+posts DOT text to `/apps/graph-viz/render`. The noun protocol above is
+unchanged.
 
 ## Testing
 
