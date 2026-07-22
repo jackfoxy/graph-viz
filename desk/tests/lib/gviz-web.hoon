@@ -88,6 +88,23 @@
     (expect !>(?=(^ (find "sourceFromUrl" js))))
   ==
 ::
+++  test-visual-selection
+  =/  html  (trip page:web)
+  =/  js  (trip javascript:web)
+  ;:  weld
+    (expect !>(?=(^ (find "id=\"inspector\"" html))))
+    (expect !>(?=(^ (find "id=\"selection-kind\"" html))))
+    (expect !>(?=(^ (find "id=\"selection-id\"" html))))
+    (expect !>(?=(^ (find "id=\"clear-selection\"" html))))
+    (expect !>(?=(^ (find ".is-selected" (trip css:web)))))
+    (expect !>(?=(^ (find "dotStatements" js))))
+    (expect !>(?=(^ (find "sourceRangeFor" js))))
+    (expect !>(?=(^ (find "selectSourceStatement" js))))
+    (expect !>(?=(^ (find "selectVisualElement" js))))
+    (expect !>(?=(^ (find "aria-current" js))))
+    (expect !>(?=(^ (find "tabindex" js))))
+  ==
+::
 ++  test-web-error-json
   =/  txt  (error-text:web [%parse 2 7 'syntax error'])
   ;:  weld

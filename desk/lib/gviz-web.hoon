@@ -97,6 +97,15 @@
             ;span#render-status.status: Empty
           ==
           ;pre#error.error(hidden "", role "alert");
+          ;div#inspector.inspector(hidden "", role "status")
+            ;span#selection-kind.selection-kind;
+            ;code#selection-id;
+            ;button#clear-selection
+              =type        "button"
+              =aria-label  "Clear graph selection"
+              ;span: Clear
+            ==
+          ==
           ;div#preview-shell.preview-shell(data-state "empty")
             ;div#empty-state.state-panel
               ;p.state-title: Nothing rendered yet
@@ -110,7 +119,7 @@
               ;p.state-title: Renderer unavailable
               ;p: Check the ship connection, then try again.
             ==
-            ;div#preview.preview(aria-live "polite");
+            ;div#preview.preview(aria-live "polite", tabindex "0");
           ==
         ==
       ==
@@ -332,6 +341,21 @@
     user-select: none;
   }
 
+  .preview .node, .preview .edge {
+    cursor: pointer;
+    transition: filter 120ms ease;
+  }
+
+  .preview .node:hover, .preview .edge:hover,
+  .preview .node:focus-visible, .preview .edge:focus-visible {
+    filter: drop-shadow(0 0 3px #2563eb);
+  }
+
+  .preview .node.is-selected, .preview .edge.is-selected {
+    filter: drop-shadow(0 0 2px #f59e0b)
+      drop-shadow(0 0 5px #f59e0b);
+  }
+
   .state-panel {
     align-content: center;
     color: #52525b;
@@ -374,6 +398,21 @@
     padding: 0.75rem;
     white-space: pre-wrap;
   }
+
+  .inspector {
+    align-items: center;
+    background: #fffbeb;
+    border-bottom: 1px solid #fde68a;
+    color: #78350f;
+    display: flex;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .inspector[hidden] { display: none; }
+  .inspector code { flex: 1; overflow-wrap: anywhere; }
+  .selection-kind { font-size: 0.75rem; font-weight: 700; }
 
   .help-panel {
     background: rgb(0 0 0 / 0.4);
@@ -478,6 +517,10 @@
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
   const error = document.querySelector('#error');
+  const inspector = document.querySelector('#inspector');
+  const selectionKind = document.querySelector('#selection-kind');
+  const selectionId = document.querySelector('#selection-id');
+  const clearSelection = document.querySelector('#clear-selection');
   const preview = document.querySelector('#preview');
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
@@ -512,6 +555,7 @@
   let errorLine = 0;
   let lastSvgSource = '';
   let pendingView;
+  let selectedElement;
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -699,7 +743,351 @@
     updateLineNumbers();
   }
 
+  function dotTokens(source) {
+    const tokens = [];
+    const symbols = '{}[];,:=+';
+    let index = 0;
+    let lineStart = true;
+    while (index < source.length) {
+      const char = source[index];
+      if (/\s/.test(char)) {
+        if (char === '\n') lineStart = true;
+        index += 1;
+        continue;
+      }
+      if (source.startsWith('//', index)
+        || (char === '#' && lineStart)) {
+        const newline = source.indexOf('\n', index);
+        index = newline < 0 ? source.length : newline;
+        continue;
+      }
+      if (source.startsWith('/*', index)) {
+        const close = source.indexOf('*/', index + 2);
+        index = close < 0 ? source.length : close + 2;
+        continue;
+      }
+      lineStart = false;
+      const start = index;
+      if (char === '"') {
+        let value = '';
+        index += 1;
+        while (index < source.length) {
+          const current = source[index];
+          if (current === '"') {
+            index += 1;
+            break;
+          }
+          if (current === '\\' && index + 1 < source.length) {
+            const next = source[index + 1];
+            if (next === '"') {
+              value += '"';
+              index += 2;
+              continue;
+            }
+            if (next === '\n') {
+              index += 2;
+              continue;
+            }
+            if (next === '\r' && source[index + 2] === '\n') {
+              index += 3;
+              continue;
+            }
+            value += '\\' + next;
+            index += 2;
+            continue;
+          }
+          value += current;
+          index += 1;
+        }
+        tokens.push({type: 'id', value, start, end: index, quoted: true});
+        continue;
+      }
+      if (source.startsWith('->', index)
+        || source.startsWith('--', index)) {
+        tokens.push({
+          type: 'edge',
+          value: source.slice(index, index + 2),
+          start,
+          end: index + 2
+        });
+        index += 2;
+        continue;
+      }
+      if (symbols.includes(char)) {
+        tokens.push({type: 'symbol', value: char, start, end: index + 1});
+        index += 1;
+        continue;
+      }
+      while (index < source.length) {
+        const next = source[index];
+        if (/\s/.test(next) || symbols.includes(next)) break;
+        if (source.startsWith('->', index)
+          || source.startsWith('--', index)
+          || source.startsWith('//', index)
+          || source.startsWith('/*', index)) break;
+        index += 1;
+      }
+      if (index === start) index += 1;
+      tokens.push({
+        type: 'id',
+        value: source.slice(start, index),
+        start,
+        end: index,
+        quoted: false
+      });
+    }
+    return tokens;
+  }
+
+  function matchingToken(tokens, index, open, close) {
+    let depth = 0;
+    for (let cursor = index; cursor < tokens.length; cursor += 1) {
+      if (tokens[cursor].value === open) depth += 1;
+      if (tokens[cursor].value === close) depth -= 1;
+      if (depth === 0) return cursor;
+    }
+    return tokens.length - 1;
+  }
+
+  function parseDotId(tokens, index) {
+    const token = tokens[index];
+    if (!token || token.type !== 'id') return undefined;
+    let value = token.value;
+    let cursor = index + 1;
+    while (tokens[cursor]?.value === '+'
+      && tokens[cursor + 1]?.type === 'id') {
+      value += tokens[cursor + 1].value;
+      cursor += 2;
+    }
+    return {value, next: cursor, quoted: token.quoted};
+  }
+
+  function consumeAttributes(tokens, index) {
+    let cursor = index;
+    while (tokens[cursor]?.value === '[') {
+      cursor = matchingToken(tokens, cursor, '[', ']') + 1;
+    }
+    return cursor;
+  }
+
+  function namesFromStatements(statements) {
+    const names = new Set();
+    for (const statement of statements) {
+      for (const name of statement.nodeNames || []) names.add(name);
+    }
+    return [...names];
+  }
+
+  function parseDotEndpoint(tokens, index, limit) {
+    let cursor = index;
+    const token = tokens[cursor];
+    const isSubgraph = token?.type === 'id'
+      && !token.quoted
+      && token.value.toLowerCase() === 'subgraph';
+    if (isSubgraph) {
+      cursor += 1;
+      if (tokens[cursor]?.value !== '{') {
+        const name = parseDotId(tokens, cursor);
+        if (name) cursor = name.next;
+      }
+    }
+    if (tokens[cursor]?.value === '{') {
+      const close = Math.min(
+        matchingToken(tokens, cursor, '{', '}'),
+        limit
+      );
+      const nested = parseDotStatementList(tokens, cursor + 1, close);
+      return {
+        values: namesFromStatements(nested),
+        next: close + 1,
+        nested
+      };
+    }
+    const id = parseDotId(tokens, cursor);
+    if (!id) return undefined;
+    cursor = id.next;
+    for (let port = 0; port < 2 && tokens[cursor]?.value === ':'; port += 1) {
+      const part = parseDotId(tokens, cursor + 1);
+      if (!part) break;
+      cursor = part.next;
+    }
+    return {values: [id.value], next: cursor, nested: []};
+  }
+
+  function finishDotStatement(tokens, index) {
+    if (tokens[index]?.value === ';') return index + 1;
+    return index;
+  }
+
+  function dotStatementRange(tokens, start, next) {
+    const last = tokens[Math.max(start, next - 1)];
+    return {start: tokens[start].start, end: last.end};
+  }
+
+  function parseDotStatement(tokens, start, limit) {
+    const firstId = parseDotId(tokens, start);
+    const lower = firstId?.value.toLowerCase();
+    if (firstId && !firstId.quoted
+      && ['graph', 'node', 'edge'].includes(lower)
+      && tokens[firstId.next]?.value === '[') {
+      const next = finishDotStatement(
+        tokens,
+        consumeAttributes(tokens, firstId.next)
+      );
+      return {next, statements: []};
+    }
+    if (firstId && tokens[firstId.next]?.value === '=') {
+      const value = parseDotId(tokens, firstId.next + 1);
+      const next = finishDotStatement(
+        tokens,
+        value ? value.next : firstId.next + 1
+      );
+      return {next, statements: []};
+    }
+    const first = parseDotEndpoint(tokens, start, limit);
+    if (!first) return {next: start + 1, statements: []};
+    let cursor = first.next;
+    const nested = [...first.nested];
+    if (tokens[cursor]?.type !== 'edge') {
+      if (first.nested.length) {
+        return {
+          next: finishDotStatement(tokens, cursor),
+          statements: nested
+        };
+      }
+      cursor = consumeAttributes(tokens, cursor);
+      cursor = finishDotStatement(tokens, cursor);
+      return {
+        next: cursor,
+        statements: [{
+          kind: 'node',
+          nodeNames: first.values,
+          edges: [],
+          ...dotStatementRange(tokens, start, cursor)
+        }]
+      };
+    }
+    const edges = [];
+    const nodeNames = new Set(first.values);
+    let left = first.values;
+    while (tokens[cursor]?.type === 'edge') {
+      const operator = tokens[cursor].value;
+      const right = parseDotEndpoint(tokens, cursor + 1, limit);
+      if (!right) break;
+      nested.push(...right.nested);
+      for (const tail of left) {
+        for (const head of right.values) {
+          edges.push(tail + operator + head);
+        }
+      }
+      for (const name of right.values) nodeNames.add(name);
+      left = right.values;
+      cursor = right.next;
+    }
+    cursor = consumeAttributes(tokens, cursor);
+    cursor = finishDotStatement(tokens, cursor);
+    return {
+      next: cursor,
+      statements: [...nested, {
+        kind: 'edge',
+        nodeNames: [...nodeNames],
+        edges,
+        ...dotStatementRange(tokens, start, cursor)
+      }]
+    };
+  }
+
+  function parseDotStatementList(tokens, start, limit) {
+    const statements = [];
+    let cursor = start;
+    while (cursor < limit) {
+      if (tokens[cursor]?.value === ';'
+        || tokens[cursor]?.value === ',') {
+        cursor += 1;
+        continue;
+      }
+      const parsed = parseDotStatement(tokens, cursor, limit);
+      statements.push(...parsed.statements);
+      cursor = parsed.next > cursor ? parsed.next : cursor + 1;
+    }
+    return statements;
+  }
+
+  function dotStatements(source) {
+    const tokens = dotTokens(source);
+    const open = tokens.findIndex((token) => token.value === '{');
+    if (open < 0) return [];
+    const close = matchingToken(tokens, open, '{', '}');
+    return parseDotStatementList(tokens, open + 1, close);
+  }
+
+  function sourceRangeFor(kind, identity) {
+    const statements = dotStatements(dot.value);
+    if (kind === 'node') {
+      const explicit = statements.find((statement) => {
+        return statement.kind === 'node'
+          && statement.nodeNames.includes(identity);
+      });
+      if (explicit) return explicit;
+      return statements.find((statement) => {
+        return statement.nodeNames.includes(identity);
+      });
+    }
+    return statements.find((statement) => {
+      return statement.kind === 'edge'
+        && statement.edges.includes(identity);
+    });
+  }
+
+  function selectSourceStatement(kind, identity) {
+    const range = sourceRangeFor(kind, identity);
+    if (!range) {
+      sourceStatus.textContent = 'Source statement not found';
+      return;
+    }
+    dot.focus();
+    dot.setSelectionRange(range.start, range.end);
+    const line = dot.value.slice(0, range.start).split('\n').length;
+    const lineHeight = parseFloat(getComputedStyle(dot).lineHeight);
+    dot.scrollTop = Math.max(0, (line - 2) * lineHeight);
+    syncEditorScroll();
+    sourceStatus.textContent = `Selected ${kind}`;
+  }
+
+  function visualGroup(target) {
+    const group = target?.closest?.('.node, .edge');
+    if (!group || !currentSvg?.contains(group)) return undefined;
+    return group;
+  }
+
+  function clearVisualSelection() {
+    if (selectedElement) {
+      selectedElement.classList.remove('is-selected');
+      selectedElement.removeAttribute('aria-current');
+    }
+    selectedElement = undefined;
+    inspector.hidden = true;
+    selectionKind.textContent = '';
+    selectionId.textContent = '';
+  }
+
+  function selectVisualElement(group) {
+    const title = group.querySelector(':scope > title');
+    if (!title) return;
+    clearVisualSelection();
+    selectedElement = group;
+    group.classList.add('is-selected');
+    group.setAttribute('aria-current', 'true');
+    const kind = group.classList.contains('node') ? 'node' : 'edge';
+    const identity = title.textContent;
+    selectionKind.textContent = kind === 'node' ? 'Node' : 'Edge';
+    selectionId.textContent = identity;
+    inspector.hidden = false;
+    selectSourceStatement(kind, identity);
+  }
+
   function editorChanged() {
+    clearVisualSelection();
     error.hidden = true;
     setErrorLine(0);
     queueSaveSession();
@@ -794,6 +1182,16 @@
     } else {
       svg.setAttribute('aria-label', 'Rendered graph');
     }
+    for (const group of svg.querySelectorAll('.node, .edge')) {
+      const itemTitle = group.querySelector(':scope > title');
+      const kind = group.classList.contains('node') ? 'Node' : 'Edge';
+      group.setAttribute('role', 'button');
+      group.setAttribute('tabindex', '0');
+      if (itemTitle) {
+        group.setAttribute('aria-label', `${kind} ${itemTitle.textContent}`);
+      }
+    }
+    clearVisualSelection();
     currentSvg = svg;
     preview.replaceChildren(svg);
     const restoredView = pendingView;
@@ -931,6 +1329,12 @@
       help.focus();
       return;
     }
+    if (event.key === 'Escape' && selectedElement) {
+      event.preventDefault();
+      clearVisualSelection();
+      preview.focus();
+      return;
+    }
     if (!event.ctrlKey && !event.metaKey) return;
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -1049,6 +1453,26 @@
   helpPanel.addEventListener('click', (event) => {
     if (event.target === helpPanel) showHelp(false);
   });
+  clearSelection.addEventListener('click', () => {
+    clearVisualSelection();
+    preview.focus();
+  });
+
+  preview.addEventListener('click', (event) => {
+    const group = visualGroup(event.target);
+    if (group) {
+      selectVisualElement(group);
+    } else if (event.target === preview || event.target === currentSvg) {
+      clearVisualSelection();
+    }
+  });
+
+  preview.addEventListener('keydown', (event) => {
+    const group = visualGroup(event.target);
+    if (!group || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    selectVisualElement(group);
+  });
 
   preview.addEventListener('wheel', (event) => {
     if (!currentSvg) return;
@@ -1071,6 +1495,7 @@
 
   preview.addEventListener('pointerdown', (event) => {
     if (!currentSvg || event.button !== 0) return;
+    if (visualGroup(event.target)) return;
     event.preventDefault();
     panPoint = {x: event.clientX, y: event.clientY};
     preview.setPointerCapture(event.pointerId);
