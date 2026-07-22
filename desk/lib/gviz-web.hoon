@@ -23,10 +23,48 @@
           ;h1: Graph Viz
         ==
         ;nav.toolbar(aria-label "Graph controls")
-          ;button#render.primary(type "button"): Render
-          ;button#reset-view(type "button", disabled ""): Reset
-          ;button#download(type "button", disabled ""): Download SVG
-          ;button#fit(type "button", disabled ""): Fit
+          ;select#template
+            =title       "Insert starter template"
+            =aria-label  "Starter template"
+            ;option(value ""): Templates
+            ;option(value "flowchart"): Flowchart
+            ;option(value "state-machine"): State machine
+            ;option(value "dependencies"): Dependencies
+            ;option(value "clusters"): Clusters
+          ==
+          ;button#render.primary
+            =type   "button"
+            =title  "Render (Ctrl+Enter)"
+            ;span: Render
+          ==
+          ;button#reset-view
+            =type      "button"
+            =disabled  ""
+            =title     "Reset view (Ctrl+1)"
+            ;span: Reset
+          ==
+          ;button#download-dot
+            =type   "button"
+            =title  "Download DOT (Ctrl+S)"
+            ;span: Download DOT
+          ==
+          ;button#download
+            =type      "button"
+            =disabled  ""
+            =title     "Download SVG (Ctrl+Shift+S)"
+            ;span: Download SVG
+          ==
+          ;button#fit
+            =type      "button"
+            =disabled  ""
+            =title     "Fit graph (Ctrl+0)"
+            ;span: Fit
+          ==
+          ;button#share(type "button", title "Copy shareable URL"): Share
+          ;label.preference
+            ;input#auto-render(type "checkbox", checked "");
+            ;span: Auto-render
+          ==
           ;button#help(type "button", aria-expanded "false"): Help
         ==
       ==
@@ -37,10 +75,13 @@
             ;span#source-status.status: Ready
           ==
           ;label.sr-only(for "dot"): DOT source
-          ;textarea#dot
-            =spellcheck  "false"
-            =aria-label  "DOT source"
-            ;+  ;/  (trip 'digraph { a -> b }')
+          ;div.editor-body
+            ;pre#line-numbers.line-numbers(aria-hidden "true");
+            ;textarea#dot
+              =spellcheck  "false"
+              =aria-label  "DOT source"
+              ;+  ;/  (trip 'digraph { a -> b }')
+            ==
           ==
         ==
         ;div#splitter.splitter
@@ -81,6 +122,15 @@
           ==
           ;p: Write DOT on the left and inspect the SVG on the right.
           ;p: Drag the divider to resize the panes on larger screens.
+          ;h3: Keyboard shortcuts
+          ;ul.shortcut-list
+            ;li: Ctrl/Cmd + Enter: render now
+            ;li: Ctrl/Cmd + S: download DOT
+            ;li: Ctrl/Cmd + Shift + S: download SVG
+            ;li: Ctrl/Cmd + 0: fit graph
+            ;li: Ctrl/Cmd + 1: reset graph view
+            ;li: Tab / Shift + Tab: indent / unindent
+          ==
         ==
       ==
       ;script(src "/apps/graph-viz/app.js");
@@ -115,16 +165,16 @@
     margin: 0;
   }
 
-  button {
+  button, select, .preference {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 0.4rem;
     color: inherit;
-    cursor: pointer;
     font: inherit;
     padding: 0.5rem 0.75rem;
   }
 
+  button, select { cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--accent); }
   button:focus-visible { outline: 3px solid #93c5fd; }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -157,6 +207,14 @@
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
+  .preference {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.4rem;
+  }
+
+  .preference input { accent-color: var(--accent); }
+
   .workspace {
     display: grid;
     grid-template-columns: minmax(18rem, var(--editor-width)) 0.6rem
@@ -186,6 +244,35 @@
   .pane-header h2 { font-size: 0.9rem; margin: 0; }
   .status { color: var(--muted); font-size: 0.75rem; }
 
+  .editor-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .line-numbers {
+    background: #f4f4f5;
+    border-right: 1px solid var(--border);
+    color: var(--muted);
+    flex: 0 0 auto;
+    font: 0.9rem/1.55 ui-monospace, monospace;
+    margin: 0;
+    min-width: 3.5rem;
+    overflow: hidden;
+    padding: 1rem 0.65rem;
+    text-align: right;
+    user-select: none;
+  }
+
+  .line-numbers span { display: block; }
+
+  .line-numbers .error-line {
+    background: #fee2e2;
+    color: var(--danger);
+    font-weight: 700;
+  }
+
   #dot {
     background: var(--surface);
     border: 0;
@@ -197,9 +284,17 @@
     padding: 1rem;
     resize: none;
     tab-size: 2;
+    width: 100%;
   }
 
   #dot:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+
+  #dot.has-error-line {
+    background-image: linear-gradient(#fef2f2, #fef2f2);
+    background-position: 0 var(--error-line-top);
+    background-repeat: no-repeat;
+    background-size: 100% 1.4rem;
+  }
 
   .splitter {
     background: var(--border);
@@ -302,6 +397,8 @@
     width: 100%;
   }
 
+  .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
+
   .sr-only {
     height: 1px;
     margin: -1px;
@@ -330,8 +427,55 @@
 ++  javascript
   ^-  @t
   '''
-  const starter = ['digraph {', '  a -> b', '}'].join('\\n');
+  const templates = {
+    flowchart: [
+      'digraph flow {',
+      '  rankdir=LR',
+      '  node [shape=box]',
+      '  Start -> Plan -> Build -> Done',
+      '}'
+    ].join('\n'),
+    'state-machine': [
+      'digraph states {',
+      '  rankdir=LR',
+      '  node [shape=circle]',
+      '  start [shape=doublecircle]',
+      '  start -> idle',
+      '  idle -> running [label=start]',
+      '  running -> idle [label=stop]',
+      '  running -> done [label=finish]',
+      '  done [shape=doublecircle]',
+      '}'
+    ].join('\n'),
+    dependencies: [
+      'digraph dependencies {',
+      '  rankdir=LR',
+      '  node [shape=box]',
+      '  app -> {ui core}',
+      '  ui -> core',
+      '  core -> {util log}',
+      '  log -> util',
+      '}'
+    ].join('\n'),
+    clusters: [
+      'digraph architecture {',
+      '  node [shape=box]',
+      '  subgraph cluster_web {',
+      '    label="Web"',
+      '    browser -> gateway',
+      '  }',
+      '  subgraph cluster_data {',
+      '    label="Data"',
+      '    api -> database',
+      '  }',
+      '  gateway -> api',
+      '}'
+    ].join('\n')
+  };
+  const starter = templates.flowchart;
   const dot = document.querySelector('#dot');
+  const lineNumbers = document.querySelector('#line-numbers');
+  const template = document.querySelector('#template');
   const button = document.querySelector('#render');
   const error = document.querySelector('#error');
   const preview = document.querySelector('#preview');
@@ -339,23 +483,35 @@
   const renderStatus = document.querySelector('#render-status');
   const sourceStatus = document.querySelector('#source-status');
   const resetView = document.querySelector('#reset-view');
+  const downloadDot = document.querySelector('#download-dot');
   const download = document.querySelector('#download');
   const fit = document.querySelector('#fit');
+  const share = document.querySelector('#share');
+  const autoRender = document.querySelector('#auto-render');
   const help = document.querySelector('#help');
   const helpPanel = document.querySelector('#help-panel');
   const closeHelp = document.querySelector('#close-help');
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const renderDelay = 350;
+  const saveDelay = 150;
   const minScale = 0.05;
   const maxScale = 32;
+  const maxSourceBytes = 256 * 1024;
+  const maxSharedSourceBytes = 12 * 1024;
+  const maxShareParamChars = 16 * 1024;
+  const storageKey = 'graph-viz.session.v1';
   let requestUid = 0;
   let latestRequestUid = 0;
   let renderTimer;
+  let saveTimer;
   let currentSvg;
   let graphSize = {width: 1, height: 1};
   let view = {scale: 1, x: 0, y: 0};
   let panPoint;
+  let errorLine = 0;
+  let lastSvgSource = '';
+  let pendingView;
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -372,6 +528,120 @@
     helpPanel.hidden = !open;
     help.setAttribute('aria-expanded', String(open));
     if (open) closeHelp.focus();
+  }
+
+  function sourceByteLength(source) {
+    return new TextEncoder().encode(source).byteLength;
+  }
+
+  function validateSource(source, limit = maxSourceBytes) {
+    if (typeof source !== 'string') throw new Error('DOT must be text');
+    if (source.includes('\0')) throw new Error('DOT contains a null byte');
+    if (sourceByteLength(source) > limit) {
+      throw new Error(`DOT exceeds the ${limit}-byte limit`);
+    }
+    return source;
+  }
+
+  function validView(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    const values = [candidate.scale, candidate.x, candidate.y];
+    if (!values.every(Number.isFinite)) return undefined;
+    if (Math.abs(candidate.x) > 1e7 || Math.abs(candidate.y) > 1e7) {
+      return undefined;
+    }
+    return {
+      scale: clamp(candidate.scale, minScale, maxScale),
+      x: candidate.x,
+      y: candidate.y
+    };
+  }
+
+  function loadSession() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey));
+      if (!saved || saved.version !== 1) return undefined;
+      const source = validateSource(saved.source);
+      const paneWidth = Number(saved.paneWidth);
+      const preferences = saved.preferences || {};
+      return {
+        source,
+        paneWidth: Number.isFinite(paneWidth)
+          ? clamp(paneWidth, 25, 70)
+          : 44,
+        view: validView(saved.view),
+        autoRender: preferences.autoRender !== false
+      };
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  function currentPaneWidth() {
+    const value = getComputedStyle(workspace)
+      .getPropertyValue('--editor-width');
+    return clamp(parseFloat(value) || 44, 25, 70);
+  }
+
+  function saveSession() {
+    clearTimeout(saveTimer);
+    try {
+      validateSource(dot.value);
+      localStorage.setItem(storageKey, JSON.stringify({
+        version: 1,
+        source: dot.value,
+        paneWidth: currentPaneWidth(),
+        view,
+        preferences: {autoRender: autoRender.checked}
+      }));
+    } catch (_) {
+      // Storage can be disabled or full without blocking the editor.
+    }
+  }
+
+  function queueSaveSession() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveSession, saveDelay);
+  }
+
+  function encodeSource(source) {
+    const bytes = new TextEncoder().encode(source);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  }
+
+  function decodeSource(encoded) {
+    if (!encoded || encoded.length > maxShareParamChars) {
+      throw new Error('Shared DOT parameter is missing or too large');
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(encoded)) {
+      throw new Error('Shared DOT parameter is invalid');
+    }
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const source = new TextDecoder('utf-8', {fatal: true}).decode(bytes);
+    validateSource(source, maxSharedSourceBytes);
+    if (encodeSource(source) !== encoded) {
+      throw new Error('Shared DOT parameter is not canonical');
+    }
+    return source;
+  }
+
+  function sourceFromUrl() {
+    const encoded = new URL(window.location.href).searchParams.get('dot');
+    return encoded === null ? undefined : decodeSource(encoded);
+  }
+
+  function showClientProblem(message) {
+    error.textContent = message;
+    error.hidden = false;
+    setState(currentSvg ? 'ready' : 'empty', 'Input error');
   }
 
   function invalidateRender() {
@@ -393,10 +663,53 @@
   }
 
   function showProblem(problem) {
+    setErrorLine(problem.kind === 'parse' ? Number(problem.line) : 0);
     error.textContent = formatProblem(problem);
     error.hidden = false;
     const hasPreview = Boolean(preview.querySelector('svg'));
     setState(hasPreview ? 'ready' : 'empty', 'Render failed');
+  }
+
+  function syncEditorScroll() {
+    lineNumbers.scrollTop = dot.scrollTop;
+    if (!errorLine) return;
+    const style = getComputedStyle(dot);
+    const lineHeight = parseFloat(style.lineHeight);
+    const paddingTop = parseFloat(style.paddingTop);
+    const top = paddingTop + (errorLine - 1) * lineHeight - dot.scrollTop;
+    dot.style.setProperty('--error-line-top', `${top}px`);
+  }
+
+  function updateLineNumbers() {
+    const count = dot.value.split('\n').length;
+    const numbers = document.createDocumentFragment();
+    for (let number = 1; number <= count; number += 1) {
+      const item = document.createElement('span');
+      item.textContent = String(number);
+      if (number === errorLine) item.className = 'error-line';
+      numbers.append(item);
+    }
+    lineNumbers.replaceChildren(numbers);
+    syncEditorScroll();
+  }
+
+  function setErrorLine(line) {
+    errorLine = Number.isFinite(line) && line > 0 ? line : 0;
+    dot.classList.toggle('has-error-line', errorLine > 0);
+    updateLineNumbers();
+  }
+
+  function editorChanged() {
+    error.hidden = true;
+    setErrorLine(0);
+    queueSaveSession();
+    if (autoRender.checked) {
+      queueRender();
+    } else {
+      invalidateRender();
+      clearTimeout(renderTimer);
+      sourceStatus.textContent = 'Changed';
+    }
   }
 
   function clamp(value, minimum, maximum) {
@@ -408,6 +721,7 @@
     const transform = `translate(${view.x}px, ${view.y}px) `
       + `scale(${view.scale})`;
     currentSvg.style.transform = transform;
+    queueSaveSession();
   }
 
   function fitToWindow() {
@@ -482,7 +796,16 @@
     }
     currentSvg = svg;
     preview.replaceChildren(svg);
-    requestAnimationFrame(fitToWindow);
+    const restoredView = pendingView;
+    pendingView = undefined;
+    requestAnimationFrame(() => {
+      if (restoredView) {
+        view = restoredView;
+        applyView();
+      } else {
+        fitToWindow();
+      }
+    });
   }
 
   function queueRender() {
@@ -498,12 +821,152 @@
     render();
   }
 
+  function downloadSource(source, filename, type) {
+    const blob = new Blob([source], {type});
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  function downloadCurrentDot() {
+    downloadSource(dot.value, 'graph.dot', 'text/vnd.graphviz;charset=utf-8');
+  }
+
+  function downloadCurrentSvg() {
+    if (!lastSvgSource) return;
+    downloadSource(lastSvgSource, 'graph.svg', 'image/svg+xml');
+  }
+
+  async function copyShareUrl() {
+    try {
+      validateSource(dot.value, maxSharedSourceBytes);
+      const url = new URL(window.location.href);
+      url.searchParams.set('dot', encodeSource(dot.value));
+      if (url.href.length > maxShareParamChars) {
+        throw new Error('Share URL exceeds the size limit');
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url.href);
+        sourceStatus.textContent = 'Share URL copied';
+      } else {
+        window.prompt('Copy share URL', url.href);
+      }
+    } catch (cause) {
+      showClientProblem(String(cause));
+    }
+  }
+
+  function handleTab(event) {
+    event.preventDefault();
+    const indent = '  ';
+    const start = dot.selectionStart;
+    const end = dot.selectionEnd;
+    if (start === end && !event.shiftKey) {
+      dot.setRangeText(indent, start, end, 'end');
+      editorChanged();
+      return;
+    }
+    const lineStart = dot.value.lastIndexOf('\n', start - 1) + 1;
+    if (start === end) {
+      const match = dot.value.slice(lineStart, lineStart + 2).match(/^ {1,2}/);
+      if (!match) return;
+      dot.setRangeText('', lineStart, lineStart + match[0].length, 'end');
+      const cursor = Math.max(lineStart, start - match[0].length);
+      dot.setSelectionRange(cursor, cursor);
+      editorChanged();
+      return;
+    }
+    const block = dot.value.slice(lineStart, end);
+    const replacement = block.split('\n').map((line) => {
+      return event.shiftKey ? line.replace(/^ {1,2}/, '') : indent + line;
+    }).join('\n');
+    dot.setRangeText(replacement, lineStart, end, 'select');
+    dot.setSelectionRange(lineStart, lineStart + replacement.length);
+    editorChanged();
+  }
+
+  function handleEditorKeydown(event) {
+    if (event.key === 'Tab') {
+      handleTab(event);
+      return;
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const pairs = {'{': '}', '[': ']', '(': ')', '"': '"'};
+    const closers = Object.values(pairs);
+    const start = dot.selectionStart;
+    const end = dot.selectionEnd;
+    if (start === end && closers.includes(event.key)
+      && dot.value[start] === event.key) {
+      event.preventDefault();
+      dot.setSelectionRange(start + 1, start + 1);
+      return;
+    }
+    const closing = pairs[event.key];
+    const escapedQuote = event.key === '"' && dot.value[start - 1] === '\\';
+    if (!closing || escapedQuote) return;
+    event.preventDefault();
+    const selected = dot.value.slice(start, end);
+    dot.setRangeText(event.key + selected + closing, start, end, 'select');
+    dot.setSelectionRange(start + 1, end + 1);
+    editorChanged();
+  }
+
+  function insertTemplate() {
+    const source = templates[template.value];
+    if (!source) return;
+    dot.value = source;
+    template.value = '';
+    dot.focus();
+    dot.setSelectionRange(0, 0);
+    editorChanged();
+  }
+
+  function handleShortcut(event) {
+    if (event.key === 'Escape' && !helpPanel.hidden) {
+      event.preventDefault();
+      showHelp(false);
+      help.focus();
+      return;
+    }
+    if (!event.ctrlKey && !event.metaKey) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      renderNow();
+    } else if (event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (event.shiftKey) {
+        downloadCurrentSvg();
+      } else {
+        downloadCurrentDot();
+      }
+    } else if (event.key === '0') {
+      event.preventDefault();
+      fitToWindow();
+    } else if (event.key === '1') {
+      event.preventDefault();
+      resetGraphView();
+    }
+  }
+
   async function render() {
     const uid = latestRequestUid = ++requestUid;
+    try {
+      validateSource(dot.value);
+    } catch (cause) {
+      showClientProblem(String(cause));
+      sourceStatus.textContent = 'Too large';
+      button.disabled = false;
+      return;
+    }
     if (!dot.value.trim()) {
       preview.replaceChildren();
       currentSvg = undefined;
+      lastSvgSource = '';
       error.hidden = true;
+      setErrorLine(0);
       setPreviewControls(false);
       setState('empty', 'Empty');
       sourceStatus.textContent = 'Ready';
@@ -550,6 +1013,8 @@
         showProblem({kind: 'request', message: 'Invalid SVG response'});
         return;
       }
+      lastSvgSource = body;
+      setErrorLine(0);
       setPreviewControls(true);
       setState('ready', 'Rendered');
     } catch (cause) {
@@ -566,7 +1031,17 @@
   }
 
   button.addEventListener('click', renderNow);
-  dot.addEventListener('input', queueRender);
+  downloadDot.addEventListener('click', downloadCurrentDot);
+  download.addEventListener('click', downloadCurrentSvg);
+  share.addEventListener('click', copyShareUrl);
+  template.addEventListener('change', insertTemplate);
+  autoRender.addEventListener('change', () => {
+    queueSaveSession();
+    if (autoRender.checked) queueRender();
+  });
+  dot.addEventListener('input', editorChanged);
+  dot.addEventListener('keydown', handleEditorKeydown);
+  dot.addEventListener('scroll', syncEditorScroll);
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
   help.addEventListener('click', () => showHelp(helpPanel.hidden));
@@ -631,6 +1106,7 @@
     const percent = ((event.clientX - bounds.left) / bounds.width) * 100;
     const width = Math.max(25, Math.min(70, percent));
     workspace.style.setProperty('--editor-width', `${width}%`);
+    queueSaveSession();
   });
 
   splitter.addEventListener('keydown', (event) => {
@@ -641,10 +1117,30 @@
     const change = event.key === 'ArrowLeft' ? -2 : 2;
     const width = Math.max(25, Math.min(70, current + change));
     workspace.style.setProperty('--editor-width', `${width}%`);
+    queueSaveSession();
   });
 
-  dot.value = starter;
+  document.addEventListener('keydown', handleShortcut);
+  window.addEventListener('beforeunload', saveSession);
+  const savedSession = loadSession();
+  let initialProblem = '';
+  if (savedSession) {
+    workspace.style.setProperty(
+      '--editor-width',
+      `${savedSession.paneWidth}%`
+    );
+    autoRender.checked = savedSession.autoRender;
+    pendingView = savedSession.view;
+  }
+  try {
+    dot.value = sourceFromUrl() ?? savedSession?.source ?? starter;
+  } catch (cause) {
+    dot.value = savedSession?.source ?? starter;
+    initialProblem = String(cause);
+  }
+  updateLineNumbers();
   render();
+  if (initialProblem) showClientProblem(initialProblem);
   '''
 ::
 ++  error-json

@@ -12,6 +12,9 @@
     (expect !>(?=(^ (find "id=\"workspace\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"splitter\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"download\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"download-dot\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"share\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"auto-render\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"help\"" (trip html)))))
     (expect !>(?=(^ (find "data-state=\"empty\"" (trip html)))))
   ==
@@ -48,6 +51,41 @@
     (expect !>(?=(^ (find "addEventListener('wheel'" js))))
     (expect !>(?=(^ (find "addEventListener('pointermove'" js))))
     (expect !>(?=(^ (find "replaceChildren(svg)" js))))
+  ==
+::
+++  test-editor-usability
+  =/  html  (trip page:web)
+  =/  js  (trip javascript:web)
+  ;:  weld
+    (expect !>(?=(^ (find "id=\"line-numbers\"" html))))
+    (expect !>(?=(^ (find "value=\"flowchart\"" html))))
+    (expect !>(?=(^ (find "value=\"state-machine\"" html))))
+    (expect !>(?=(^ (find "value=\"dependencies\"" html))))
+    (expect !>(?=(^ (find "value=\"clusters\"" html))))
+    (expect !>(?=(^ (find "createDocumentFragment" js))))
+    (expect !>(?=(^ (find "has-error-line" js))))
+    (expect !>(?=(^ (find "handleTab" js))))
+    (expect !>(?=(^ (find "const pairs" js))))
+    (expect !>(?=(^ (find "handleShortcut" js))))
+    (expect !>(?=(^ (find "downloadCurrentSvg" js))))
+  ==
+::
+++  test-persistence-export
+  =/  js  (trip javascript:web)
+  ;:  weld
+    (expect !>(?=(^ (find "graph-viz.session.v1" js))))
+    (expect !>(?=(^ (find "localStorage.setItem" js))))
+    (expect !>(?=(^ (find "localStorage.getItem" js))))
+    (expect !>(?=(^ (find "preferences:" js))))
+    (expect !>(?=(^ (find "autoRender: autoRender.checked" js))))
+    (expect !>(?=(^ (find "paneWidth: currentPaneWidth()" js))))
+    (expect !>(?=(^ (find "downloadCurrentDot" js))))
+    (expect !>(?=(^ (find "graph.dot" js))))
+    (expect !>(?=(^ (find "graph.svg" js))))
+    (expect !>(?=(^ (find "encodeSource" js))))
+    (expect !>(?=(^ (find "decodeSource" js))))
+    (expect !>(?=(^ (find "maxSharedSourceBytes" js))))
+    (expect !>(?=(^ (find "sourceFromUrl" js))))
   ==
 ::
 ++  test-web-error-json
