@@ -74,6 +74,29 @@
             ;h2: DOT source
             ;span#source-status.status: Ready
           ==
+          ;div.visual-tools(aria-label "Visual editing tools")
+            ;label.control
+              ;span: Node name
+              ;input#new-node-name(type "text", placeholder "new_node");
+            ==
+            ;label.control
+              ;span: Shape
+              ;select#new-node-shape
+                ;option(value "box"): Box
+                ;option(value "ellipse"): Ellipse
+                ;option(value "circle"): Circle
+                ;option(value "diamond"): Diamond
+                ;option(value "point"): Point
+              ==
+            ==
+            ;button#add-node(type "button"): Add node
+            ;button#draw-edge
+              =type      "button"
+              =disabled  ""
+              =title     "Shift-click two nodes, then draw an edge"
+              ;span: Draw edge
+            ==
+          ==
           ;label.sr-only(for "dot"): DOT source
           ;div.editor-body
             ;pre#line-numbers.line-numbers(aria-hidden "true");
@@ -97,13 +120,54 @@
             ;span#render-status.status: Empty
           ==
           ;pre#error.error(hidden "", role "alert");
-          ;div#inspector.inspector(hidden "", role "status")
-            ;span#selection-kind.selection-kind;
-            ;code#selection-id;
-            ;button#clear-selection
-              =type        "button"
-              =aria-label  "Clear graph selection"
-              ;span: Clear
+          ;div#inspector.inspector(hidden "", aria-live "polite")
+            ;div.selection-summary
+              ;span#selection-kind.selection-kind;
+              ;code#selection-id;
+              ;button#delete-selection.danger-button(type "button")
+                Delete
+              ==
+              ;button#clear-selection
+                =type        "button"
+                =aria-label  "Clear graph selection"
+                ;span: Clear
+              ==
+            ==
+            ;form#attribute-form.attribute-form
+              ;label.control
+                ;span: Label
+                ;input#attr-label(type "text", maxlength "200");
+              ==
+              ;label#shape-control.control
+                ;span: Shape
+                ;select#attr-shape
+                  ;option(value ""): Default
+                  ;option(value "box"): Box
+                  ;option(value "ellipse"): Ellipse
+                  ;option(value "circle"): Circle
+                  ;option(value "diamond"): Diamond
+                  ;option(value "point"): Point
+                ==
+              ==
+              ;label.control
+                ;span: Color
+                ;input#attr-color(type "text", placeholder "#2563eb");
+              ==
+              ;label#fill-control.control
+                ;span: Fill color
+                ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
+              ==
+              ;label.control
+                ;span: Line style
+                ;select#attr-style
+                  ;option(value ""): Default
+                  ;option(value "solid"): Solid
+                  ;option(value "dashed"): Dashed
+                  ;option(value "dotted"): Dotted
+                  ;option(value "bold"): Bold
+                ==
+              ==
+              ;button#apply-attributes(type "submit"): Apply
             ==
           ==
           ;div#preview-shell.preview-shell(data-state "empty")
@@ -139,6 +203,8 @@
             ;li: Ctrl/Cmd + 0: fit graph
             ;li: Ctrl/Cmd + 1: reset graph view
             ;li: Tab / Shift + Tab: indent / unindent
+            ;li: Shift-click: select two nodes for an edge
+            ;li: Delete: remove the selected node or edge
           ==
         ==
       ==
@@ -174,7 +240,7 @@
     margin: 0;
   }
 
-  button, select, .preference {
+  button, select, input, .preference {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 0.4rem;
@@ -215,6 +281,27 @@
   }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  .visual-tools {
+    align-items: end;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(8rem, 1fr) auto auto auto;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .control {
+    display: grid;
+    font-size: 0.7rem;
+    gap: 0.2rem;
+  }
+
+  .control input, .control select {
+    font-size: 0.85rem;
+    min-width: 0;
+    padding: 0.35rem 0.5rem;
+  }
 
   .preference {
     align-items: center;
@@ -400,19 +487,35 @@
   }
 
   .inspector {
-    align-items: center;
     background: #fffbeb;
     border-bottom: 1px solid #fde68a;
     color: #78350f;
-    display: flex;
-    gap: 0.5rem;
+    display: grid;
+    gap: 0.6rem;
     min-height: 2.5rem;
     padding: 0.35rem 0.75rem;
   }
 
   .inspector[hidden] { display: none; }
-  .inspector code { flex: 1; overflow-wrap: anywhere; }
+  .inspector code { overflow-wrap: anywhere; }
   .selection-kind { font-size: 0.75rem; font-weight: 700; }
+
+  .selection-summary {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .selection-summary code { flex: 1; }
+
+  .attribute-form {
+    align-items: end;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(5, minmax(5rem, 1fr)) auto;
+  }
+
+  .danger-button { color: var(--danger); }
 
   .help-panel {
     background: rgb(0 0 0 / 0.4);
@@ -451,6 +554,10 @@
 
     .app-header { align-items: stretch; flex-direction: column; }
     .toolbar { display: grid; grid-template-columns: repeat(3, 1fr); }
+
+    .visual-tools, .attribute-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 
     .workspace {
       grid-template-columns: minmax(0, 1fr);
@@ -521,6 +628,19 @@
   const selectionKind = document.querySelector('#selection-kind');
   const selectionId = document.querySelector('#selection-id');
   const clearSelection = document.querySelector('#clear-selection');
+  const deleteSelection = document.querySelector('#delete-selection');
+  const attributeForm = document.querySelector('#attribute-form');
+  const shapeControl = document.querySelector('#shape-control');
+  const fillControl = document.querySelector('#fill-control');
+  const attrLabel = document.querySelector('#attr-label');
+  const attrShape = document.querySelector('#attr-shape');
+  const attrColor = document.querySelector('#attr-color');
+  const attrFillcolor = document.querySelector('#attr-fillcolor');
+  const attrStyle = document.querySelector('#attr-style');
+  const newNodeName = document.querySelector('#new-node-name');
+  const newNodeShape = document.querySelector('#new-node-shape');
+  const addNode = document.querySelector('#add-node');
+  const drawEdge = document.querySelector('#draw-edge');
   const preview = document.querySelector('#preview');
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
@@ -555,7 +675,7 @@
   let errorLine = 0;
   let lastSvgSource = '';
   let pendingView;
-  let selectedElement;
+  let selectedItems = [];
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -1021,6 +1141,400 @@
     return parseDotStatementList(tokens, open + 1, close);
   }
 
+  function graphBody(source) {
+    const tokens = dotTokens(source);
+    const open = tokens.findIndex((token) => token.value === '{');
+    if (open < 0) throw new Error('Graph body not found');
+    const header = tokens.slice(0, open).find((token) => {
+      const value = token.value.toLowerCase();
+      return !token.quoted && (value === 'graph' || value === 'digraph');
+    });
+    if (!header) throw new Error('Graph type not found');
+    const close = matchingToken(tokens, open, '{', '}');
+    if (tokens[close]?.value !== '}') {
+      throw new Error('Graph closing brace not found');
+    }
+    return {
+      close: tokens[close].start,
+      operator: header.value.toLowerCase() === 'digraph' ? '->' : '--'
+    };
+  }
+
+  function dotIdSource(value) {
+    const identity = value.trim();
+    const keywords = [
+      'strict', 'graph', 'digraph', 'node', 'edge', 'subgraph'
+    ];
+    const bareName = /^[A-Za-z_\u0080-\u00ff][A-Za-z0-9_\u0080-\u00ff]*$/;
+    const numeral = /^-?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)$/;
+    if (!identity || identity.length > 80) {
+      throw new Error('Node names must contain 1 to 80 characters');
+    }
+    if (/[\0\r\n\\]/.test(identity)) {
+      throw new Error('Node names cannot contain controls or backslashes');
+    }
+    if ((bareName.test(identity) || numeral.test(identity))
+      && !keywords.includes(identity.toLowerCase())) return identity;
+    return `"${identity.replace(/"/g, '\\"')}"`;
+  }
+
+  function dotValueSource(value, maximum = 200) {
+    if (value.length > maximum || /[\0\r\n]/.test(value)) {
+      throw new Error(`Attribute values must be at most ${maximum} characters`);
+    }
+    if (value.endsWith('\\')) {
+      throw new Error('Attribute values cannot end with a backslash');
+    }
+    return `"${value.replace(/"/g, '\\"')}"`;
+  }
+
+  function validColor(value) {
+    if (!value) return true;
+    return /^#[0-9A-Fa-f]{6}$/.test(value)
+      || /^[A-Za-z][A-Za-z0-9]*$/.test(value);
+  }
+
+  function insertRootStatement(source, statement) {
+    const body = graphBody(source);
+    const before = source.slice(0, body.close);
+    const newline = before.endsWith('\n') ? '' : '\n';
+    return before + newline + `  ${statement}\n` + source.slice(body.close);
+  }
+
+  function applyVisualMutation(source) {
+    validateSource(source);
+    dot.value = source;
+    editorChanged();
+    renderNow();
+  }
+
+  function mutationProblem(cause) {
+    showClientProblem(cause instanceof Error ? cause.message : String(cause));
+  }
+
+  function addVisualNode() {
+    try {
+      const identity = newNodeName.value.trim();
+      const id = dotIdSource(identity);
+      const shape = newNodeShape.value;
+      const shapes = ['box', 'ellipse', 'circle', 'diamond', 'point'];
+      if (!shapes.includes(shape)) throw new Error('Unsupported node shape');
+      const exists = dotStatements(dot.value).some((statement) => {
+        return statement.nodeNames.includes(identity);
+      });
+      if (exists) throw new Error('A node with that name already exists');
+      const source = insertRootStatement(
+        dot.value,
+        `${id} [shape=${shape}]`
+      );
+      newNodeName.value = '';
+      applyVisualMutation(source);
+    } catch (cause) {
+      mutationProblem(cause);
+    }
+  }
+
+  function drawSelectedEdge() {
+    try {
+      if (selectedItems.length !== 2
+        || selectedItems.some((item) => item.kind !== 'node')) {
+        throw new Error('Shift-click two nodes before drawing an edge');
+      }
+      const body = graphBody(dot.value);
+      const [tail, head] = selectedItems.map((item) => item.identity);
+      const identity = tail + body.operator + head;
+      const exists = dotStatements(dot.value).some((statement) => {
+        return statement.edges.includes(identity);
+      });
+      if (exists) throw new Error('That edge already exists');
+      const edge = `${dotIdSource(tail)} ${body.operator} ${dotIdSource(head)}`;
+      applyVisualMutation(insertRootStatement(dot.value, edge));
+    } catch (cause) {
+      mutationProblem(cause);
+    }
+  }
+
+  function statementRemovalRange(statement) {
+    const lineStart = dot.value.lastIndexOf('\n', statement.start - 1) + 1;
+    const nextLine = dot.value.indexOf('\n', statement.end);
+    const lineEnd = nextLine < 0 ? dot.value.length : nextLine + 1;
+    const before = dot.value.slice(lineStart, statement.start).trim();
+    const afterEnd = nextLine < 0 ? dot.value.length : nextLine;
+    const after = dot.value.slice(statement.end, afterEnd).trim();
+    if (!before && !after) return {start: lineStart, end: lineEnd};
+    return {start: statement.start, end: statement.end};
+  }
+
+  function removeStatementRanges(source, statements) {
+    const ordered = statements.map(statementRemovalRange)
+      .sort((left, right) => left.start - right.start);
+    const merged = [];
+    for (const range of ordered) {
+      const previous = merged.at(-1);
+      if (previous && range.start <= previous.end) {
+        previous.end = Math.max(previous.end, range.end);
+      } else {
+        merged.push({...range});
+      }
+    }
+    const ranges = merged.reverse();
+    let result = source;
+    for (const range of ranges) {
+      result = result.slice(0, range.start) + result.slice(range.end);
+    }
+    return result;
+  }
+
+  function deleteSelectedItem() {
+    try {
+      if (selectedItems.length !== 1) {
+        throw new Error('Select one node or edge to delete');
+      }
+      const selected = selectedItems[0];
+      const statements = dotStatements(dot.value);
+      let removals;
+      if (selected.kind === 'edge') {
+        const statement = statements.find((candidate) => {
+          return candidate.edges.includes(selected.identity);
+        });
+        if (!statement || statement.edges.length !== 1) {
+          throw new Error('Edit edge chains or grouped edges in DOT');
+        }
+        removals = [statement];
+      } else {
+        removals = statements.filter((statement) => {
+          return statement.nodeNames.includes(selected.identity);
+        });
+        const unsafe = removals.some((statement) => {
+          return statement.kind === 'edge' && statement.edges.length !== 1;
+        });
+        if (unsafe) {
+          throw new Error('Edit nodes used in chains or groups in DOT');
+        }
+      }
+      if (!removals.length) throw new Error('Source statement not found');
+      applyVisualMutation(removeStatementRanges(dot.value, removals));
+    } catch (cause) {
+      mutationProblem(cause);
+    }
+  }
+
+  function editableStatement(kind, identity) {
+    const statements = dotStatements(dot.value);
+    if (kind === 'edge') {
+      const statement = statements.find((candidate) => {
+        return candidate.edges.includes(identity);
+      });
+      if (statement && statement.edges.length !== 1) return undefined;
+      return statement;
+    }
+    const matches = statements.filter((statement) => {
+      return statement.kind === 'node'
+        && statement.nodeNames.length === 1
+        && statement.nodeNames[0] === identity;
+    });
+    return matches.at(-1);
+  }
+
+  function readStatementAttributes(statement) {
+    if (!statement) return {base: '', semicolon: false, attributes: new Map()};
+    const segment = dot.value.slice(statement.start, statement.end);
+    const tokens = dotTokens(segment);
+    const firstOpen = tokens.findIndex((token) => token.value === '[');
+    const semicolon = tokens.at(-1)?.value === ';';
+    if (firstOpen < 0) {
+      const end = semicolon ? tokens.at(-1).start : segment.length;
+      return {
+        base: segment.slice(0, end).trimEnd(),
+        semicolon,
+        attributes: new Map()
+      };
+    }
+    if (/\/\*|\/\//.test(segment.slice(tokens[firstOpen].start))) {
+      throw new Error('Edit attributes containing comments in DOT');
+    }
+    const attributes = new Map();
+    let cursor = firstOpen;
+    let lastClose = firstOpen;
+    while (tokens[cursor]?.value === '[') {
+      const close = matchingToken(tokens, cursor, '[', ']');
+      let item = cursor + 1;
+      while (item < close) {
+        if (tokens[item].value === ',' || tokens[item].value === ';') {
+          item += 1;
+          continue;
+        }
+        const key = parseDotId(tokens, item);
+        if (!key || tokens[key.next]?.value !== '=') {
+          throw new Error('Edit complex attribute lists in DOT');
+        }
+        const valueStart = key.next + 1;
+        const value = parseDotId(tokens, valueStart);
+        if (!value || value.next > close) {
+          throw new Error('Edit complex attribute lists in DOT');
+        }
+        const rawStart = tokens[valueStart].start;
+        const rawEnd = tokens[value.next - 1].end;
+        attributes.set(key.value.toLowerCase(), {
+          name: key.value,
+          nameRaw: segment.slice(
+            tokens[item].start,
+            tokens[key.next - 1].end
+          ),
+          value: value.value,
+          raw: segment.slice(rawStart, rawEnd)
+        });
+        item = value.next;
+      }
+      lastClose = close;
+      cursor = close + 1;
+    }
+    if (tokens[cursor] && tokens[cursor].value !== ';') {
+      throw new Error('Edit complex attribute statements in DOT');
+    }
+    return {
+      base: segment.slice(0, tokens[firstOpen].start).trimEnd(),
+      semicolon: tokens[cursor]?.value === ';',
+      attributes,
+      lastClose
+    };
+  }
+
+  function setParsedAttribute(parsed, name, value, decoded = value) {
+    if (value === undefined) {
+      parsed.attributes.delete(name);
+      return;
+    }
+    parsed.attributes.set(name, {name, raw: value, value: decoded});
+  }
+
+  function writeStatementAttributes(parsed) {
+    const values = [...parsed.attributes.values()];
+    const attributes = values.length
+      ? ' [' + values.map((item) => {
+          return `${item.nameRaw || item.name}=${item.raw}`;
+        }).join(', ') + ']'
+      : '';
+    return parsed.base + attributes + (parsed.semicolon ? ';' : '');
+  }
+
+  function populateAttributeForm(selected) {
+    attributeForm.hidden = false;
+    const statement = editableStatement(selected.kind, selected.identity);
+    if (selected.kind === 'edge' && !statement) {
+      attributeForm.hidden = true;
+      sourceStatus.textContent = 'Edit chains and grouped edges in DOT';
+      return;
+    }
+    try {
+      const parsed = readStatementAttributes(statement);
+      const get = (name) => parsed.attributes.get(name)?.value || '';
+      const styles = get('style').split(',').map((value) => value.trim());
+      attrLabel.value = get('label');
+      attrColor.value = get('color');
+      attrStyle.value = ['solid', 'dashed', 'dotted', 'bold']
+        .find((style) => styles.includes(style)) || '';
+      const isNode = selected.kind === 'node';
+      shapeControl.hidden = !isNode;
+      fillControl.hidden = !isNode;
+      attrShape.value = isNode ? get('shape') : '';
+      attrFillcolor.value = isNode ? get('fillcolor') : '';
+    } catch (cause) {
+      attributeForm.hidden = true;
+      sourceStatus.textContent = cause.message;
+    }
+  }
+
+  function applySelectedAttributes(event) {
+    event.preventDefault();
+    try {
+      if (selectedItems.length !== 1) {
+        throw new Error('Select one node or edge to edit');
+      }
+      const selected = selectedItems[0];
+      const statement = editableStatement(selected.kind, selected.identity);
+      if (selected.kind === 'edge' && !statement) {
+        throw new Error('Edit edge chains or grouped edges in DOT');
+      }
+      const parsed = statement
+        ? readStatementAttributes(statement)
+        : {
+            base: dotIdSource(selected.identity),
+            semicolon: false,
+            attributes: new Map()
+          };
+      const label = attrLabel.value;
+      const color = attrColor.value.trim();
+      const fillcolor = attrFillcolor.value.trim();
+      const shape = attrShape.value;
+      const lineStyle = attrStyle.value;
+      const shapes = ['', 'box', 'ellipse', 'circle', 'diamond', 'point'];
+      const lineStyles = ['', 'solid', 'dashed', 'dotted', 'bold'];
+      if (!validColor(color) || !validColor(fillcolor)) {
+        throw new Error('Colors must be names or six-digit hex values');
+      }
+      if (!shapes.includes(shape) || !lineStyles.includes(lineStyle)) {
+        throw new Error('Unsupported shape or line style');
+      }
+      setParsedAttribute(
+        parsed,
+        'label',
+        label ? dotValueSource(label) : undefined,
+        label
+      );
+      setParsedAttribute(
+        parsed,
+        'color',
+        color ? dotValueSource(color, 40) : undefined,
+        color
+      );
+      const oldStyles = (parsed.attributes.get('style')?.value || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const controlled = new Set(['solid', 'dashed', 'dotted', 'bold']);
+      if (selected.kind === 'node') controlled.add('filled');
+      const styles = oldStyles.filter((style) => !controlled.has(style));
+      if (lineStyle) styles.push(lineStyle);
+      if (selected.kind === 'node') {
+        const hadFillcolor = parsed.attributes.has('fillcolor');
+        const keepFilled = fillcolor
+          || (oldStyles.includes('filled') && !hadFillcolor);
+        if (keepFilled) styles.push('filled');
+        setParsedAttribute(
+          parsed,
+          'shape',
+          shape || undefined,
+          shape
+        );
+        setParsedAttribute(
+          parsed,
+          'fillcolor',
+          fillcolor ? dotValueSource(fillcolor, 40) : undefined,
+          fillcolor
+        );
+      }
+      const uniqueStyles = [...new Set(styles)];
+      setParsedAttribute(
+        parsed,
+        'style',
+        uniqueStyles.length
+          ? dotValueSource(uniqueStyles.join(','), 80)
+          : undefined,
+        uniqueStyles.join(',')
+      );
+      const replacement = writeStatementAttributes(parsed);
+      const source = statement
+        ? dot.value.slice(0, statement.start)
+          + replacement
+          + dot.value.slice(statement.end)
+        : insertRootStatement(dot.value, replacement);
+      applyVisualMutation(source);
+    } catch (cause) {
+      mutationProblem(cause);
+    }
+  }
+
   function sourceRangeFor(kind, identity) {
     const statements = dotStatements(dot.value);
     if (kind === 'node') {
@@ -1061,28 +1575,69 @@
   }
 
   function clearVisualSelection() {
-    if (selectedElement) {
-      selectedElement.classList.remove('is-selected');
-      selectedElement.removeAttribute('aria-current');
+    for (const selected of selectedItems) {
+      selected.element.classList.remove('is-selected');
+      selected.element.removeAttribute('aria-current');
     }
-    selectedElement = undefined;
+    selectedItems = [];
     inspector.hidden = true;
+    attributeForm.hidden = true;
+    drawEdge.disabled = true;
     selectionKind.textContent = '';
     selectionId.textContent = '';
   }
 
-  function selectVisualElement(group) {
+  function refreshVisualSelection() {
+    drawEdge.disabled = selectedItems.length !== 2
+      || selectedItems.some((item) => item.kind !== 'node');
+    deleteSelection.disabled = selectedItems.length !== 1;
+    if (!selectedItems.length) {
+      inspector.hidden = true;
+      attributeForm.hidden = true;
+      return;
+    }
+    inspector.hidden = false;
+    if (selectedItems.length === 2) {
+      selectionKind.textContent = 'Nodes';
+      selectionId.textContent = selectedItems
+        .map((item) => item.identity)
+        .join(' -> ');
+      attributeForm.hidden = true;
+      return;
+    }
+    const selected = selectedItems[0];
+    selectionKind.textContent = selected.kind === 'node' ? 'Node' : 'Edge';
+    selectionId.textContent = selected.identity;
+    populateAttributeForm(selected);
+  }
+
+  function selectVisualElement(group, additive = false) {
     const title = group.querySelector(':scope > title');
     if (!title) return;
-    clearVisualSelection();
-    selectedElement = group;
-    group.classList.add('is-selected');
-    group.setAttribute('aria-current', 'true');
     const kind = group.classList.contains('node') ? 'node' : 'edge';
     const identity = title.textContent;
-    selectionKind.textContent = kind === 'node' ? 'Node' : 'Edge';
-    selectionId.textContent = identity;
-    inspector.hidden = false;
+    const existing = selectedItems.findIndex((item) => {
+      return item.element === group;
+    });
+    if (additive && kind === 'node' && existing >= 0) {
+      const removed = selectedItems.splice(existing, 1)[0];
+      removed.element.classList.remove('is-selected');
+      removed.element.removeAttribute('aria-current');
+      refreshVisualSelection();
+      return;
+    }
+    if (!additive || kind !== 'node'
+      || selectedItems.some((item) => item.kind !== 'node')
+      || selectedItems.length >= 2) {
+      clearVisualSelection();
+    }
+    if (!selectedItems.some((item) => item.element === group)) {
+      const selected = {element: group, kind, identity};
+      selectedItems.push(selected);
+      group.classList.add('is-selected');
+      group.setAttribute('aria-current', 'true');
+    }
+    refreshVisualSelection();
     selectSourceStatement(kind, identity);
   }
 
@@ -1329,10 +1884,16 @@
       help.focus();
       return;
     }
-    if (event.key === 'Escape' && selectedElement) {
+    if (event.key === 'Escape' && selectedItems.length) {
       event.preventDefault();
       clearVisualSelection();
       preview.focus();
+      return;
+    }
+    if (event.key === 'Delete' && selectedItems.length === 1
+      && !event.target?.matches?.('input, textarea, select')) {
+      event.preventDefault();
+      deleteSelectedItem();
       return;
     }
     if (!event.ctrlKey && !event.metaKey) return;
@@ -1435,6 +1996,15 @@
   }
 
   button.addEventListener('click', renderNow);
+  addNode.addEventListener('click', addVisualNode);
+  drawEdge.addEventListener('click', drawSelectedEdge);
+  deleteSelection.addEventListener('click', deleteSelectedItem);
+  attributeForm.addEventListener('submit', applySelectedAttributes);
+  newNodeName.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addVisualNode();
+  });
   downloadDot.addEventListener('click', downloadCurrentDot);
   download.addEventListener('click', downloadCurrentSvg);
   share.addEventListener('click', copyShareUrl);
@@ -1461,7 +2031,10 @@
   preview.addEventListener('click', (event) => {
     const group = visualGroup(event.target);
     if (group) {
-      selectVisualElement(group);
+      selectVisualElement(
+        group,
+        event.shiftKey || event.ctrlKey || event.metaKey
+      );
     } else if (event.target === preview || event.target === currentSvg) {
       clearVisualSelection();
     }
@@ -1471,7 +2044,7 @@
     const group = visualGroup(event.target);
     if (!group || (event.key !== 'Enter' && event.key !== ' ')) return;
     event.preventDefault();
-    selectVisualElement(group);
+    selectVisualElement(group, event.shiftKey);
   });
 
   preview.addEventListener('wheel', (event) => {

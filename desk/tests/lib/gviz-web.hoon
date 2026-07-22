@@ -105,6 +105,25 @@
     (expect !>(?=(^ (find "tabindex" js))))
   ==
 ::
+++  test-visual-editing
+  =/  html  (trip page:web)
+  =/  js  (trip javascript:web)
+  ;:  weld
+    (expect !>(?=(^ (find "id=\"new-node-name\"" html))))
+    (expect !>(?=(^ (find "id=\"new-node-shape\"" html))))
+    (expect !>(?=(^ (find "id=\"add-node\"" html))))
+    (expect !>(?=(^ (find "id=\"draw-edge\"" html))))
+    (expect !>(?=(^ (find "id=\"attribute-form\"" html))))
+    (expect !>(?=(^ (find "id=\"delete-selection\"" html))))
+    (expect !>(?=(^ (find "addVisualNode" js))))
+    (expect !>(?=(^ (find "drawSelectedEdge" js))))
+    (expect !>(?=(^ (find "deleteSelectedItem" js))))
+    (expect !>(?=(^ (find "applySelectedAttributes" js))))
+    (expect !>(?=(^ (find "readStatementAttributes" js))))
+    (expect !>(?=(^ (find "insertRootStatement" js))))
+    (expect !>(?=(^ (find "Edit edge chains or grouped edges" js))))
+  ==
+::
 ++  test-web-error-json
   =/  txt  (error-text:web [%parse 2 7 'syntax error'])
   ;:  weld
