@@ -4,6 +4,7 @@
   color+0x57.6b95
   version+[0 1 0]
   website+'https://github.com/jackfoxy/graph-viz'
-  license+'MIT'
+  license+'MIT+n https://github.com/jackfoxy/graph-viz/blob/master/LICENSE.md'
+  image+'https://www.graphviz.org/Resources/app.png'
   site+/apps/graph-viz
 ==

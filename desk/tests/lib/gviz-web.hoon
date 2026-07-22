@@ -125,10 +125,11 @@
   ==
 ::
 ++  test-web-error-json
-  =/  txt  (error-text:web [%parse 2 7 'syntax error'])
+  =/  txt  (error-text:web [%parse 2 7 'bad "quote"\\line\0anext'])
   ;:  weld
     (expect !>(?=(^ (find "\"kind\":\"parse\"" (trip txt)))))
     (expect !>(?=(^ (find "\"line\":2" (trip txt)))))
     (expect !>(?=(^ (find "\"column\":7" (trip txt)))))
+    (expect !>(?=(^ (find "bad \\\"quote\\\"\\\\line\\nnext" (trip txt)))))
   ==
 --

@@ -40,6 +40,9 @@ desk/                     the %graph-viz desk (zuse 409/408)
   tests/dot/*.dot           parser/layout corpus
   tests/svg/*.svg           byte-exact SVG regression goldens
 check.sh                  offline reference validation (see below)
+tests/browser/             Node browser behavior smoke suite
+docs/screenshots/          desktop and responsive release screenshots
+RELEASE.md                 release and manual smoke checklist
 ```
 
 ## Protocol
@@ -59,6 +62,33 @@ from Hoon, so no external frontend build or glob is required. The editor
 posts DOT text to `/apps/graph-viz/render`. The noun protocol above is
 unchanged.
 
+![Graph Viz editor rendering the flowchart template](docs/screenshots/editor.png)
+
+![Responsive Graph Viz editor](docs/screenshots/mobile.png)
+
+## Install from source
+
+The desk is self-contained and has no frontend build step. On a development
+ship, create and mount a desk:
+
+```hoon
+|merge %graph-viz our %base
+|mount %graph-viz
+```
+
+Copy the contents of this repository's `desk/` directory into the mounted
+`graph-viz/` directory beside the pier, then commit and install it:
+
+```hoon
+|commit %graph-viz
+|install our %graph-viz
+```
+
+Open `/apps/graph-viz` through the ship's HTTP interface. Installation starts
+both `%graph-viz` (noun API) and `%graph-viz-web` (browser editor), as declared
+in `desk.bill`. Direct-site metadata lives in `desk.docket-0`; no glob is
+required.
+
 ## Testing
 
 On a fakezod with the desk mounted and installed:
@@ -67,6 +97,17 @@ On a fakezod with the desk mounted and installed:
 |commit %graph-viz
 -test /=graph-viz=/tests ~
 ```
+
+Run the browser behavior suite against the served JavaScript with Node 20 or
+newer:
+
+```bash
+GVIZ_URL=http://localhost:8080 tests/browser/run.sh
+```
+
+The suite covers rendering, out-of-order response suppression, structured
+errors, persistence, DOT/SVG and share-URL export, pan/zoom, and SVG-to-source
+selection. For release validation, follow [RELEASE.md](RELEASE.md).
 
 ## check.sh — reference validation and goldens
 
