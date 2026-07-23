@@ -106,8 +106,9 @@ GVIZ_URL=http://localhost:8080 tests/browser/run.sh
 ```
 
 The suite covers rendering, out-of-order response suppression, structured
-errors, persistence, DOT/SVG and share-URL export, pan/zoom, and SVG-to-source
-selection. For release validation, follow [RELEASE.md](RELEASE.md).
+errors, persistence, Clay-backed DOT/SVG browsing, load, and save, share URLs,
+pan/zoom, and SVG-to-source selection. For release validation, follow
+[RELEASE.md](RELEASE.md).
 
 ## check.sh — reference validation and goldens
 

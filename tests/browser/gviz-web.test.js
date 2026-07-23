@@ -131,8 +131,14 @@ function svgDocument(source) {
 const selectors = [
   '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
-  '#download-dot', '#download', '#fit', '#share', '#auto-render', '#help',
-  '#help-panel', '#close-help', '#workspace', '#splitter', '#inspector',
+  '#browse-dot', '#load-dot', '#save-dot',
+  '#browse-svg', '#load-svg', '#save-svg', '#fit', '#share',
+  '#auto-render', '#help',
+  '#help-panel', '#close-help', '#file-browser-modal',
+  '#file-browser-title', '#file-browser-tree', '#close-file-browser',
+  '#clay-error-modal',
+  '#clay-error-message', '#close-clay-error', '#workspace', '#splitter',
+  '#inspector',
   '#selection-kind', '#selection-id', '#clear-selection',
   '#delete-selection', '#attribute-form', '#shape-control', '#fill-control',
   '#attr-label', '#attr-shape', '#attr-color', '#attr-fillcolor',
@@ -143,14 +149,16 @@ const elements = Object.fromEntries(selectors.map((name) => {
   return [name, new Element()];
 }));
 elements['#auto-render'].checked = true;
+elements['#file-browser-modal'].hidden = true;
+elements['#clay-error-modal'].hidden = true;
 elements['#new-node-shape'].value = 'box';
 
 const requests = [];
 const saved = new Map();
 const documentListeners = {};
 const windowListeners = {};
-const downloads = [];
 let copiedUrl = '';
+const prompts = [];
 saved.set('graph-viz.session.v1', JSON.stringify({
   version: 1,
   source: 'digraph saved { Alpha -> Beta }',
@@ -167,11 +175,7 @@ global.document = {
     children: [],
     append(item) { this.children.push(item); }
   }),
-  createElement: (name) => {
-    const item = new Element();
-    if (name === 'a') downloads.push(item);
-    return item;
-  },
+  createElement: () => new Element(),
   addEventListener: (name, callback) => { documentListeners[name] = callback; }
 };
 global.DOMParser = class {
@@ -193,7 +197,7 @@ global.localStorage = {
 global.window = {
   location: {href: 'http://localhost:18080/apps/graph-viz/'},
   addEventListener: (name, callback) => { windowListeners[name] = callback; },
-  prompt: () => {}
+  prompt: () => prompts.shift()
 };
 global.navigator = {
   clipboard: {writeText: async (value) => { copiedUrl = value; }}
@@ -212,6 +216,11 @@ function response(ok, body) {
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+function descendants(element) {
+  return element.children.flatMap((child) => {
+    return [child, ...descendants(child)];
+  });
+}
 vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application});
 
 (async () => {
@@ -290,10 +299,97 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(session.source, dot.value);
   assert(Number.isFinite(session.view.scale));
 
-  elements['#download-dot'].listeners.click({});
-  elements['#download'].listeners.click({});
-  assert.deepEqual(downloads.slice(-2).map((item) => item.download),
-    ['graph.dot', 'graph.svg']);
+  prompts.push('examples/source');
+  const saveDotRequest = elements['#save-dot'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/save');
+  assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
+    'examples/source');
+  assert.equal(requests.at(-1).options.body, dot.value);
+  requests.at(-1).resolve(response(true, 'saved'));
+  await saveDotRequest;
+
+  prompts.push('examples/output');
+  const saveSvgRequest = elements['#save-svg'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/save');
+  assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
+    'examples/output');
+  requests.at(-1).resolve(response(true, 'saved'));
+  await saveSvgRequest;
+
+  const browseDotRequest = elements['#browse-dot'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/browse');
+  requests.at(-1).resolve(response(true, JSON.stringify([
+    '/examples/alpha/txt',
+    '/examples/beta/txt'
+  ])));
+  await browseDotRequest;
+  assert.equal(elements['#file-browser-modal'].hidden, false);
+  const dotFile = descendants(elements['#file-browser-tree']).find((item) => {
+    return item.dataset?.path === 'examples/beta/txt';
+  });
+  assert(dotFile);
+  const browseLoadDot = dotFile.listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
+  assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
+    'examples/beta/txt');
+  requests.at(-1).resolve(response(true, 'digraph browsed { B -> C }'));
+  await browseLoadDot;
+  assert.equal(dot.value, 'digraph browsed { B -> C }');
+
+  elements['#auto-render'].checked = true;
+  const browseSvgRequest = elements['#browse-svg'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/browse');
+  requests.at(-1).resolve(response(true, JSON.stringify([
+    '/examples/preview/svg'
+  ])));
+  await browseSvgRequest;
+  const svgFile = descendants(elements['#file-browser-tree']).find((item) => {
+    return item.dataset?.path === 'examples/preview/svg';
+  });
+  assert(svgFile);
+  const browseLoadSvg = svgFile.listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
+  requests.at(-1).resolve(response(true, '<svg id="browsed"/>'));
+  await browseLoadSvg;
+  assert.equal(elements['#preview'].children[0].renderSource,
+    '<svg id="browsed"/>');
+  assert.equal(elements['#auto-render'].checked, false);
+
+  prompts.push('examples/loaded');
+  const loadDotRequest = elements['#load-dot'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
+  requests.at(-1).resolve(response(true, 'digraph loaded { A -> B }'));
+  await loadDotRequest;
+  assert.equal(dot.value, 'digraph loaded { A -> B }');
+
+  elements['#auto-render'].checked = true;
+  prompts.push('examples/loaded');
+  const loadSvgRequest = elements['#load-svg'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
+  requests.at(-1).resolve(response(true, '<svg id="loaded"/>'));
+  await loadSvgRequest;
+  assert.equal(elements['#preview'].children[0].renderSource,
+    '<svg id="loaded"/>');
+  assert.equal(elements['#auto-render'].checked, false);
+
+  const failedBrowse = elements['#browse-dot'].listeners.click({});
+  requests.at(-1).resolve(response(false, 'Clay browse failed'));
+  await failedBrowse;
+  assert.equal(elements['#file-browser-modal'].hidden, true);
+  assert.equal(elements['#clay-error-modal'].hidden, false);
+  elements['#close-clay-error'].listeners.click({});
+
+  prompts.push('examples/missing');
+  const failedLoad = elements['#load-dot'].listeners.click({});
+  requests.at(-1).resolve(response(false, 'Clay file not found'));
+  await failedLoad;
+  assert.equal(elements['#clay-error-modal'].hidden, false);
+  assert(elements['#clay-error-message'].textContent.includes(
+    'Clay file not found'
+  ));
+  elements['#close-clay-error'].listeners.click({});
+  assert.equal(elements['#clay-error-modal'].hidden, true);
+
   await elements['#share'].listeners.click({});
   const encoded = new URL(copiedUrl).searchParams.get('dot');
   assert.equal(Buffer.from(encoded, 'base64url').toString(), dot.value);

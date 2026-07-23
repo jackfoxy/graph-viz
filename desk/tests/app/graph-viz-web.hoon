@@ -10,6 +10,7 @@
     our  ~zod
     src  ~zod
     dap  %graph-viz-web
+    byk  [~zod %graph-viz %da ~2000.1.1]
   ==
 ::
 ++  request
@@ -29,6 +30,12 @@
   |=  req=inbound-request:eyre
   %-  on-poke:~(. agent bol)
   [%handle-http-request !>(['request' req])]
+::
+++  file-request
+  |=  [url=@t path=@t body=(unit octs)]
+  ^-  inbound-request:eyre
+  =/  req  (request %'POST' url body)
+  req(header-list.request ~[['x-graph-viz-path' path]])
 ::
 ++  response-status
   |=  cards=(list card:agent:gall)
@@ -144,5 +151,73 @@
     !>((response-headers -.out))
     (expect !>(?=(^ (find "\"kind\":\"parse\"" txt))))
     (expect !>(?=(^ (find "\"line\":" txt))))
+  ==
+::
+++  test-web-file-missing-path
+  =/  out
+    (poke-http (request %'POST' '/apps/graph-viz/file/dot/save' ~))
+  ;:  weld
+    (expect-eq !>(400) !>((response-status -.out)))
+    (expect-eq !>('missing Clay path') !>((response-body -.out)))
+  ==
+::
+++  test-browse-paths
+  =/  files=(list path)
+    :~  /app/graph-viz/examples/source/txt
+        /app/graph-viz/examples/output/svg
+        /app/other/ignored/txt
+        /app/graph-viz/examples/nested/txt/file
+    ==
+  ;:  weld
+    %+  expect-eq
+      !>(~[/examples/source/txt])
+    !>((browse-paths:agent files %txt))
+    %+  expect-eq
+      !>(~[/examples/output/svg])
+    !>((browse-paths:agent files %svg))
+    %+  expect-eq
+      !>('["/examples/source/txt"]')
+    !>((browse-text:agent ~[/examples/source/txt]))
+  ==
+::
+++  test-web-save-dot
+  =/  src  'digraph { a -> b }'
+  =/  body  `(as-octt:mimes:html (trip src))
+  =/  req
+    (file-request '/apps/graph-viz/file/dot/save' 'examples/source' body)
+  =/  out  (poke-http req)
+  =/  cards  -.out
+  ?>  ?=(^ cards)
+  =/  save  i.cards
+  =/  pax  /app/graph-viz/examples/source/txt
+  =/  expected=card:agent:gall
+    :*  %pass  /clay/save  %arvo  %c
+        %info  %graph-viz  %&
+        ~[[pax %ins [%txt !>((to-wain:format src))]]]
+    ==
+  ;:  weld
+    (expect-eq !>(expected) !>(save))
+    (expect-eq !>(200) !>((response-status t.cards)))
+    (expect-eq !>('saved') !>((response-body t.cards)))
+  ==
+::
+++  test-web-save-svg
+  =/  src  '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+  =/  body  `(as-octt:mimes:html (trip src))
+  =/  req
+    (file-request '/apps/graph-viz/file/svg/save' 'examples/output/txt' body)
+  =/  out  (poke-http req)
+  =/  cards  -.out
+  ?>  ?=(^ cards)
+  =/  save  i.cards
+  =/  pax  /app/graph-viz/examples/output/txt/svg
+  =/  expected=card:agent:gall
+    :*  %pass  /clay/save  %arvo  %c
+        %info  %graph-viz  %&
+        ~[[pax %ins [%svg !>(src)]]]
+    ==
+  ;:  weld
+    (expect-eq !>(expected) !>(save))
+    (expect-eq !>(200) !>((response-status t.cards)))
   ==
 --

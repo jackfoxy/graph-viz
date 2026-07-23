@@ -44,17 +44,6 @@
             =title     "Reset view (Ctrl+1)"
             ;span: Reset
           ==
-          ;button#download-dot
-            =type   "button"
-            =title  "Download DOT (Ctrl+S)"
-            ;span: Download DOT
-          ==
-          ;button#download
-            =type      "button"
-            =disabled  ""
-            =title     "Download SVG (Ctrl+Shift+S)"
-            ;span: Download SVG
-          ==
           ;button#fit
             =type      "button"
             =disabled  ""
@@ -73,6 +62,11 @@
         ;section#editor-pane.pane.editor-pane
           ;div.pane-header
             ;h2: DOT source
+            ;div.file-actions(aria-label "DOT file controls")
+              ;button#browse-dot(type "button"): Browse
+              ;button#load-dot(type "button"): Load DOT
+              ;button#save-dot(type "button"): Save DOT
+            ==
             ;span#source-status.status: Ready
           ==
           ;div.visual-tools(aria-label "Visual editing tools")
@@ -118,6 +112,11 @@
         ;section#preview-pane.pane.preview-pane
           ;div.pane-header
             ;h2: Preview
+            ;div.file-actions(aria-label "SVG file controls")
+              ;button#browse-svg(type "button"): Browse
+              ;button#load-svg(type "button"): Load SVG
+              ;button#save-svg(type "button", disabled ""): Save SVG
+            ==
             ;span#render-status.status: Empty
           ==
           ;pre#error.error(hidden "", role "alert");
@@ -199,14 +198,52 @@
           ;h3: Keyboard shortcuts
           ;ul.shortcut-list
             ;li: Ctrl/Cmd + Enter: render now
-            ;li: Ctrl/Cmd + S: download DOT
-            ;li: Ctrl/Cmd + Shift + S: download SVG
+            ;li: Ctrl/Cmd + S: save DOT to Clay
+            ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
             ;li: Ctrl/Cmd + 0: fit graph
             ;li: Ctrl/Cmd + 1: reset graph view
             ;li: Tab / Shift + Tab: indent / unindent
             ;li: Shift-click: select two nodes for an edge
             ;li: Delete: remove the selected node or edge
           ==
+        ==
+      ==
+      ;aside#file-browser-modal.help-panel
+        =hidden      ""
+        =role        "dialog"
+        =aria-modal  "true"
+        =aria-labelledby  "file-browser-title"
+        ;div.help-card.file-browser-card
+          ;div.pane-header
+            ;h2#file-browser-title: Clay files
+            ;button#close-file-browser
+              =type        "button"
+              =aria-label  "Close file browser"
+              ;span: Close
+            ==
+          ==
+          ;div#file-browser-tree.file-browser-tree
+            =role        "tree"
+            =aria-label  "Available Clay files"
+            ;p: Loading…
+          ==
+        ==
+      ==
+      ;aside#clay-error-modal.help-panel
+        =hidden      ""
+        =role        "dialog"
+        =aria-modal  "true"
+        =aria-labelledby  "clay-error-title"
+        ;div.help-card
+          ;div.pane-header
+            ;h2#clay-error-title: Clay error
+            ;button#close-clay-error
+              =type        "button"
+              =aria-label  "Close Clay error"
+              ;span: Close
+            ==
+          ==
+          ;pre#clay-error-message.clay-error-message;
         ==
       ==
       ;script(src "/apps/graph-viz/app.js");
@@ -339,7 +376,12 @@
   }
 
   .pane-header h2 { font-size: 0.9rem; margin: 0; }
-  .status { color: var(--muted); font-size: 0.75rem; }
+  .file-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+  .status {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+  }
 
   .editor-body {
     display: flex;
@@ -542,6 +584,45 @@
 
   .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
 
+  .file-browser-card { max-width: 40rem; }
+
+  .file-browser-tree {
+    max-height: 60vh;
+    min-height: 8rem;
+    overflow: auto;
+    padding: 0.75rem 0;
+  }
+
+  .file-tree-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+
+  .file-browser-tree > .file-tree-list { padding-left: 0; }
+
+  .file-tree-directory {
+    color: var(--muted);
+    padding: 0.2rem 0;
+  }
+
+  .file-tree-file {
+    background: transparent;
+    border: 0;
+    color: var(--accent);
+    padding: 0.3rem 0.5rem;
+    text-align: left;
+    width: 100%;
+  }
+
+  .file-tree-file:hover:not(:disabled) { background: var(--background); }
+
+  .clay-error-message {
+    color: var(--danger);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
   .sr-only {
     height: 1px;
     margin: -1px;
@@ -656,14 +737,25 @@
   const renderStatus = document.querySelector('#render-status');
   const sourceStatus = document.querySelector('#source-status');
   const resetView = document.querySelector('#reset-view');
-  const downloadDot = document.querySelector('#download-dot');
-  const download = document.querySelector('#download');
+  const browseDot = document.querySelector('#browse-dot');
+  const loadDot = document.querySelector('#load-dot');
+  const saveDot = document.querySelector('#save-dot');
+  const browseSvg = document.querySelector('#browse-svg');
+  const loadSvg = document.querySelector('#load-svg');
+  const saveSvg = document.querySelector('#save-svg');
   const fit = document.querySelector('#fit');
   const share = document.querySelector('#share');
   const autoRender = document.querySelector('#auto-render');
   const help = document.querySelector('#help');
   const helpPanel = document.querySelector('#help-panel');
   const closeHelp = document.querySelector('#close-help');
+  const fileBrowserModal = document.querySelector('#file-browser-modal');
+  const fileBrowserTitle = document.querySelector('#file-browser-title');
+  const fileBrowserTree = document.querySelector('#file-browser-tree');
+  const closeFileBrowser = document.querySelector('#close-file-browser');
+  const clayErrorModal = document.querySelector('#clay-error-modal');
+  const clayErrorMessage = document.querySelector('#clay-error-message');
+  const closeClayError = document.querySelector('#close-clay-error');
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const renderDelay = 350;
@@ -694,7 +786,7 @@
 
   function setPreviewControls(enabled) {
     resetView.disabled = !enabled;
-    download.disabled = !enabled;
+    saveSvg.disabled = !enabled;
     fit.disabled = !enabled;
   }
 
@@ -702,6 +794,118 @@
     helpPanel.hidden = !open;
     help.setAttribute('aria-expanded', String(open));
     if (open) closeHelp.focus();
+  }
+
+  function showClayError(cause) {
+    clayErrorMessage.textContent = String(cause);
+    clayErrorModal.hidden = false;
+    closeClayError.focus();
+  }
+
+  function hideClayError() {
+    clayErrorModal.hidden = true;
+  }
+
+  function hideFileBrowser() {
+    fileBrowserModal.hidden = true;
+  }
+
+  function normalizeClayPath(value) {
+    const path = value.trim().replace(/^\/+/, '');
+    if (!path || path.split('/').some((part) => {
+      return !part || part === '.' || part === '..';
+    })) {
+      throw new Error('Enter a relative Clay path');
+    }
+    if (!/^[A-Za-z0-9._~/-]+$/.test(path)) {
+      throw new Error('Clay path contains unsupported characters');
+    }
+    return path;
+  }
+
+  function renderFileTree(paths, kind) {
+    const root = new Map();
+    for (const rawPath of paths) {
+      if (typeof rawPath !== 'string') {
+        throw new Error('Invalid Clay file list');
+      }
+      const path = normalizeClayPath(rawPath);
+      const parts = path.split('/');
+      let branch = root;
+      for (const [index, name] of parts.entries()) {
+        if (!branch.has(name)) {
+          branch.set(name, {children: new Map(), path: undefined});
+        }
+        const node = branch.get(name);
+        if (index === parts.length - 1) node.path = path;
+        branch = node.children;
+      }
+    }
+    fileBrowserTree.textContent = '';
+    if (!root.size) {
+      fileBrowserTree.textContent =
+        `No /${kind === 'dot' ? 'txt' : 'svg'} files found.`;
+      return;
+    }
+    function renderBranch(branch) {
+      const list = document.createElement('ul');
+      list.className = 'file-tree-list';
+      const entries = [...branch.entries()]
+        .sort(([left], [right]) => left.localeCompare(right));
+      for (const [name, node] of entries) {
+        const item = document.createElement('li');
+        if (node.children.size) {
+          const directory = document.createElement('div');
+          directory.className = 'file-tree-directory';
+          directory.textContent = `${name}/`;
+          item.append(directory);
+        }
+        if (node.path) {
+          const file = document.createElement('button');
+          file.type = 'button';
+          file.className = 'file-tree-file';
+          file.dataset.path = node.path;
+          file.textContent = name;
+          file.addEventListener('click', async () => {
+            hideFileBrowser();
+            if (kind === 'dot') {
+              await loadCurrentDot(node.path);
+            } else {
+              await loadCurrentSvg(node.path);
+            }
+          });
+          item.append(file);
+        }
+        if (node.children.size) item.append(renderBranch(node.children));
+        list.append(item);
+      }
+      return list;
+    }
+    fileBrowserTree.append(renderBranch(root));
+  }
+
+  async function browseClayFiles(kind) {
+    fileBrowserTitle.textContent =
+      `${kind === 'dot' ? 'DOT' : 'SVG'} files`;
+    fileBrowserTree.textContent = 'Loading…';
+    fileBrowserModal.hidden = false;
+    closeFileBrowser.focus();
+    try {
+      const response = await fetch(
+        `/apps/graph-viz/file/${kind}/browse`,
+        {method: 'POST'}
+      );
+      const body = await response.text();
+      if (!response.ok) {
+        throw new Error(body || `Clay request failed (${response.status})`);
+      }
+      const paths = JSON.parse(body);
+      if (!Array.isArray(paths)) throw new Error('Invalid Clay file list');
+      renderFileTree(paths, kind);
+    } catch (cause) {
+      hideFileBrowser();
+      showClayError(cause);
+    }
   }
 
   function sourceByteLength(source) {
@@ -1784,23 +1988,106 @@
     render();
   }
 
-  function downloadSource(source, filename, type) {
-    const blob = new Blob([source], {type});
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+  function requestClayPath(kind) {
+    const value = window.prompt(`${kind} path`);
+    if (value === null) return undefined;
+    return normalizeClayPath(value);
   }
 
-  function downloadCurrentDot() {
-    downloadSource(dot.value, 'graph.dot', 'text/vnd.graphviz;charset=utf-8');
+  async function clayFileRequest(
+    kind,
+    action,
+    source = '',
+    requestedPath
+  ) {
+    const path = requestedPath === undefined
+      ? requestClayPath(kind.toUpperCase())
+      : normalizeClayPath(requestedPath);
+    if (path === undefined) return undefined;
+    const response = await fetch(
+      `/apps/graph-viz/file/${kind}/${action}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'text/plain; charset=utf-8',
+          'x-graph-viz-path': path
+        },
+        body: source
+      }
+    );
+    const body = await response.text();
+    if (!response.ok) {
+      throw new Error(body || `Clay request failed (${response.status})`);
+    }
+    return body;
   }
 
-  function downloadCurrentSvg() {
+  async function loadCurrentDot(path) {
+    try {
+      sourceStatus.textContent = 'Loading';
+      const source = await clayFileRequest('dot', 'load', '', path);
+      if (source === undefined) return;
+      validateSource(source);
+      dot.value = source;
+      editorChanged();
+    } catch (cause) {
+      showClayError(cause);
+      showClientProblem(String(cause));
+    } finally {
+      sourceStatus.textContent = 'Ready';
+    }
+  }
+
+  async function saveCurrentDot() {
+    try {
+      validateSource(dot.value);
+      sourceStatus.textContent = 'Saving';
+      const result = await clayFileRequest('dot', 'save', dot.value);
+      sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
+    } catch (cause) {
+      showClayError(cause);
+      showClientProblem(String(cause));
+      sourceStatus.textContent = 'Save failed';
+    }
+  }
+
+  async function loadCurrentSvg(path) {
+    try {
+      setState('loading', 'Loading');
+      const source = await clayFileRequest('svg', 'load', '', path);
+      if (source === undefined) {
+        const state = currentSvg ? 'ready' : 'empty';
+        setState(state, currentSvg ? 'Rendered' : 'Empty');
+        return;
+      }
+      installSvg(source);
+      lastSvgSource = source;
+      autoRender.checked = false;
+      queueSaveSession();
+      error.textContent = '';
+      error.hidden = true;
+      setPreviewControls(true);
+      setState('ready', 'Rendered');
+    } catch (cause) {
+      showClayError(cause);
+      error.textContent = String(cause);
+      error.hidden = false;
+      setState(currentSvg ? 'ready' : 'empty', 'Load failed');
+    }
+  }
+
+  async function saveCurrentSvg() {
     if (!lastSvgSource) return;
-    downloadSource(lastSvgSource, 'graph.svg', 'image/svg+xml');
+    try {
+      setState('loading', 'Saving');
+      const result = await clayFileRequest('svg', 'save', lastSvgSource);
+      setState('ready', result === undefined ? 'Rendered' : 'Saved');
+    } catch (cause) {
+      showClayError(cause);
+      error.textContent = String(cause);
+      error.hidden = false;
+      setState('ready', 'Save failed');
+    }
   }
 
   async function copyShareUrl() {
@@ -1888,6 +2175,16 @@
   }
 
   function handleShortcut(event) {
+    if (event.key === 'Escape' && !clayErrorModal.hidden) {
+      event.preventDefault();
+      hideClayError();
+      return;
+    }
+    if (event.key === 'Escape' && !fileBrowserModal.hidden) {
+      event.preventDefault();
+      hideFileBrowser();
+      return;
+    }
     if (event.key === 'Escape' && !helpPanel.hidden) {
       event.preventDefault();
       showHelp(false);
@@ -1913,9 +2210,9 @@
     } else if (event.key.toLowerCase() === 's') {
       event.preventDefault();
       if (event.shiftKey) {
-        downloadCurrentSvg();
+        saveCurrentSvg();
       } else {
-        downloadCurrentDot();
+        saveCurrentDot();
       }
     } else if (event.key === '0') {
       event.preventDefault();
@@ -2015,8 +2312,12 @@
     event.preventDefault();
     addVisualNode();
   });
-  downloadDot.addEventListener('click', downloadCurrentDot);
-  download.addEventListener('click', downloadCurrentSvg);
+  browseDot.addEventListener('click', () => browseClayFiles('dot'));
+  loadDot.addEventListener('click', () => loadCurrentDot());
+  saveDot.addEventListener('click', saveCurrentDot);
+  browseSvg.addEventListener('click', () => browseClayFiles('svg'));
+  loadSvg.addEventListener('click', () => loadCurrentSvg());
+  saveSvg.addEventListener('click', saveCurrentSvg);
   share.addEventListener('click', copyShareUrl);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
@@ -2030,6 +2331,14 @@
   resetView.addEventListener('click', resetGraphView);
   help.addEventListener('click', () => showHelp(helpPanel.hidden));
   closeHelp.addEventListener('click', () => showHelp(false));
+  closeFileBrowser.addEventListener('click', hideFileBrowser);
+  fileBrowserModal.addEventListener('click', (event) => {
+    if (event.target === fileBrowserModal) hideFileBrowser();
+  });
+  closeClayError.addEventListener('click', hideClayError);
+  clayErrorModal.addEventListener('click', (event) => {
+    if (event.target === clayErrorModal) hideClayError();
+  });
   helpPanel.addEventListener('click', (event) => {
     if (event.target === helpPanel) showHelp(false);
   });

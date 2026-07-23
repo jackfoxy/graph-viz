@@ -32,7 +32,7 @@
 - [ ] Node/edge selection links to DOT; supported visual edits rerender valid
       DOT.
 - [ ] Reload restores source, pane size, view, and auto-render preference.
-- [ ] DOT, SVG, and share-URL exports round-trip correctly.
+- [ ] Clay DOT/SVG browse, load, and save, and share URLs, round-trip correctly.
 - [ ] Keyboard navigation, focus, labels, and shortcuts remain usable.
 
 ## Publish
