@@ -7,6 +7,8 @@
 +$  state-0  [%0 ~]
 +$  card  card:agent:gall
 ::
+++  storage-root  /data/graph-viz
+::
 ++  respond
   |=  [eyre-id=@ta status=@ud content-type=@t body=@t]
   ^-  (list card)
@@ -31,26 +33,34 @@
     ~
   =?  rel  !=(ext (rear rel))
     (snoc rel ext)
-  `(weld /app/graph-viz rel)
+  `(weld storage-root rel)
 ::
-++  browse-paths
-  |=  [files=(list path) ext=?(%txt %svg)]
-  ^-  (list path)
-  =/  root=path  /app/graph-viz
-  =/  root-len=@ud  (lent root)
-  %+  murn  files
-  |=  file=path
-  ?.  (gth (lent file) root-len)  ~
-  ?.  =(root (scag root-len file))  ~
-  =/  relative=path  (slag root-len file)
-  ?.  =(ext (rear relative))  ~
-  `relative
+++  browse-path
+  |=  raw=@t
+  ^-  (unit path)
+  ?:  =('' raw)  `storage-root
+  =/  parsed=(unit path)
+    %-  mole  |.
+    (stab (cat 3 '/' raw))
+  ?~  parsed  ~
+  =/  relative=path  u.parsed
+  ?:  =(~ relative)  ~
+  ?.  %+  levy  relative
+      |=  part=@ta
+      ?&  !=('.' part)
+          !=('..' part)
+      ==
+    ~
+  `(weld storage-root relative)
 ::
 ++  browse-text
-  |=  files=(list path)
+  |=  [file=? children=(list @ta)]
   ^-  @t
   %-  en:json:html
-  a+(turn files |=(file=path s+(crip (spud file))))
+  %-  pairs:enjs:format
+  :~  ['file' b+file]
+      ['children' a+(turn children |=(name=@ta s+name))]
+  ==
 --
 %-  agent:dbug
 =|  state-0
@@ -167,22 +177,45 @@
   ?.  authenticated.req
     :_  this
     (respond eyre-id 401 'text/plain; charset=utf-8' 'authentication required')
-  =/  root=path  /app/graph-viz
+  =/  raw=(unit @t)
+    (get-header:http 'x-graph-viz-path' header-list.request.req)
+  =/  base=(unit path)
+    ?~  raw
+      `storage-root
+    (browse-path u.raw)
+  ?~  base
+    :_  this
+    (respond eyre-id 400 'text/plain; charset=utf-8' 'invalid Clay path')
   =/  beam=path
     :*  (scot %p our.bowl)
         q.byk.bowl
         (scot %da now.bowl)
-        root
+        u.base
     ==
   =/  ext=?(%txt %svg)  ?:(=(%dot kind) %txt %svg)
-  =/  files=(list path)
-    (browse-paths .^((list path) %ct beam) ext)
-  :_  this
-  %:  respond
-    eyre-id
-    200
-    'application/json; charset=utf-8'
-    (browse-text files)
+  =/  result=(each arch tang)
+    %-  mule  |.
+    .^(arch %cy beam)
+  ?-  -.result
+    %.n
+      %-  (slog leaf+"Clay browse failed" (flop p.result))
+      :_  this
+      (respond eyre-id 500 'text/plain; charset=utf-8' 'Clay browse failed')
+    %.y
+      =/  file=?
+        ?&  (gth (lent u.base) 2)
+            =(ext (rear u.base))
+            ?=(^ fil.p.result)
+        ==
+      =/  children=(list @ta)
+        (sort ~(tap in ~(key by dir.p.result)) aor)
+      :_  this
+      %:  respond
+        eyre-id
+        200
+        'application/json; charset=utf-8'
+        (browse-text file children)
+      ==
   ==
 ::
 ++  load-file

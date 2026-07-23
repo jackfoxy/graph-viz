@@ -847,6 +847,22 @@
         `No /${kind === 'dot' ? 'txt' : 'svg'} files found.`;
       return;
     }
+    function appendFile(item, label, path) {
+      const file = document.createElement('button');
+      file.type = 'button';
+      file.className = 'file-tree-file';
+      file.dataset.path = path;
+      file.textContent = label;
+      file.addEventListener('click', async () => {
+        hideFileBrowser();
+        if (kind === 'dot') {
+          await loadCurrentDot(path);
+        } else {
+          await loadCurrentSvg(path);
+        }
+      });
+      item.append(file);
+    }
     function renderBranch(branch) {
       const list = document.createElement('ul');
       list.className = 'file-tree-list';
@@ -854,34 +870,55 @@
         .sort(([left], [right]) => left.localeCompare(right));
       for (const [name, node] of entries) {
         const item = document.createElement('li');
+        const children = [...node.children.entries()];
+        const suffix = children.length === 1 ? children[0] : undefined;
+        if (!node.path && suffix && suffix[1].path
+          && !suffix[1].children.size) {
+          appendFile(item, `${name}/${suffix[0]}`, suffix[1].path);
+          list.append(item);
+          continue;
+        }
         if (node.children.size) {
           const directory = document.createElement('div');
           directory.className = 'file-tree-directory';
           directory.textContent = `${name}/`;
           item.append(directory);
         }
-        if (node.path) {
-          const file = document.createElement('button');
-          file.type = 'button';
-          file.className = 'file-tree-file';
-          file.dataset.path = node.path;
-          file.textContent = name;
-          file.addEventListener('click', async () => {
-            hideFileBrowser();
-            if (kind === 'dot') {
-              await loadCurrentDot(node.path);
-            } else {
-              await loadCurrentSvg(node.path);
-            }
-          });
-          item.append(file);
-        }
+        if (node.path) appendFile(item, name, node.path);
         if (node.children.size) item.append(renderBranch(node.children));
         list.append(item);
       }
       return list;
     }
     fileBrowserTree.append(renderBranch(root));
+  }
+
+  async function browseClayNode(kind, path = '') {
+    const headers = path ? {'x-graph-viz-path': path} : {};
+    const response = await fetch(
+      `/apps/graph-viz/file/${kind}/browse`,
+      {method: 'POST', headers}
+    );
+    const body = await response.text();
+    if (!response.ok) {
+      throw new Error(body || `Clay request failed (${response.status})`);
+    }
+    const node = JSON.parse(body);
+    if (!node || typeof node.file !== 'boolean'
+      || !Array.isArray(node.children)) {
+      throw new Error('Invalid Clay directory');
+    }
+    const paths = node.file ? [path] : [];
+    for (const name of node.children) {
+      if (typeof name !== 'string' || !name || name.includes('/')) {
+        throw new Error('Invalid Clay directory');
+      }
+      const childPath = normalizeClayPath(
+        path ? `${path}/${name}` : name
+      );
+      paths.push(...await browseClayNode(kind, childPath));
+    }
+    return paths;
   }
 
   async function browseClayFiles(kind) {
@@ -891,17 +928,7 @@
     fileBrowserModal.hidden = false;
     closeFileBrowser.focus();
     try {
-      const response = await fetch(
-        `/apps/graph-viz/file/${kind}/browse`,
-        {method: 'POST'}
-      );
-      const body = await response.text();
-      if (!response.ok) {
-        throw new Error(body || `Clay request failed (${response.status})`);
-      }
-      const paths = JSON.parse(body);
-      if (!Array.isArray(paths)) throw new Error('Invalid Clay file list');
-      renderFileTree(paths, kind);
+      renderFileTree(await browseClayNode(kind), kind);
     } catch (cause) {
       hideFileBrowser();
       showClayError(cause);

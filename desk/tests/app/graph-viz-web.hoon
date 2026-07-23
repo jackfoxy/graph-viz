@@ -161,23 +161,17 @@
     (expect-eq !>('missing Clay path') !>((response-body -.out)))
   ==
 ::
-++  test-browse-paths
-  =/  files=(list path)
-    :~  /app/graph-viz/examples/source/txt
-        /app/graph-viz/examples/output/svg
-        /app/other/ignored/txt
-        /app/graph-viz/examples/nested/txt/file
-    ==
+++  test-browse-path
   ;:  weld
     %+  expect-eq
-      !>(~[/examples/source/txt])
-    !>((browse-paths:agent files %txt))
+      !>(`/data/graph-viz)
+    !>((browse-path:agent ''))
     %+  expect-eq
-      !>(~[/examples/output/svg])
-    !>((browse-paths:agent files %svg))
+      !>(`/data/graph-viz/examples/source)
+    !>((browse-path:agent 'examples/source'))
     %+  expect-eq
-      !>('["/examples/source/txt"]')
-    !>((browse-text:agent ~[/examples/source/txt]))
+      !>('{"children":["source","strict-2"],"file":false}')
+    !>((browse-text:agent | ~[%source %strict-2]))
   ==
 ::
 ++  test-web-save-dot
@@ -189,7 +183,7 @@
   =/  cards  -.out
   ?>  ?=(^ cards)
   =/  save  i.cards
-  =/  pax  /app/graph-viz/examples/source/txt
+  =/  pax  /data/graph-viz/examples/source/txt
   =/  expected=card:agent:gall
     :*  %pass  /clay/save  %arvo  %c
         %info  %graph-viz  %&
@@ -210,7 +204,7 @@
   =/  cards  -.out
   ?>  ?=(^ cards)
   =/  save  i.cards
-  =/  pax  /app/graph-viz/examples/output/txt/svg
+  =/  pax  /data/graph-viz/examples/output/txt/svg
   =/  expected=card:agent:gall
     :*  %pass  /clay/save  %arvo  %c
         %info  %graph-viz  %&

@@ -216,6 +216,13 @@ function response(ok, body) {
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+async function resolveBrowse(path, file, children) {
+  const request = requests.at(-1);
+  assert.equal(request.options.headers['x-graph-viz-path'],
+    path || undefined);
+  request.resolve(response(true, JSON.stringify({file, children})));
+  await tick();
+}
 function descendants(element) {
   return element.children.flatMap((child) => {
     return [child, ...descendants(child)];
@@ -318,16 +325,19 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
 
   const browseDotRequest = elements['#browse-dot'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/browse');
-  requests.at(-1).resolve(response(true, JSON.stringify([
-    '/examples/alpha/txt',
-    '/examples/beta/txt'
-  ])));
+  await resolveBrowse('', false, ['examples']);
+  await resolveBrowse('examples', false, ['alpha', 'beta']);
+  await resolveBrowse('examples/alpha', false, ['txt']);
+  await resolveBrowse('examples/alpha/txt', true, []);
+  await resolveBrowse('examples/beta', false, ['txt']);
+  await resolveBrowse('examples/beta/txt', true, []);
   await browseDotRequest;
   assert.equal(elements['#file-browser-modal'].hidden, false);
   const dotFile = descendants(elements['#file-browser-tree']).find((item) => {
     return item.dataset?.path === 'examples/beta/txt';
   });
   assert(dotFile);
+  assert.equal(dotFile.textContent, 'beta/txt');
   const browseLoadDot = dotFile.listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
   assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
@@ -339,14 +349,16 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#auto-render'].checked = true;
   const browseSvgRequest = elements['#browse-svg'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/browse');
-  requests.at(-1).resolve(response(true, JSON.stringify([
-    '/examples/preview/svg'
-  ])));
+  await resolveBrowse('', false, ['examples']);
+  await resolveBrowse('examples', false, ['preview']);
+  await resolveBrowse('examples/preview', false, ['svg']);
+  await resolveBrowse('examples/preview/svg', true, []);
   await browseSvgRequest;
   const svgFile = descendants(elements['#file-browser-tree']).find((item) => {
     return item.dataset?.path === 'examples/preview/svg';
   });
   assert(svgFile);
+  assert.equal(svgFile.textContent, 'preview/svg');
   const browseLoadSvg = svgFile.listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
   requests.at(-1).resolve(response(true, '<svg id="browsed"/>'));

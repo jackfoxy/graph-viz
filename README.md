@@ -62,6 +62,9 @@ from Hoon, so no external frontend build or glob is required. The editor
 posts DOT text to `/apps/graph-viz/render`. The noun protocol above is
 unchanged.
 
+Clay-backed DOT and SVG files are stored below `/data/graph-viz`. Browser
+path prompts and file trees keep this storage root hidden.
+
 ![Graph Viz editor rendering the flowchart template](docs/screenshots/editor.png)
 
 ![Responsive Graph Viz editor](docs/screenshots/mobile.png)
