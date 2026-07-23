@@ -228,6 +228,11 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
 
+  elements['#template'].value = 'strict-digraph';
+  elements['#template'].listeners.change({});
+  assert(elements['#dot'].value.startsWith('strict digraph unique_edges'));
+  assert(elements['#dot'].value.includes('last wins'));
+
   const dot = elements['#dot'];
   dot.value = 'digraph old { Alpha -> Beta }';
   elements['#render'].listeners.click({});

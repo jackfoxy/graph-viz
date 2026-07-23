@@ -26,8 +26,9 @@
           ;select#template
             =title       "Insert starter template"
             =aria-label  "Starter template"
-            ;option(value ""): Templates
+            ;option(value "", disabled "", hidden ""): Select template…
             ;option(value "flowchart"): Flowchart
+            ;option(value "strict-digraph"): Strict digraph
             ;option(value "state-machine"): State machine
             ;option(value "dependencies"): Dependencies
             ;option(value "clusters"): Clusters
@@ -579,6 +580,15 @@
       '  rankdir=LR',
       '  node [shape=box]',
       '  Start -> Plan -> Build -> Done',
+      '}'
+    ].join('\n'),
+    'strict-digraph': [
+      'strict digraph unique_edges {',
+      '  rankdir=LR',
+      '  node [shape=box]',
+      '  Start -> Validate [label=first]',
+      '  Start -> Validate [label="last wins", color=blue]',
+      '  Validate -> Done',
       '}'
     ].join('\n'),
     'state-machine': [
