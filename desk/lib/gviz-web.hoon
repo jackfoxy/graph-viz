@@ -256,6 +256,13 @@
             ==
           ==
           ;div#preview-shell.preview-shell(data-state "empty")
+            ;button#copy-svg.copy-svg
+              =type        "button"
+              =disabled    ""
+              =title       "Copy SVG source"
+              =aria-label  "Copy SVG source to clipboard"
+              ;span.copy-icon(aria-hidden "true");
+            ==
             ;div#empty-state.state-panel
               ;p.state-title: Nothing rendered yet
               ;p: Select Render to preview the current DOT source.
@@ -545,6 +552,43 @@
     position: relative;
   }
 
+  .copy-svg {
+    align-items: center;
+    background: rgb(255 255 255 / 0.9);
+    display: inline-flex;
+    height: 2rem;
+    justify-content: center;
+    padding: 0;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.75rem;
+    width: 2rem;
+    z-index: 3;
+  }
+
+  .copy-icon {
+    height: 0.9rem;
+    position: relative;
+    width: 0.9rem;
+  }
+
+  .copy-icon::before, .copy-icon::after {
+    border: 1.5px solid currentcolor;
+    border-radius: 2px;
+    content: '';
+    height: 0.58rem;
+    position: absolute;
+    width: 0.5rem;
+  }
+
+  .copy-icon::before { left: 0; top: 0; }
+
+  .copy-icon::after {
+    background: #ffffff;
+    bottom: 0;
+    right: 0;
+  }
+
   .preview {
     cursor: grab;
     inset: 0;
@@ -588,7 +632,7 @@
     line-height: 1.45;
     margin: 0;
     overflow: auto;
-    padding: 1rem;
+    padding: 3.5rem 1rem 1rem;
     position: absolute;
     tab-size: 2;
     white-space: pre;
@@ -874,6 +918,7 @@
   const drawEdge = document.querySelector('#draw-edge');
   const preview = document.querySelector('#preview');
   const svgSource = document.querySelector('#svg-source');
+  const copySvg = document.querySelector('#copy-svg');
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
   const sourceStatus = document.querySelector('#source-status');
@@ -1005,6 +1050,7 @@
     saveSvg.disabled = !enabled;
     fit.disabled = !enabled || showingSvgSource;
     toggleSvgSource.disabled = !enabled;
+    copySvg.disabled = !enabled;
   }
 
   function setSvgSourceVisible(visible) {
@@ -1030,6 +1076,37 @@
 
   function toggleSvgView() {
     setSvgSourceVisible(!showingSvgSource);
+  }
+
+  async function writeClipboard(source) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(source);
+        return;
+      }
+    } catch (_) {
+      // Fall through for browsers that restrict the Clipboard API.
+    }
+    const helper = document.createElement('textarea');
+    helper.value = source;
+    helper.setAttribute('readonly', '');
+    helper.style.position = 'fixed';
+    helper.style.opacity = '0';
+    document.body.append(helper);
+    helper.select();
+    const copied = document.execCommand('copy');
+    helper.remove();
+    if (!copied) throw new Error('Clipboard unavailable');
+  }
+
+  async function copySvgSource() {
+    if (!lastSvgSource) return;
+    try {
+      await writeClipboard(lastSvgSource);
+      sourceStatus.textContent = 'SVG copied';
+    } catch (cause) {
+      showClientProblem('Unable to copy SVG source');
+    }
   }
 
   function showHelp(open) {
@@ -2780,6 +2857,7 @@
   loadSvg.addEventListener('click', () => loadCurrentSvg());
   saveSvg.addEventListener('click', saveCurrentSvg);
   toggleSvgSource.addEventListener('click', toggleSvgView);
+  copySvg.addEventListener('click', copySvgSource);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();

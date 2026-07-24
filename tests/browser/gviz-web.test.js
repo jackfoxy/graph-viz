@@ -132,7 +132,7 @@ function svgDocument(source) {
 
 const selectors = [
   '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
-  '#svg-source', '#toggle-svg-source',
+  '#svg-source', '#toggle-svg-source', '#copy-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
   '#browse-dot', '#load-dot', '#save-dot',
   '#browse-svg', '#load-svg', '#save-svg', '#fit',
@@ -167,6 +167,7 @@ const windowListeners = {};
 const prompts = [];
 const confirmations = [];
 const confirmationAnswers = [];
+const clipboardWrites = [];
 saved.set('graph-viz.session.v1', JSON.stringify({
   version: 1,
   source: 'digraph saved { Alpha -> Beta }',
@@ -190,6 +191,14 @@ global.DOMParser = class {
   parseFromString(source) { return svgDocument(source); }
 };
 global.matchMedia = () => ({matches: false});
+Object.defineProperty(global, 'navigator', {
+  configurable: true,
+  value: {
+    clipboard: {
+      writeText: async (source) => { clipboardWrites.push(source); }
+    }
+  }
+});
 global.getComputedStyle = (element) => ({
   lineHeight: '22px',
   paddingTop: '16px',
@@ -273,6 +282,10 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert(elements['#preview'].children[0], elements['#error'].textContent);
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="initial"/>');
+  assert.equal(elements['#copy-svg'].disabled, false);
+  await elements['#copy-svg'].listeners.click({});
+  assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
+  assert.equal(elements['#source-status'].textContent, 'SVG copied');
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
   elements['#toggle-svg-source'].listeners.click({});
@@ -281,6 +294,8 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#svg-source'].textContent, '<svg id="initial"/>');
   assert.equal(elements['#toggle-svg-source'].textContent, 'View rendered');
   assert.equal(elements['#toggle-svg-source']['aria-pressed'], 'true');
+  await elements['#copy-svg'].listeners.click({});
+  assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, false);
   assert.equal(elements['#svg-source'].hidden, true);
