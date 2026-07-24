@@ -263,6 +263,15 @@
               =aria-label  "Copy SVG source to clipboard"
               ;span.copy-icon(aria-hidden "true");
             ==
+            ;button#fullscreen-svg.fullscreen-svg
+              =type          "button"
+              =disabled      ""
+              =hidden        ""
+              =title         "Expand SVG to fullscreen"
+              =aria-label    "Expand SVG to fullscreen"
+              =aria-pressed  "false"
+              ;span.fullscreen-icon(aria-hidden "true");
+            ==
             ;div#empty-state.state-panel
               ;p.state-title: Nothing rendered yet
               ;p: Select Render to preview the current DOT source.
@@ -566,6 +575,22 @@
     z-index: 3;
   }
 
+  .fullscreen-svg {
+    align-items: center;
+    background: rgb(255 255 255 / 0.9);
+    display: inline-flex;
+    height: 2rem;
+    justify-content: center;
+    padding: 0;
+    position: absolute;
+    right: 0.75rem;
+    top: 3.25rem;
+    width: 2rem;
+    z-index: 3;
+  }
+
+  .fullscreen-svg[hidden] { display: none; }
+
   .copy-icon {
     height: 0.9rem;
     position: relative;
@@ -587,6 +612,50 @@
     background: #ffffff;
     bottom: 0;
     right: 0;
+  }
+
+  .fullscreen-icon {
+    height: 0.85rem;
+    position: relative;
+    width: 0.85rem;
+  }
+
+  .fullscreen-icon::before, .fullscreen-icon::after {
+    content: '';
+    height: 0.32rem;
+    position: absolute;
+    width: 0.32rem;
+  }
+
+  .fullscreen-icon::before {
+    border-left: 1.5px solid currentcolor;
+    border-top: 1.5px solid currentcolor;
+    left: 0;
+    top: 0;
+  }
+
+  .fullscreen-icon::after {
+    border-bottom: 1.5px solid currentcolor;
+    border-right: 1.5px solid currentcolor;
+    bottom: 0;
+    right: 0;
+  }
+
+  .preview-shell:fullscreen .fullscreen-icon::before {
+    border: 0;
+    border-bottom: 1.5px solid currentcolor;
+    border-right: 1.5px solid currentcolor;
+  }
+
+  .preview-shell:fullscreen .fullscreen-icon::after {
+    border: 0;
+    border-left: 1.5px solid currentcolor;
+    border-top: 1.5px solid currentcolor;
+  }
+
+  .preview-shell:fullscreen {
+    height: 100vh;
+    width: 100vw;
   }
 
   .preview {
@@ -919,6 +988,7 @@
   const preview = document.querySelector('#preview');
   const svgSource = document.querySelector('#svg-source');
   const copySvg = document.querySelector('#copy-svg');
+  const fullscreenSvg = document.querySelector('#fullscreen-svg');
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
   const sourceStatus = document.querySelector('#source-status');
@@ -1051,6 +1121,8 @@
     fit.disabled = !enabled || showingSvgSource;
     toggleSvgSource.disabled = !enabled;
     copySvg.disabled = !enabled;
+    fullscreenSvg.disabled = !enabled;
+    fullscreenSvg.hidden = !enabled || showingSvgSource;
   }
 
   function setSvgSourceVisible(visible) {
@@ -1066,6 +1138,7 @@
       : 'View source';
     resetView.disabled = !currentSvg || showingSvgSource;
     fit.disabled = !currentSvg || showingSvgSource;
+    fullscreenSvg.hidden = !currentSvg || showingSvgSource;
     if (showingSvgSource) {
       clearVisualSelection();
       svgSource.focus();
@@ -1106,6 +1179,36 @@
       sourceStatus.textContent = 'SVG copied';
     } catch (cause) {
       showClientProblem('Unable to copy SVG source');
+    }
+  }
+
+  function previewIsFullscreen() {
+    return document.fullscreenElement === previewShell;
+  }
+
+  function updateFullscreenControl() {
+    const expanded = previewIsFullscreen();
+    const label = expanded
+      ? 'Return SVG to preview panel'
+      : 'Expand SVG to fullscreen';
+    fullscreenSvg.setAttribute('aria-pressed', String(expanded));
+    fullscreenSvg.setAttribute('aria-label', label);
+    fullscreenSvg.title = label;
+    if (currentSvg && !showingSvgSource) {
+      requestAnimationFrame(fitToWindow);
+    }
+  }
+
+  async function toggleSvgFullscreen() {
+    if (!currentSvg || showingSvgSource) return;
+    try {
+      if (previewIsFullscreen()) {
+        await document.exitFullscreen();
+      } else {
+        await previewShell.requestFullscreen();
+      }
+    } catch (cause) {
+      showClientProblem('Unable to change fullscreen mode');
     }
   }
 
@@ -2858,6 +2961,7 @@
   saveSvg.addEventListener('click', saveCurrentSvg);
   toggleSvgSource.addEventListener('click', toggleSvgView);
   copySvg.addEventListener('click', copySvgSource);
+  fullscreenSvg.addEventListener('click', toggleSvgFullscreen);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();
@@ -2977,6 +3081,7 @@
   });
 
   document.addEventListener('keydown', handleShortcut);
+  document.addEventListener('fullscreenchange', updateFullscreenControl);
   window.addEventListener('beforeunload', saveSession);
   const savedSession = loadSession();
   let initialProblem = '';

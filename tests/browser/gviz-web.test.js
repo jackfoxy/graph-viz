@@ -79,6 +79,10 @@ class Element {
       + this.value.slice(end);
     this.setSelectionRange(start + replacement.length, start + replacement.length);
   }
+  async requestFullscreen() {
+    document.fullscreenElement = this;
+    documentListeners.fullscreenchange?.({});
+  }
 }
 
 function group(kind, identity) {
@@ -132,7 +136,7 @@ function svgDocument(source) {
 
 const selectors = [
   '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
-  '#svg-source', '#toggle-svg-source', '#copy-svg',
+  '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
   '#browse-dot', '#load-dot', '#save-dot',
   '#browse-svg', '#load-svg', '#save-svg', '#fit',
@@ -177,6 +181,7 @@ saved.set('graph-viz.session.v1', JSON.stringify({
 }));
 
 global.document = {
+  fullscreenElement: null,
   querySelector: (selector) => elements[selector],
   importNode: (node) => node,
   createDocumentFragment: () => ({
@@ -185,7 +190,11 @@ global.document = {
     append(item) { this.children.push(item); }
   }),
   createElement: () => new Element(),
-  addEventListener: (name, callback) => { documentListeners[name] = callback; }
+  addEventListener: (name, callback) => { documentListeners[name] = callback; },
+  exitFullscreen: async () => {
+    global.document.fullscreenElement = null;
+    documentListeners.fullscreenchange?.({});
+  }
 };
 global.DOMParser = class {
   parseFromString(source) { return svgDocument(source); }
@@ -283,23 +292,37 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="initial"/>');
   assert.equal(elements['#copy-svg'].disabled, false);
+  assert.equal(elements['#fullscreen-svg'].disabled, false);
+  assert.equal(elements['#fullscreen-svg'].hidden, false);
   await elements['#copy-svg'].listeners.click({});
   assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
   assert.equal(elements['#source-status'].textContent, 'SVG copied');
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
+  await elements['#fullscreen-svg'].listeners.click({});
+  assert.equal(document.fullscreenElement, elements['#preview-shell']);
+  assert.equal(elements['#fullscreen-svg']['aria-pressed'], 'true');
+  assert.equal(
+    elements['#fullscreen-svg'].title,
+    'Return SVG to preview panel'
+  );
+  await elements['#fullscreen-svg'].listeners.click({});
+  assert.equal(document.fullscreenElement, null);
+  assert.equal(elements['#fullscreen-svg']['aria-pressed'], 'false');
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, true);
   assert.equal(elements['#svg-source'].hidden, false);
   assert.equal(elements['#svg-source'].textContent, '<svg id="initial"/>');
   assert.equal(elements['#toggle-svg-source'].textContent, 'View rendered');
   assert.equal(elements['#toggle-svg-source']['aria-pressed'], 'true');
+  assert.equal(elements['#fullscreen-svg'].hidden, true);
   await elements['#copy-svg'].listeners.click({});
   assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, false);
   assert.equal(elements['#svg-source'].hidden, true);
   assert.equal(elements['#toggle-svg-source'].textContent, 'View source');
+  assert.equal(elements['#fullscreen-svg'].hidden, false);
 
   elements['#template'].value = 'strict-digraph';
   elements['#template'].listeners.change({});
