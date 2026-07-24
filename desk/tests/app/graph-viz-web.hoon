@@ -1,6 +1,6 @@
 ::  Tests for /app/graph-viz-web.
 ::
-/+  *test
+/+  *test, clay=gviz-clay
 /=  agent  /app/graph-viz-web
 |%
 ::
@@ -165,20 +165,23 @@
   ;:  weld
     %+  expect-eq
       !>(`/data/graph-viz)
-    !>((browse-path:agent ''))
+    !>((browse-path:clay ''))
     %+  expect-eq
       !>(`/data/graph-viz/examples/source)
-    !>((browse-path:agent 'examples/source'))
+    !>((browse-path:clay 'examples/source'))
+    %+  expect-eq
+      !>(`/data/graph-viz/examples/source)
+    !>((browse-path:clay '/examples/source'))
     %+  expect-eq
       !>('{"children":["source","strict-2"],"file":false}')
-    !>((browse-text:agent | ~[%source %strict-2]))
+    !>((browse-text:clay | ~[%source %strict-2]))
   ==
 ::
 ++  test-web-save-dot
   =/  src  'digraph { a -> b }'
   =/  body  `(as-octt:mimes:html (trip src))
   =/  req
-    (file-request '/apps/graph-viz/file/dot/save' 'examples/source' body)
+    (file-request '/apps/graph-viz/file/dot/save' '/examples/source' body)
   =/  out  (poke-http req)
   =/  cards  -.out
   ?>  ?=(^ cards)

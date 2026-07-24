@@ -1,13 +1,11 @@
 ::  %graph-viz-web: Sail and HTTP boundary for the DOT renderer.
 ::
 /-  gviz
-/+  dbug, default-agent, lib=gviz, server, web=gviz-web
+/+  clay=gviz-clay, dbug, default-agent, lib=gviz, server, web=gviz-web
 |%
 +$  versioned-state  $%(state-0)
 +$  state-0  [%0 ~]
 +$  card  card:agent:gall
-::
-++  storage-root  /data/graph-viz
 ::
 ++  respond
   |=  [eyre-id=@ta status=@ud content-type=@t body=@t]
@@ -15,52 +13,6 @@
   %+  give-simple-payload:app:server  eyre-id
   ^-  simple-payload:http
   [[status ~[['content-type' content-type]]] `(as-octt:mimes:html (trip body))]
-::
-++  file-path
-  |=  [raw=@t ext=?(%txt %svg)]
-  ^-  (unit path)
-  =/  parsed=(unit path)
-    %-  mole  |.
-    (stab (cat 3 '/' raw))
-  ?~  parsed  ~
-  =/  rel=path  u.parsed
-  ?:  =(~ rel)  ~
-  ?.  %+  levy  rel
-      |=  part=@ta
-      ?&  !=('.' part)
-          !=('..' part)
-      ==
-    ~
-  =?  rel  !=(ext (rear rel))
-    (snoc rel ext)
-  `(weld storage-root rel)
-::
-++  browse-path
-  |=  raw=@t
-  ^-  (unit path)
-  ?:  =('' raw)  `storage-root
-  =/  parsed=(unit path)
-    %-  mole  |.
-    (stab (cat 3 '/' raw))
-  ?~  parsed  ~
-  =/  relative=path  u.parsed
-  ?:  =(~ relative)  ~
-  ?.  %+  levy  relative
-      |=  part=@ta
-      ?&  !=('.' part)
-          !=('..' part)
-      ==
-    ~
-  `(weld storage-root relative)
-::
-++  browse-text
-  |=  [file=? children=(list @ta)]
-  ^-  @t
-  %-  en:json:html
-  %-  pairs:enjs:format
-  :~  ['file' b+file]
-      ['children' a+(turn children |=(name=@ta s+name))]
-  ==
 --
 %-  agent:dbug
 =|  state-0
@@ -181,8 +133,8 @@
     (get-header:http 'x-graph-viz-path' header-list.request.req)
   =/  base=(unit path)
     ?~  raw
-      `storage-root
-    (browse-path u.raw)
+      `storage-root:clay
+    (browse-path:clay u.raw)
   ?~  base
     :_  this
     (respond eyre-id 400 'text/plain; charset=utf-8' 'invalid Clay path')
@@ -214,7 +166,7 @@
         eyre-id
         200
         'application/json; charset=utf-8'
-        (browse-text file children)
+        (browse-text:clay file children)
       ==
   ==
 ::
@@ -230,7 +182,7 @@
     :_  this
     (respond eyre-id 400 'text/plain; charset=utf-8' 'missing Clay path')
   =/  pax=(unit path)
-    (file-path u.raw ?:(=(%dot kind) %txt %svg))
+    (file-path:clay u.raw ?:(=(%dot kind) %txt %svg))
   ?~  pax
     :_  this
     (respond eyre-id 400 'text/plain; charset=utf-8' 'invalid Clay path')
@@ -266,10 +218,29 @@
     :_  this
     (respond eyre-id 400 'text/plain; charset=utf-8' 'missing Clay path')
   =/  pax=(unit path)
-    (file-path u.raw ?:(=(%dot kind) %txt %svg))
+    (file-path:clay u.raw ?:(=(%dot kind) %txt %svg))
   ?~  pax
     :_  this
     (respond eyre-id 400 'text/plain; charset=utf-8' 'invalid Clay path')
+  =/  beam=path
+    :*  (scot %p our.bowl)
+        q.byk.bowl
+        (scot %da now.bowl)
+        u.pax
+    ==
+  =/  overwrite=(unit @t)
+    (get-header:http 'x-graph-viz-overwrite' header-list.request.req)
+  =/  overwrite-ok=?
+    ?~  overwrite  %.n
+    =('true' u.overwrite)
+  ?:  ?&  .^(? %cu beam)  !overwrite-ok  ==
+    :_  this
+    %:  respond
+      eyre-id
+      409
+      'text/plain; charset=utf-8'
+      'Clay file already exists'
+    ==
   ?>  ?=(?(%txt %svg) (rear u.pax))
   =/  src=@t
     ?~(body.request.req '' q.u.body.request.req)

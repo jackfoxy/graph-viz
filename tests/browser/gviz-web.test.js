@@ -132,7 +132,7 @@ const selectors = [
   '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
   '#browse-dot', '#load-dot', '#save-dot',
-  '#browse-svg', '#load-svg', '#save-svg', '#fit', '#share',
+  '#browse-svg', '#load-svg', '#save-svg', '#fit',
   '#auto-render', '#help',
   '#help-panel', '#close-help', '#file-browser-modal',
   '#file-browser-title', '#file-browser-tree', '#close-file-browser',
@@ -157,8 +157,9 @@ const requests = [];
 const saved = new Map();
 const documentListeners = {};
 const windowListeners = {};
-let copiedUrl = '';
 const prompts = [];
+const confirmations = [];
+const confirmationAnswers = [];
 saved.set('graph-viz.session.v1', JSON.stringify({
   version: 1,
   source: 'digraph saved { Alpha -> Beta }',
@@ -197,19 +198,20 @@ global.localStorage = {
 global.window = {
   location: {href: 'http://localhost:18080/apps/graph-viz/'},
   addEventListener: (name, callback) => { windowListeners[name] = callback; },
-  prompt: () => prompts.shift()
-};
-global.navigator = {
-  clipboard: {writeText: async (value) => { copiedUrl = value; }}
+  prompt: () => prompts.shift(),
+  confirm: (message) => {
+    confirmations.push(message);
+    return confirmationAnswers.shift();
+  }
 };
 global.fetch = (url, options) => new Promise((resolve, reject) => {
   requests.push({url, options, resolve, reject});
 });
 
-function response(ok, body) {
+function response(ok, body, status = ok ? 200 : 422) {
   return {
     ok,
-    status: ok ? 200 : 422,
+    status,
     headers: {get: () => ok ? 'image/svg+xml' : 'application/json'},
     text: async () => body
   };
@@ -306,12 +308,18 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(session.source, dot.value);
   assert(Number.isFinite(session.view.scale));
 
-  prompts.push('examples/source');
+  prompts.push('/examples/source');
   const saveDotRequest = elements['#save-dot'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/save');
   assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
     'examples/source');
   assert.equal(requests.at(-1).options.body, dot.value);
+  confirmationAnswers.push(true);
+  requests.at(-1).resolve(response(false, 'Clay file already exists', 409));
+  await tick();
+  assert(confirmations.at(-1).includes('DOT path "examples/source"'));
+  assert.equal(requests.at(-1).options.headers['x-graph-viz-overwrite'],
+    'true');
   requests.at(-1).resolve(response(true, 'saved'));
   await saveDotRequest;
 
@@ -320,8 +328,12 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/save');
   assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
     'examples/output');
-  requests.at(-1).resolve(response(true, 'saved'));
+  const requestCount = requests.length;
+  confirmationAnswers.push(false);
+  requests.at(-1).resolve(response(false, 'Clay file already exists', 409));
   await saveSvgRequest;
+  assert(confirmations.at(-1).includes('SVG path "examples/output"'));
+  assert.equal(requests.length, requestCount);
 
   const browseDotRequest = elements['#browse-dot'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/browse');
@@ -367,7 +379,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     '<svg id="browsed"/>');
   assert.equal(elements['#auto-render'].checked, false);
 
-  prompts.push('examples/loaded');
+  prompts.push('/examples/loaded');
   const loadDotRequest = elements['#load-dot'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
   requests.at(-1).resolve(response(true, 'digraph loaded { A -> B }'));
@@ -401,10 +413,6 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   ));
   elements['#close-clay-error'].listeners.click({});
   assert.equal(elements['#clay-error-modal'].hidden, true);
-
-  await elements['#share'].listeners.click({});
-  const encoded = new URL(copiedUrl).searchParams.get('dot');
-  assert.equal(Buffer.from(encoded, 'base64url').toString(), dot.value);
 
   console.log('browser smoke: ok');
 })().catch((cause) => {

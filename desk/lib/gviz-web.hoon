@@ -50,7 +50,6 @@
             =title     "Fit graph (Ctrl+0)"
             ;span: Fit
           ==
-          ;button#share(type "button", title "Copy shareable URL"): Share
           ;label.preference
             ;input#auto-render(type "checkbox", checked "");
             ;span: Auto-render
@@ -744,7 +743,6 @@
   const loadSvg = document.querySelector('#load-svg');
   const saveSvg = document.querySelector('#save-svg');
   const fit = document.querySelector('#fit');
-  const share = document.querySelector('#share');
   const autoRender = document.querySelector('#auto-render');
   const help = document.querySelector('#help');
   const helpPanel = document.querySelector('#help-panel');
@@ -2025,24 +2023,34 @@
     kind,
     action,
     source = '',
-    requestedPath
+    requestedPath,
+    overwrite = false
   ) {
     const path = requestedPath === undefined
       ? requestClayPath(kind.toUpperCase())
       : normalizeClayPath(requestedPath);
     if (path === undefined) return undefined;
+    const headers = {
+      'content-type': 'text/plain; charset=utf-8',
+      'x-graph-viz-path': path
+    };
+    if (overwrite) headers['x-graph-viz-overwrite'] = 'true';
     const response = await fetch(
       `/apps/graph-viz/file/${kind}/${action}`,
       {
         method: 'POST',
-        headers: {
-          'content-type': 'text/plain; charset=utf-8',
-          'x-graph-viz-path': path
-        },
+        headers,
         body: source
       }
     );
     const body = await response.text();
+    if (action === 'save' && response.status === 409 && !overwrite) {
+      const approved = window.confirm(
+        `${kind.toUpperCase()} path "${path}" already exists. Overwrite it?`
+      );
+      if (!approved) return undefined;
+      return clayFileRequest(kind, action, source, path, true);
+    }
     if (!response.ok) {
       throw new Error(body || `Clay request failed (${response.status})`);
     }
@@ -2114,25 +2122,6 @@
       error.textContent = String(cause);
       error.hidden = false;
       setState('ready', 'Save failed');
-    }
-  }
-
-  async function copyShareUrl() {
-    try {
-      validateSource(dot.value, maxSharedSourceBytes);
-      const url = new URL(window.location.href);
-      url.searchParams.set('dot', encodeSource(dot.value));
-      if (url.href.length > maxShareParamChars) {
-        throw new Error('Share URL exceeds the size limit');
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url.href);
-        sourceStatus.textContent = 'Share URL copied';
-      } else {
-        window.prompt('Copy share URL', url.href);
-      }
-    } catch (cause) {
-      showClientProblem(String(cause));
     }
   }
 
@@ -2345,7 +2334,6 @@
   browseSvg.addEventListener('click', () => browseClayFiles('svg'));
   loadSvg.addEventListener('click', () => loadCurrentSvg());
   saveSvg.addEventListener('click', saveCurrentSvg);
-  share.addEventListener('click', copyShareUrl);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();
