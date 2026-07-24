@@ -130,6 +130,7 @@ function svgDocument(source) {
 
 const selectors = [
   '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
+  '#svg-source', '#toggle-svg-source',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
   '#browse-dot', '#load-dot', '#save-dot',
   '#browse-svg', '#load-svg', '#save-svg', '#fit',
@@ -245,6 +246,16 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     '<svg id="initial"/>');
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
+  elements['#toggle-svg-source'].listeners.click({});
+  assert.equal(elements['#preview'].hidden, true);
+  assert.equal(elements['#svg-source'].hidden, false);
+  assert.equal(elements['#svg-source'].textContent, '<svg id="initial"/>');
+  assert.equal(elements['#toggle-svg-source'].textContent, 'View rendered');
+  assert.equal(elements['#toggle-svg-source']['aria-pressed'], 'true');
+  elements['#toggle-svg-source'].listeners.click({});
+  assert.equal(elements['#preview'].hidden, false);
+  assert.equal(elements['#svg-source'].hidden, true);
+  assert.equal(elements['#toggle-svg-source'].textContent, 'View source');
 
   elements['#template'].value = 'strict-digraph';
   elements['#template'].listeners.change({});
@@ -266,6 +277,9 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   await tick();
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="new"/>');
+  elements['#toggle-svg-source'].listeners.click({});
+  assert.equal(elements['#svg-source'].textContent, '<svg id="new"/>');
+  elements['#toggle-svg-source'].listeners.click({});
 
   const retained = elements['#preview'].children[0];
   elements['#render'].listeners.click({});

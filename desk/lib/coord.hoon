@@ -90,6 +90,43 @@
   ?:  =('G' i.t.tp)  (weld (trip gname) $(tp t.t.tp))
   [i.tp i.t.tp $(tp t.t.tp)]
 ::
+++  subst-edge-label
+  ::  \T, \H, and \E substitutions used when measuring edge labels
+  |=  [tp=tape tname=tape hname=tape op=tape]
+  ^-  tape
+  |-  ^-  tape
+  ?~  tp  ~
+  ?.  =('\\' i.tp)  [i.tp $(tp t.tp)]
+  ?~  t.tp  [i.tp ~]
+  ?:  =('T' i.t.tp)  (weld tname $(tp t.t.tp))
+  ?:  =('H' i.t.tp)  (weld hname $(tp t.t.tp))
+  ?:  =('E' i.t.tp)
+    (weld (zing ~[tname op hname]) $(tp t.t.tp))
+  [i.tp i.t.tp $(tp t.t.tp)]
+::
+++  edge-label-ranksep
+  ::  Reserve enough rank-axis room to center labels between nodes
+  |=  [res=resolved:attr horiz=?]
+  ^-  @rs
+  %+  roll  edges.res
+  |=  [e=redge:attr best=@rs]
+  =/  raw  (~(get by attrs.e) 'label')
+  ?~  raw  best
+  =/  tail-name  name:(snag tail.e nodes.res)
+  =/  head-name  name:(snag head.e nodes.res)
+  =/  text
+    %-  crip
+    %:  subst-edge-label
+      (trip u.raw)
+      (trip tail-name)
+      (trip head-name)
+      ?:(directed.res "->" "--")
+    ==
+  =/  gvd  ~(. gv:attr attrs.e)
+  =/  size  (text-size:metrics (rd-rs fontsize:gvd) text)
+  =/  extent  ?:(horiz w.size h.size)
+  (rmax best (add:rs extent .16))
+::
 ++  node-label
   |=  [res=resolved:attr v=@ud]
   ^-  @t
@@ -135,13 +172,16 @@
     |=  [v=@ud m2=_m]
     (~(put by m2) v [.1 .1])
   =/  horiz  |(=(%lr rankdir.g) =(%rl rankdir.g))
+  =/  ranksep
+    =/  base  (mul:rs (rd-rs ~(ranksep gv:attr gattrs.res)) .72)
+    (rmax base (edge-label-ranksep res horiz))
   =/  smp=csamp
     :*  nall.g
         nreal
         nrank.g
         horiz
         (mul:rs (rd-rs ~(nodesep gv:attr gattrs.res)) .72)
-        (mul:rs (rd-rs ~(ranksep gv:attr gattrs.res)) .72)
+        ranksep
         order.o
         ranks.g
         (adj-of g %.y)
@@ -184,6 +224,15 @@
       %rl  [(sub:rs htot cy) (sub:rs wtot cx)]
     ==
   =/  size=[w=@rs h=@rs]  ?:(horiz [htot wtot] [wtot htot])
+  =/  clustered  ?=(^ clusters.res)
+  =/  pos
+    ?.  clustered  pos
+    %-  ~(run by pos)
+    |=  p=[x=@rs y=@rs]
+    [(add:rs x.p .8) (add:rs y.p .8)]
+  =/  size
+    ?.  clustered  size
+    [(add:rs w.size .16) (add:rs h.size .34)]
   :*  nreal
       nall.g
       rankdir.g

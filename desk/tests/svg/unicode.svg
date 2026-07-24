@@ -14,8 +14,8 @@
 </g>
 <g id="edge1" class="edge">
 <title>a--b</title>
-<path fill="none" stroke="#000000" d="M82.72,36.00C82.72,42.00 82.72,66.00 82.72,72.00"/>
-<text text-anchor="middle" x="92.72" y="71.04" font-family="Times,serif" font-size="14.00" fill="#000000">←→</text>
+<path fill="none" stroke="#000000" d="M82.72,36.00C82.72,48.00 82.72,60.00 82.72,72.00"/>
+<text text-anchor="middle" x="92.72" y="59.04" font-family="Times,serif" font-size="14.00" fill="#000000">←→</text>
 </g>
 </g>
 </svg>

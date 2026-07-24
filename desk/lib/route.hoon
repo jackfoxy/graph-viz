@@ -146,6 +146,34 @@
     prev  b
     acc   [b (vlerp prev b .0.6666667) (vlerp prev b .0.3333333) acc]
   ==
+::
+++  cubic-mid
+  ::  Evaluate one cubic Bezier segment at t=0.5
+  |=  [p0=fp p1=fp p2=fp p3=fp]
+  ^-  fp
+  =/  a  (vlerp p0 p1 .0.5)
+  =/  b  (vlerp p1 p2 .0.5)
+  =/  c  (vlerp p2 p3 .0.5)
+  (vlerp (vlerp a b .0.5) (vlerp b c .0.5) .0.5)
+::
+++  spline-mid
+  ::  Point halfway through a 3k+1 control-point spline
+  |=  sp=(list fp)
+  ^-  fp
+  ?~  sp  [.0 .0]
+  =/  points  `(list fp)`sp
+  =/  count  (lent points)
+  =/  segments  (div (dec count) 3)
+  =/  middle  (div segments 2)
+  =/  start  (mul middle 3)
+  ?:  =(0 (mod segments 2))
+    (snag start points)
+  %:  cubic-mid
+    (snag start points)
+    (snag +(start) points)
+    (snag (add 2 start) points)
+    (snag (add 3 start) points)
+  ==
 ::  +|  Arrowheads
 ::
 ::
@@ -289,12 +317,17 @@
     =/  c2  (vadd (vlerp tctr hctr .0.6666667) (vmul od off))
     =/  p0  (clip-end res c tl c1 pt-t)
     =/  p3  (clip-end res c hd c2 pt-h)
+    ::  Center-based controls can fall inside a large endpoint,
+    ::  reversing the final tangent and its arrowhead.
+    =/  c1  (vadd (vlerp p0 p3 .0.3333333) (vmul od off))
+    =/  c2  (vadd (vlerp p0 p3 .0.6666667) (vmul od off))
     ~[p0 c1 c2 p3]
   =/  label=(unit [text=@t at=fp])
     =/  lt  (~(get by attrs.e) 'label')
     ?~  lt  ~
-    =/  mid  (snag (div (lent spline) 2) spline)
-    `[u.lt (vadd mid [.10 .0])]
+    =/  horiz  |(=(%lr rankdir.g) =(%rl rankdir.g))
+    =/  offset  ?:(|(=(tl hd) !horiz) [.10 .0] [.0 .10])
+    `[u.lt (vadd (spline-mid spline) offset)]
   [eix.re tl hd spline (edge-arrows res spline rev.re e) label]
 ::
 ++  rlast-fp
@@ -389,7 +422,7 @@
   =/  bb=[ll=fp ur=fp]  first
   |-  ^-  bbox:gg
   ?~  rest
-    [(vsub ll.bb [.8 .8]) (vadd ur.bb [.8 .8])]
+    [(vsub ll.bb [.8 .8]) (vadd ur.bb [.8 .26])]
   =/  p  (~(got by pos.c) i.rest)
   =/  d  (~(got by dims.c) i.rest)
   =/  lo=fp  [(sub:rs x.p (hf w.d)) (sub:rs y.p (hf h.d))]

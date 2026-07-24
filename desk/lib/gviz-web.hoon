@@ -115,6 +115,12 @@
               ;button#browse-svg(type "button"): Browse
               ;button#load-svg(type "button"): Load SVG
               ;button#save-svg(type "button", disabled ""): Save SVG
+              ;button#toggle-svg-source
+                =type          "button"
+                =disabled      ""
+                =aria-pressed  "false"
+                ;span: View source
+              ==
             ==
             ;span#render-status.status: Empty
           ==
@@ -183,6 +189,7 @@
               ;p: Check the ship connection, then try again.
             ==
             ;div#preview.preview(aria-live "polite", tabindex "0");
+            ;pre#svg-source(hidden "", tabindex "0", aria-label "SVG source");
           ==
         ==
       ==
@@ -460,6 +467,7 @@
     touch-action: none;
   }
 
+  .preview[hidden] { display: none; }
   .preview.is-panning { cursor: grabbing; }
 
   .preview svg {
@@ -485,6 +493,23 @@
       drop-shadow(0 0 5px #f59e0b);
   }
 
+  #svg-source {
+    background: #fafafa;
+    color: #18181b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    inset: 0;
+    line-height: 1.45;
+    margin: 0;
+    overflow: auto;
+    padding: 1rem;
+    position: absolute;
+    tab-size: 2;
+    white-space: pre;
+  }
+
+  #svg-source[hidden] { display: none; }
+
   .state-panel {
     align-content: center;
     color: #52525b;
@@ -506,7 +531,10 @@
 
   [data-state='empty'] .preview,
   [data-state='loading'] .preview,
-  [data-state='disconnected'] .preview { visibility: hidden; }
+  [data-state='disconnected'] .preview,
+  [data-state='empty'] #svg-source,
+  [data-state='loading'] #svg-source,
+  [data-state='disconnected'] #svg-source { visibility: hidden; }
 
   .spinner {
     animation: spin 0.8s linear infinite;
@@ -732,6 +760,7 @@
   const addNode = document.querySelector('#add-node');
   const drawEdge = document.querySelector('#draw-edge');
   const preview = document.querySelector('#preview');
+  const svgSource = document.querySelector('#svg-source');
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
   const sourceStatus = document.querySelector('#source-status');
@@ -742,6 +771,7 @@
   const browseSvg = document.querySelector('#browse-svg');
   const loadSvg = document.querySelector('#load-svg');
   const saveSvg = document.querySelector('#save-svg');
+  const toggleSvgSource = document.querySelector('#toggle-svg-source');
   const fit = document.querySelector('#fit');
   const autoRender = document.querySelector('#auto-render');
   const help = document.querySelector('#help');
@@ -774,6 +804,7 @@
   let panPoint;
   let errorLine = 0;
   let lastSvgSource = '';
+  let showingSvgSource = false;
   let pendingView;
   let selectedItems = [];
 
@@ -783,9 +814,36 @@
   }
 
   function setPreviewControls(enabled) {
-    resetView.disabled = !enabled;
+    if (!enabled) setSvgSourceVisible(false);
+    resetView.disabled = !enabled || showingSvgSource;
     saveSvg.disabled = !enabled;
-    fit.disabled = !enabled;
+    fit.disabled = !enabled || showingSvgSource;
+    toggleSvgSource.disabled = !enabled;
+  }
+
+  function setSvgSourceVisible(visible) {
+    showingSvgSource = Boolean(visible && currentSvg && lastSvgSource);
+    preview.hidden = showingSvgSource;
+    svgSource.hidden = !showingSvgSource;
+    toggleSvgSource.setAttribute(
+      'aria-pressed',
+      String(showingSvgSource)
+    );
+    toggleSvgSource.textContent = showingSvgSource
+      ? 'View rendered'
+      : 'View source';
+    resetView.disabled = !currentSvg || showingSvgSource;
+    fit.disabled = !currentSvg || showingSvgSource;
+    if (showingSvgSource) {
+      clearVisualSelection();
+      svgSource.focus();
+    } else if (currentSvg) {
+      preview.focus();
+    }
+  }
+
+  function toggleSvgView() {
+    setSvgSourceVisible(!showingSvgSource);
   }
 
   function showHelp(open) {
@@ -1987,6 +2045,8 @@
     }
     clearVisualSelection();
     currentSvg = svg;
+    lastSvgSource = source;
+    svgSource.textContent = source;
     preview.replaceChildren(svg);
     const restoredView = pendingView;
     pendingView = undefined;
@@ -2096,7 +2156,6 @@
         return;
       }
       installSvg(source);
-      lastSvgSource = source;
       autoRender.checked = false;
       queueSaveSession();
       error.textContent = '';
@@ -2301,7 +2360,6 @@
         showProblem({kind: 'request', message: 'Invalid SVG response'});
         return;
       }
-      lastSvgSource = body;
       setErrorLine(0);
       setPreviewControls(true);
       setState('ready', 'Rendered');
@@ -2334,6 +2392,7 @@
   browseSvg.addEventListener('click', () => browseClayFiles('svg'));
   loadSvg.addEventListener('click', () => loadCurrentSvg());
   saveSvg.addEventListener('click', saveCurrentSvg);
+  toggleSvgSource.addEventListener('click', toggleSvgView);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();

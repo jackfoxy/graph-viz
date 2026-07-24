@@ -1,6 +1,6 @@
 ::  Tests for /lib/route (P10: routing, splines, arrowheads)
 ::
-/+  *test, parse, attr, rank, order, coord
+/+  *test, parse, attr, rank, order, coord, metrics
 /+  route
 /*  unix-src    %dot  /tests/dot/unix/dot
 /*  world-src   %dot  /tests/dot/world/dot
@@ -157,6 +157,28 @@
   ::
     (expect-eq !>((snag 0 spline.e1)) !>((snag 0 (snag 0 arrows.e1))))
   ==
+::
+++  test-route-large-head-arrow
+  ::  A large head node must not place the final control inside it
+  =/  src
+    %-  crip
+    ;:  weld
+      "digraph states \{ rankdir=LR node [shape=circle] "
+      "start [shape=doublecircle] start -> idle "
+      "idle -> running [label=start] "
+      "running -> idle [label=stop] "
+      "running -> done [label=finish] "
+      "done [shape=doublecircle] }"
+    ==
+  =/  t  (go src)
+  =/  e  (snag 1 ro.t)
+  =/  arrow  (snag 0 arrows.e)
+  =/  tip  (snag 0 arrow)
+  =/  base  (snag 1 arrow)
+  ;:  weld
+    (expect-eq !>((snag (dec (lent spline.e)) spline.e)) !>(tip))
+    (expect !>((gth:rs x.tip x.base)))
+  ==
 ::  +|  Loops, fans, flats
 ::
 ::
@@ -218,5 +240,61 @@
     (expect-eq !>('hello') !>(label:(snag 0 nodes.pg)))
     (expect !>((gth:rs x.size.canvas.pg .0)))
     (expect !>(directed.pg))
+  ==
+::
+++  test-cluster-bounds
+  =/  src
+    %-  crip
+    ;:  weld
+      "digraph architecture \{ node [shape=box] "
+      "subgraph cluster_web \{ label=\"Web\" browser -> gateway } "
+      "subgraph cluster_data \{ label=\"Data\" api -> database } "
+      "gateway -> api }"
+    ==
+  =/  t  (go src)
+  =/  pg  (build-graph:route res.t g.t c.t)
+  =/  cl  (snag 0 clusters.pg)
+  =/  top-node  (snag 0 nodes.pg)
+  =/  node-top  (add:rs y.center.top-node y.half.top-node)
+  ?>  ?=(^ label.cl)
+  ;:  weld
+    (expect !>((gte:rs x.ll.bbox.cl .0)))
+    (expect !>((gte:rs y.ll.bbox.cl .0)))
+    (expect !>((lte:rs x.ur.bbox.cl x.size.canvas.pg)))
+    (expect !>((lte:rs y.ur.bbox.cl y.size.canvas.pg)))
+    (expect !>((gth:rs y.at.u.label.cl node-top)))
+  ==
+::
+++  test-strict-label-clearance
+  =/  src
+    %-  crip
+    ;:  weld
+      "strict digraph unique_edges \{ rankdir=LR node [shape=box] "
+      "Start -> Validate [label=first] "
+      "Start -> Validate [label=\"last wins\", color=blue] "
+      "Validate -> Done }"
+    ==
+  =/  t  (go src)
+  =/  pg  (build-graph:route res.t g.t c.t)
+  =/  edge  (snag 0 edges.pg)
+  =/  start  (snag 0 nodes.pg)
+  =/  validate  (snag 1 nodes.pg)
+  ?>  ?=(^ label.edge)
+  =/  label-half
+    %+  div:rs
+      w:(text-size:metrics .14 text.u.label.edge)
+    .2
+  =/  label-left  (sub:rs x.at.u.label.edge label-half)
+  =/  label-right  (add:rs x.at.u.label.edge label-half)
+  =/  start-right  (add:rs x.center.start x.half.start)
+  =/  validate-left  (sub:rs x.center.validate x.half.validate)
+  ;:  weld
+    (expect-eq !>(2) !>((lent edges.pg)))
+    (expect-eq !>('last wins') !>(text.u.label.edge))
+    %+  expect-eq  !>(`'blue')
+    !>((~(get by attrs.edge) 'color'))
+  ::
+    (expect !>((gte:rs label-left start-right)))
+    (expect !>((lte:rs label-right validate-left)))
   ==
 --
