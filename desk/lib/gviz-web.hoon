@@ -170,6 +170,71 @@
                   ;option(value "dashed"): Dashed
                   ;option(value "dotted"): Dotted
                   ;option(value "bold"): Bold
+                  ;option(value "invis"): Invisible
+                ==
+              ==
+              ;div#edge-controls.edge-controls(hidden "")
+                ;label.control
+                  ;span: Pen width
+                  ;input#attr-penwidth(type "number", min "0", step "any");
+                ==
+                ;label.control
+                  ;span: Arrowhead
+                  ;select#attr-arrowhead
+                    ;option(value ""): Default
+                    ;option(value "normal"): Normal
+                    ;option(value "empty"): Empty
+                    ;option(value "vee"): Vee
+                    ;option(value "dot"): Dot
+                    ;option(value "diamond"): Diamond
+                    ;option(value "none"): None
+                  ==
+                ==
+                ;label.control
+                  ;span: Arrowtail
+                  ;select#attr-arrowtail
+                    ;option(value ""): Default
+                    ;option(value "normal"): Normal
+                    ;option(value "empty"): Empty
+                    ;option(value "vee"): Vee
+                    ;option(value "dot"): Dot
+                    ;option(value "diamond"): Diamond
+                    ;option(value "none"): None
+                  ==
+                ==
+                ;label.control
+                  ;span: Arrow size
+                  ;input#attr-arrowsize(type "number", min "0", step "any");
+                ==
+                ;label.control
+                  ;span: Direction
+                  ;select#attr-dir
+                    ;option(value ""): Default
+                    ;option(value "forward"): Forward
+                    ;option(value "back"): Back
+                    ;option(value "both"): Both
+                    ;option(value "none"): None
+                  ==
+                ==
+                ;label.control
+                  ;span: Minimum length
+                  ;input#attr-minlen(type "number", min "0", step "1");
+                ==
+                ;label.control
+                  ;span: Weight
+                  ;input#attr-weight(type "number", min "0", step "1");
+                ==
+                ;label.control
+                  ;span: Font name
+                  ;input#attr-fontname(type "text", maxlength "80");
+                ==
+                ;label.control
+                  ;span: Font size
+                  ;input#attr-fontsize(type "number", min "0", step "any");
+                ==
+                ;label.control
+                  ;span: Font color
+                  ;input#attr-fontcolor(type "text", placeholder "#18181b");
                 ==
               ==
               ;button#apply-attributes(type "submit"): Apply
@@ -345,6 +410,11 @@
     font-size: 0.85rem;
     min-width: 0;
     padding: 0.35rem 0.5rem;
+  }
+
+  #shape-control[hidden], #fill-control[hidden],
+  #edge-controls[hidden] {
+    display: none;
   }
 
   .preference {
@@ -585,6 +655,13 @@
     grid-template-columns: repeat(5, minmax(5rem, 1fr)) auto;
   }
 
+  .edge-controls {
+    display: grid;
+    gap: 0.5rem;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  }
+
   .danger-button { color: var(--danger); }
 
   .help-panel {
@@ -750,11 +827,22 @@
   const attributeForm = document.querySelector('#attribute-form');
   const shapeControl = document.querySelector('#shape-control');
   const fillControl = document.querySelector('#fill-control');
+  const edgeControls = document.querySelector('#edge-controls');
   const attrLabel = document.querySelector('#attr-label');
   const attrShape = document.querySelector('#attr-shape');
   const attrColor = document.querySelector('#attr-color');
   const attrFillcolor = document.querySelector('#attr-fillcolor');
   const attrStyle = document.querySelector('#attr-style');
+  const attrPenwidth = document.querySelector('#attr-penwidth');
+  const attrArrowhead = document.querySelector('#attr-arrowhead');
+  const attrArrowtail = document.querySelector('#attr-arrowtail');
+  const attrArrowsize = document.querySelector('#attr-arrowsize');
+  const attrDir = document.querySelector('#attr-dir');
+  const attrMinlen = document.querySelector('#attr-minlen');
+  const attrWeight = document.querySelector('#attr-weight');
+  const attrFontname = document.querySelector('#attr-fontname');
+  const attrFontsize = document.querySelector('#attr-fontsize');
+  const attrFontcolor = document.querySelector('#attr-fontcolor');
   const newNodeName = document.querySelector('#new-node-name');
   const newNodeShape = document.querySelector('#new-node-shape');
   const addNode = document.querySelector('#add-node');
@@ -794,6 +882,11 @@
   const maxSharedSourceBytes = 12 * 1024;
   const maxShareParamChars = 16 * 1024;
   const storageKey = 'graph-viz.session.v1';
+  const nodeShapes = ['', 'box', 'ellipse', 'circle', 'diamond', 'point'];
+  const arrowShapes = [
+    '', 'normal', 'empty', 'vee', 'dot', 'diamond', 'none'
+  ];
+  const edgeDirections = ['', 'forward', 'back', 'both', 'none'];
   let requestUid = 0;
   let latestRequestUid = 0;
   let renderTimer;
@@ -1317,18 +1410,21 @@
       return {
         values: namesFromStatements(nested),
         next: close + 1,
-        nested
+        nested,
+        simple: false
       };
     }
     const id = parseDotId(tokens, cursor);
     if (!id) return undefined;
     cursor = id.next;
+    let simple = true;
     for (let port = 0; port < 2 && tokens[cursor]?.value === ':'; port += 1) {
       const part = parseDotId(tokens, cursor + 1);
       if (!part) break;
+      simple = false;
       cursor = part.next;
     }
-    return {values: [id.value], next: cursor, nested: []};
+    return {values: [id.value], next: cursor, nested: [], simple};
   }
 
   function finishDotStatement(tokens, index) {
@@ -1385,16 +1481,20 @@
       };
     }
     const edges = [];
+    const edgeParts = [];
+    let simpleEdges = first.simple;
     const nodeNames = new Set(first.values);
     let left = first.values;
     while (tokens[cursor]?.type === 'edge') {
       const operator = tokens[cursor].value;
       const right = parseDotEndpoint(tokens, cursor + 1, limit);
       if (!right) break;
+      simpleEdges = simpleEdges && right.simple;
       nested.push(...right.nested);
       for (const tail of left) {
         for (const head of right.values) {
           edges.push(tail + operator + head);
+          edgeParts.push({tail, head, operator});
         }
       }
       for (const name of right.values) nodeNames.add(name);
@@ -1409,6 +1509,8 @@
         kind: 'edge',
         nodeNames: [...nodeNames],
         edges,
+        edgeParts,
+        simpleEdges,
         ...dotStatementRange(tokens, start, cursor)
       }]
     };
@@ -1514,8 +1616,9 @@
       const identity = newNodeName.value.trim();
       const id = dotIdSource(identity);
       const shape = newNodeShape.value;
-      const shapes = ['box', 'ellipse', 'circle', 'diamond', 'point'];
-      if (!shapes.includes(shape)) throw new Error('Unsupported node shape');
+      if (!shape || !nodeShapes.includes(shape)) {
+        throw new Error('Unsupported node shape');
+      }
       const exists = dotStatements(dot.value).some((statement) => {
         return statement.nodeNames.includes(identity);
       });
@@ -1619,11 +1722,9 @@
   function editableStatement(kind, identity) {
     const statements = dotStatements(dot.value);
     if (kind === 'edge') {
-      const statement = statements.find((candidate) => {
+      return statements.find((candidate) => {
         return candidate.edges.includes(identity);
       });
-      if (statement && statement.edges.length !== 1) return undefined;
-      return statement;
     }
     const matches = statements.filter((statement) => {
       return statement.kind === 'node'
@@ -1631,6 +1732,26 @@
         && statement.nodeNames[0] === identity;
     });
     return matches.at(-1);
+  }
+
+  function splitEdgeStatement(statement) {
+    if (statement.edges.length < 2 || !statement.simpleEdges) {
+      return statement;
+    }
+    const parsed = readStatementAttributes(statement);
+    const lineStart = dot.value.lastIndexOf('\n', statement.start - 1) + 1;
+    const indent = dot.value.slice(lineStart, statement.start)
+      .match(/^\s*/)?.[0] || '';
+    const statements = statement.edgeParts.map((edge) => {
+      const base = dotIdSource(edge.tail) + ' ' + edge.operator + ' '
+        + dotIdSource(edge.head);
+      return writeStatementAttributes({...parsed, base});
+    });
+    const replacement = statements.join('\n' + indent);
+    dot.value = dot.value.slice(0, statement.start)
+      + replacement
+      + dot.value.slice(statement.end);
+    return undefined;
   }
 
   function readStatementAttributes(statement) {
@@ -1705,6 +1826,17 @@
     parsed.attributes.set(name, {name, raw: value, value: decoded});
   }
 
+  function numericAttribute(value, name, integer = false) {
+    const source = value.trim();
+    if (!source) return undefined;
+    const number = Number(source);
+    if (!Number.isFinite(number) || number < 0
+      || (integer && !Number.isInteger(number))) {
+      throw new Error(`${name} must be a non-negative number`);
+    }
+    return source;
+  }
+
   function writeStatementAttributes(parsed) {
     const values = [...parsed.attributes.values()];
     const attributes = values.length
@@ -1718,24 +1850,32 @@
   function populateAttributeForm(selected) {
     attributeForm.hidden = false;
     const statement = editableStatement(selected.kind, selected.identity);
-    if (selected.kind === 'edge' && !statement) {
-      attributeForm.hidden = true;
-      sourceStatus.textContent = 'Edit chains and grouped edges in DOT';
-      return;
-    }
     try {
       const parsed = readStatementAttributes(statement);
       const get = (name) => parsed.attributes.get(name)?.value || '';
       const styles = get('style').split(',').map((value) => value.trim());
       attrLabel.value = get('label');
       attrColor.value = get('color');
-      attrStyle.value = ['solid', 'dashed', 'dotted', 'bold']
+      attrStyle.value = ['solid', 'dashed', 'dotted', 'bold', 'invis']
         .find((style) => styles.includes(style)) || '';
       const isNode = selected.kind === 'node';
       shapeControl.hidden = !isNode;
       fillControl.hidden = !isNode;
-      attrShape.value = isNode ? get('shape') : '';
+      edgeControls.hidden = isNode;
+      const sourceShape = isNode ? get('shape') : '';
+      attrShape.dataset.sourceShape = sourceShape;
+      attrShape.value = nodeShapes.includes(sourceShape) ? sourceShape : '';
       attrFillcolor.value = isNode ? get('fillcolor') : '';
+      attrPenwidth.value = isNode ? '' : get('penwidth');
+      attrArrowhead.value = isNode ? '' : get('arrowhead');
+      attrArrowtail.value = isNode ? '' : get('arrowtail');
+      attrArrowsize.value = isNode ? '' : get('arrowsize');
+      attrDir.value = isNode ? '' : get('dir');
+      attrMinlen.value = isNode ? '' : get('minlen');
+      attrWeight.value = isNode ? '' : get('weight');
+      attrFontname.value = isNode ? '' : get('fontname');
+      attrFontsize.value = isNode ? '' : get('fontsize');
+      attrFontcolor.value = isNode ? '' : get('fontcolor');
     } catch (cause) {
       attributeForm.hidden = true;
       sourceStatus.textContent = cause.message;
@@ -1749,9 +1889,10 @@
         throw new Error('Select one node or edge to edit');
       }
       const selected = selectedItems[0];
-      const statement = editableStatement(selected.kind, selected.identity);
-      if (selected.kind === 'edge' && !statement) {
-        throw new Error('Edit edge chains or grouped edges in DOT');
+      let statement = editableStatement(selected.kind, selected.identity);
+      if (selected.kind === 'edge' && statement?.edges.length > 1) {
+        splitEdgeStatement(statement);
+        statement = editableStatement(selected.kind, selected.identity);
       }
       const parsed = statement
         ? readStatementAttributes(statement)
@@ -1763,15 +1904,26 @@
       const label = attrLabel.value;
       const color = attrColor.value.trim();
       const fillcolor = attrFillcolor.value.trim();
-      const shape = attrShape.value;
+      const sourceShape = selected.kind === 'node'
+        ? attrShape.dataset.sourceShape || ''
+        : '';
+      const preserveSourceShape = Boolean(sourceShape && !attrShape.value);
+      const shape = preserveSourceShape ? sourceShape : attrShape.value;
       const lineStyle = attrStyle.value;
-      const shapes = ['', 'box', 'ellipse', 'circle', 'diamond', 'point'];
-      const lineStyles = ['', 'solid', 'dashed', 'dotted', 'bold'];
-      if (!validColor(color) || !validColor(fillcolor)) {
+      const lineStyles = [
+        '', 'solid', 'dashed', 'dotted', 'bold', 'invis'
+      ];
+      const fontcolor = attrFontcolor.value.trim();
+      if (!validColor(color) || !validColor(fillcolor)
+        || !validColor(fontcolor)) {
         throw new Error('Colors must be names or six-digit hex values');
       }
-      if (!shapes.includes(shape) || !lineStyles.includes(lineStyle)) {
-        throw new Error('Unsupported shape or line style');
+      if ((!nodeShapes.includes(shape) && !preserveSourceShape)
+        || !lineStyles.includes(lineStyle)
+        || !arrowShapes.includes(attrArrowhead.value)
+        || !arrowShapes.includes(attrArrowtail.value)
+        || !edgeDirections.includes(attrDir.value)) {
+        throw new Error('Unsupported attribute value');
       }
       setParsedAttribute(
         parsed,
@@ -1790,6 +1942,7 @@
         .map((value) => value.trim())
         .filter(Boolean);
       const controlled = new Set(['solid', 'dashed', 'dotted', 'bold']);
+      controlled.add('invis');
       if (selected.kind === 'node') controlled.add('filled');
       const styles = oldStyles.filter((style) => !controlled.has(style));
       if (lineStyle) styles.push(lineStyle);
@@ -1798,18 +1951,68 @@
         const keepFilled = fillcolor
           || (oldStyles.includes('filled') && !hadFillcolor);
         if (keepFilled) styles.push('filled');
-        setParsedAttribute(
-          parsed,
-          'shape',
-          shape || undefined,
-          shape
-        );
+        if (!preserveSourceShape) {
+          setParsedAttribute(
+            parsed,
+            'shape',
+            shape || undefined,
+            shape
+          );
+        }
         setParsedAttribute(
           parsed,
           'fillcolor',
           fillcolor ? dotValueSource(fillcolor, 40) : undefined,
           fillcolor
         );
+      } else {
+        const penwidth = numericAttribute(
+          attrPenwidth.value,
+          'Pen width'
+        );
+        const arrowsize = numericAttribute(
+          attrArrowsize.value,
+          'Arrow size'
+        );
+        const minlen = numericAttribute(
+          attrMinlen.value,
+          'Minimum length',
+          true
+        );
+        const weight = numericAttribute(
+          attrWeight.value,
+          'Weight',
+          true
+        );
+        const fontsize = numericAttribute(
+          attrFontsize.value,
+          'Font size'
+        );
+        const edgeValues = [
+          ['penwidth', penwidth],
+          ['arrowhead', attrArrowhead.value || undefined],
+          ['arrowtail', attrArrowtail.value || undefined],
+          ['arrowsize', arrowsize],
+          ['dir', attrDir.value || undefined],
+          ['minlen', minlen],
+          ['weight', weight],
+          [
+            'fontname',
+            attrFontname.value
+              ? dotValueSource(attrFontname.value, 80)
+              : undefined,
+            attrFontname.value
+          ],
+          ['fontsize', fontsize],
+          [
+            'fontcolor',
+            fontcolor ? dotValueSource(fontcolor, 40) : undefined,
+            fontcolor
+          ]
+        ];
+        for (const [name, value, decoded = value] of edgeValues) {
+          setParsedAttribute(parsed, name, value, decoded);
+        }
       }
       const uniqueStyles = [...new Set(styles)];
       setParsedAttribute(
@@ -1924,9 +2127,12 @@
       return;
     }
     if (!additive || kind !== 'node'
-      || selectedItems.some((item) => item.kind !== 'node')
-      || selectedItems.length >= 2) {
+      || selectedItems.some((item) => item.kind !== 'node')) {
       clearVisualSelection();
+    } else if (selectedItems.length >= 2) {
+      const removed = selectedItems.pop();
+      removed.element.classList.remove('is-selected');
+      removed.element.removeAttribute('aria-current');
     }
     if (!selectedItems.some((item) => item.element === group)) {
       const selected = {element: group, kind, identity};
@@ -2381,6 +2587,9 @@
   drawEdge.addEventListener('click', drawSelectedEdge);
   deleteSelection.addEventListener('click', deleteSelectedItem);
   attributeForm.addEventListener('submit', applySelectedAttributes);
+  attrShape.addEventListener('change', () => {
+    attrShape.dataset.sourceShape = '';
+  });
   newNodeName.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();

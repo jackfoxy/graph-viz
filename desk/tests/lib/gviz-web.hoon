@@ -141,6 +141,18 @@
     (expect !>(?=(^ (find "id=\"add-node\"" html))))
     (expect !>(?=(^ (find "id=\"draw-edge\"" html))))
     (expect !>(?=(^ (find "id=\"attribute-form\"" html))))
+    (expect !>(?=(^ (find "id=\"edge-controls\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-arrowhead\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-arrowtail\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-arrowsize\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-dir\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-minlen\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-weight\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-penwidth\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-fontname\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-fontsize\"" html))))
+    (expect !>(?=(^ (find "id=\"attr-fontcolor\"" html))))
+    (expect !>(?=(^ (find "#shape-control[hidden]" (trip css:web)))))
     (expect !>(?=(^ (find "id=\"delete-selection\"" html))))
     (expect !>(?=(^ (find "addVisualNode" js))))
     (expect !>(?=(^ (find "drawSelectedEdge" js))))
@@ -148,7 +160,7 @@
     (expect !>(?=(^ (find "applySelectedAttributes" js))))
     (expect !>(?=(^ (find "readStatementAttributes" js))))
     (expect !>(?=(^ (find "insertRootStatement" js))))
-    (expect !>(?=(^ (find "Edit edge chains or grouped edges" js))))
+    (expect !>(?=(^ (find "splitEdgeStatement" js))))
   ==
 ::
 ++  test-web-error-json

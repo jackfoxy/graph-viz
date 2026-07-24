@@ -104,7 +104,9 @@ function svgDocument(source) {
   const groups = [
     group('node', 'Alpha'),
     group('node', 'Beta'),
-    group('edge', 'Alpha->Beta')
+    group('node', 'Gamma'),
+    group('edge', 'Alpha->Beta'),
+    group('edge', 'Beta->Gamma')
   ];
   const svg = new Element();
   svg.localName = 'svg';
@@ -142,8 +144,12 @@ const selectors = [
   '#inspector',
   '#selection-kind', '#selection-id', '#clear-selection',
   '#delete-selection', '#attribute-form', '#shape-control', '#fill-control',
+  '#edge-controls',
   '#attr-label', '#attr-shape', '#attr-color', '#attr-fillcolor',
-  '#attr-style', '#new-node-name', '#new-node-shape', '#add-node',
+  '#attr-style', '#attr-penwidth', '#attr-arrowhead', '#attr-arrowtail',
+  '#attr-arrowsize', '#attr-dir', '#attr-minlen', '#attr-weight',
+  '#attr-fontname', '#attr-fontsize', '#attr-fontcolor',
+  '#new-node-name', '#new-node-shape', '#add-node',
   '#draw-edge'
 ];
 const elements = Object.fromEntries(selectors.map((name) => {
@@ -292,7 +298,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#preview-shell'].dataset.state, 'ready');
   assert(elements['#error'].textContent.includes('Line 1, column 9'));
 
-  const svg = elements['#preview'].children[0];
+  let svg = elements['#preview'].children[0];
   const beforeZoom = svg.style.transform;
   elements['#preview'].listeners.wheel({
     clientX: 400, clientY: 300, deltaY: -100, preventDefault() {}
@@ -309,11 +315,100 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#preview'].listeners.pointerup({pointerId: 7});
   assert.notEqual(svg.style.transform, beforePan);
 
+  dot.value = [
+    'digraph shapes {',
+    '  Alpha [shape=doublecircle]',
+    '  Alpha -> Beta',
+    '}'
+  ].join('\n');
+  elements['#preview'].listeners.click({target: svg.groups[0]});
+  assert.equal(elements['#attr-shape'].value, '');
+  assert.equal(
+    elements['#attr-shape'].dataset.sourceShape,
+    'doublecircle'
+  );
+  elements['#attr-style'].value = 'dashed';
+  elements['#attribute-form'].listeners.submit({preventDefault() {}});
+  assert(dot.value.includes('shape=doublecircle'));
+  assert(dot.value.includes('style=\"dashed\"'));
+  requests.at(-1).resolve(response(true, '<svg id="styled"/>'));
+  await tick();
+  await tick();
+  svg = elements['#preview'].children[0];
+
+  dot.value = 'digraph chain { Alpha -> Beta -> Gamma }';
+  elements['#preview'].listeners.click({target: svg.groups[4]});
+  assert.equal(elements['#selection-kind'].textContent, 'Edge');
+  assert.equal(elements['#selection-id'].textContent, 'Beta->Gamma');
+  assert.equal(elements['#attribute-form'].hidden, false);
+  assert.equal(elements['#shape-control'].hidden, true);
+  assert.equal(elements['#fill-control'].hidden, true);
+  assert.equal(elements['#edge-controls'].hidden, false);
+  elements['#attr-label'].value = 'next';
+  elements['#attr-color'].value = 'blue';
+  elements['#attr-style'].value = 'dashed';
+  elements['#attr-penwidth'].value = '2';
+  elements['#attr-arrowhead'].value = 'vee';
+  elements['#attr-arrowtail'].value = 'dot';
+  elements['#attr-arrowsize'].value = '1.5';
+  elements['#attr-dir'].value = 'both';
+  elements['#attr-minlen'].value = '2';
+  elements['#attr-weight'].value = '3';
+  elements['#attr-fontname'].value = 'Arial';
+  elements['#attr-fontsize'].value = '12';
+  elements['#attr-fontcolor'].value = 'green';
+  elements['#attribute-form'].listeners.submit({preventDefault() {}});
+  assert(dot.value.includes('Alpha -> Beta'));
+  const selectedEdgeLine = dot.value.split('\n').find((line) => {
+    return line.includes('Beta -> Gamma');
+  });
+  assert(selectedEdgeLine);
+  assert(!dot.value.includes(
+    'Alpha -> Beta [label=\"next\"'
+  ));
+  for (const attribute of [
+    'label=\"next\"',
+    'color=\"blue\"',
+    'style=\"dashed\"',
+    'penwidth=2',
+    'arrowhead=vee',
+    'arrowtail=dot',
+    'arrowsize=1.5',
+    'dir=both',
+    'minlen=2',
+    'weight=3',
+    'fontname=\"Arial\"',
+    'fontsize=12',
+    'fontcolor=\"green\"'
+  ]) {
+    assert(selectedEdgeLine.includes(attribute), attribute);
+  }
+  requests.at(-1).resolve(response(true, '<svg id="edge-styled"/>'));
+  await tick();
+  await tick();
+  svg = elements['#preview'].children[0];
+
   elements['#preview'].listeners.click({target: svg.groups[0]});
   assert(svg.groups[0].classList.contains('is-selected'));
   assert.equal(elements['#selection-kind'].textContent, 'Node');
   assert.equal(elements['#selection-id'].textContent, 'Alpha');
   assert(dot.value.slice(dot.selectionStart, dot.selectionEnd).includes('Alpha'));
+
+  elements['#preview'].listeners.click({
+    target: svg.groups[1], shiftKey: true
+  });
+  assert(svg.groups[0].classList.contains('is-selected'));
+  assert(svg.groups[1].classList.contains('is-selected'));
+  assert.equal(elements['#selection-id'].textContent, 'Alpha -> Beta');
+
+  elements['#preview'].listeners.click({
+    target: svg.groups[2], shiftKey: true
+  });
+  assert(svg.groups[0].classList.contains('is-selected'));
+  assert(!svg.groups[1].classList.contains('is-selected'));
+  assert(svg.groups[2].classList.contains('is-selected'));
+  assert.equal(elements['#selection-id'].textContent, 'Alpha -> Gamma');
+  assert.equal(elements['#draw-edge'].disabled, false);
 
   dot.value = 'digraph persisted { Alpha -> Beta }';
   dot.listeners.input({});
