@@ -149,6 +149,7 @@ const selectors = [
   '#attr-style', '#attr-penwidth', '#attr-arrowhead', '#attr-arrowtail',
   '#attr-arrowsize', '#attr-dir', '#attr-minlen', '#attr-weight',
   '#attr-fontname', '#attr-fontsize', '#attr-fontcolor',
+  '#attr-change-all', '#attr-use-default',
   '#new-node-name', '#new-node-category', '#new-node-shape', '#add-node',
   '#draw-edge'
 ];
@@ -354,6 +355,100 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert(dot.value.includes('shape=doublecircle'));
   assert(dot.value.includes('style=\"dashed\"'));
   requests.at(-1).resolve(response(true, '<svg id="styled"/>'));
+  await tick();
+  await tick();
+  svg = elements['#preview'].children[0];
+
+  dot.value = [
+    'digraph bulk_nodes {',
+    '  Alpha [shape=box]',
+    '  Alpha -> Beta',
+    '}'
+  ].join('\n');
+  elements['#preview'].listeners.click({target: svg.groups[0]});
+  assert.equal(elements['#attr-change-all'].checked, false);
+  assert.equal(elements['#attr-use-default'].checked, false);
+  elements['#attr-label'].value = '';
+  elements['#attr-shape'].value = 'diamond';
+  elements['#attr-color'].value = 'purple';
+  elements['#attr-fillcolor'].value = 'yellow';
+  elements['#attr-style'].value = 'bold';
+  elements['#attr-change-all'].checked = true;
+  elements['#attr-use-default'].checked = true;
+  elements['#attribute-form'].listeners.submit({preventDefault() {}});
+  for (const name of ['Alpha', 'Beta']) {
+    const nodeLine = dot.value.split('\n').find((line) => {
+      return line.trimStart().startsWith(`${name} [`);
+    });
+    assert(nodeLine, name);
+    assert(nodeLine.includes('shape=diamond'), nodeLine);
+    assert(nodeLine.includes('color=\"purple\"'), nodeLine);
+    assert(nodeLine.includes('fillcolor=\"yellow\"'), nodeLine);
+    assert(nodeLine.includes('style=\"bold,filled\"'), nodeLine);
+  }
+  const nodeDefault = dot.value.split('\n').find((line) => {
+    return line.trimStart().startsWith('node [');
+  });
+  assert(nodeDefault);
+  assert(nodeDefault.includes('shape=diamond'));
+  assert.equal(elements['#new-node-shape'].value, 'diamond');
+  requests.at(-1).resolve(response(true, '<svg id="bulk-nodes"/>'));
+  await tick();
+  await tick();
+  svg = elements['#preview'].children[0];
+
+  elements['#new-node-name'].value = 'Gamma';
+  elements['#add-node'].listeners.click({});
+  assert(dot.value.split('\n').some((line) => line.trim() === 'Gamma'));
+  requests.at(-1).resolve(response(true, '<svg id="default-node"/>'));
+  await tick();
+  await tick();
+  svg = elements['#preview'].children[0];
+
+  dot.value = [
+    'digraph bulk_edges {',
+    '  Alpha -> Beta',
+    '  Beta -> Gamma',
+    '}'
+  ].join('\n');
+  elements['#preview'].listeners.click({target: svg.groups[3]});
+  assert.equal(elements['#attr-change-all'].checked, false);
+  assert.equal(elements['#attr-use-default'].checked, false);
+  elements['#attr-label'].value = '';
+  elements['#attr-color'].value = 'blue';
+  elements['#attr-style'].value = 'dotted';
+  elements['#attr-penwidth'].value = '2';
+  elements['#attr-change-all'].checked = true;
+  elements['#attr-use-default'].checked = true;
+  elements['#attribute-form'].listeners.submit({preventDefault() {}});
+  const edgeLines = dot.value.split('\n').filter((line) => {
+    return line.includes(' -> ');
+  });
+  assert.equal(edgeLines.length, 2);
+  for (const line of edgeLines) {
+    assert(line.includes('color=\"blue\"'), line);
+    assert(line.includes('style=\"dotted\"'), line);
+    assert(line.includes('penwidth=2'), line);
+  }
+  const edgeDefault = dot.value.split('\n').find((line) => {
+    return line.trimStart().startsWith('edge [');
+  });
+  assert(edgeDefault);
+  assert(edgeDefault.includes('color=\"blue\"'));
+  requests.at(-1).resolve(response(true, '<svg id="bulk-edges"/>'));
+  await tick();
+  await tick();
+  svg = elements['#preview'].children[0];
+
+  elements['#preview'].listeners.click({target: svg.groups[0]});
+  elements['#preview'].listeners.click({
+    target: svg.groups[2], shiftKey: true
+  });
+  elements['#draw-edge'].listeners.click({});
+  assert(dot.value.split('\n').some((line) => {
+    return line.trim() === 'Alpha -> Gamma';
+  }));
+  requests.at(-1).resolve(response(true, '<svg id="default-edge"/>'));
   await tick();
   await tick();
   svg = elements['#preview'].children[0];

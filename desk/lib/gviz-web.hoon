@@ -242,7 +242,17 @@
                   ;input#attr-fontcolor(type "text", placeholder "#18181b");
                 ==
               ==
-              ;button#apply-attributes(type "submit"): Apply
+              ;div.attribute-actions
+                ;label.preference
+                  ;input#attr-change-all(type "checkbox");
+                  ;span: Change all
+                ==
+                ;label.preference
+                  ;input#attr-use-default(type "checkbox");
+                  ;span: Use as default
+                ==
+                ;button#apply-attributes(type "submit"): Apply
+              ==
             ==
           ==
           ;div#preview-shell.preview-shell(data-state "empty")
@@ -668,6 +678,12 @@
     grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   }
 
+  .attribute-actions {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+  }
+
   .danger-button { color: var(--danger); }
 
   .help-panel {
@@ -849,6 +865,8 @@
   const attrFontname = document.querySelector('#attr-fontname');
   const attrFontsize = document.querySelector('#attr-fontsize');
   const attrFontcolor = document.querySelector('#attr-fontcolor');
+  const attrChangeAll = document.querySelector('#attr-change-all');
+  const attrUseDefault = document.querySelector('#attr-use-default');
   const newNodeName = document.querySelector('#new-node-name');
   const newNodeCategory = document.querySelector('#new-node-category');
   const newNodeShape = document.querySelector('#new-node-shape');
@@ -938,6 +956,7 @@
   let showingSvgSource = false;
   let pendingView;
   let selectedItems = [];
+  let inheritNewNodeShape = false;
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -955,6 +974,19 @@
     });
     newNodeShape.replaceChildren(...options);
     newNodeShape.value = shapes[0];
+    inheritNewNodeShape = false;
+  }
+
+  function showNewNodeDefaultShape(shape) {
+    const category = Object.entries(nodeShapeCategories).find((entry) => {
+      return entry[1].includes(shape);
+    });
+    if (category) {
+      newNodeCategory.value = category[0];
+      populateNewNodeShapes();
+      newNodeShape.value = shape;
+    }
+    inheritNewNodeShape = true;
   }
 
   function populateAttributeShapes() {
@@ -1676,7 +1708,7 @@
     try {
       const identity = newNodeName.value.trim();
       const id = dotIdSource(identity);
-      const shape = newNodeShape.value;
+      const shape = inheritNewNodeShape ? '' : newNodeShape.value;
       if (!nodeShapes.includes(shape)) {
         throw new Error('Unsupported node shape');
       }
@@ -1910,6 +1942,8 @@
 
   function populateAttributeForm(selected) {
     attributeForm.hidden = false;
+    attrChangeAll.checked = false;
+    attrUseDefault.checked = false;
     const statement = editableStatement(selected.kind, selected.identity);
     try {
       const parsed = readStatementAttributes(statement);
@@ -1943,6 +1977,195 @@
     }
   }
 
+  function applyFormAttributes(parsed, kind) {
+    const label = attrLabel.value;
+    const color = attrColor.value.trim();
+    const fillcolor = attrFillcolor.value.trim();
+    const sourceShape = kind === 'node'
+      ? attrShape.dataset.sourceShape || ''
+      : '';
+    const preserveSourceShape = Boolean(sourceShape && !attrShape.value);
+    const shape = preserveSourceShape ? sourceShape : attrShape.value;
+    const lineStyle = attrStyle.value;
+    const lineStyles = [
+      '', 'solid', 'dashed', 'dotted', 'bold', 'invis'
+    ];
+    const fontcolor = attrFontcolor.value.trim();
+    if (!validColor(color) || !validColor(fillcolor)
+      || !validColor(fontcolor)) {
+      throw new Error('Colors must be names or six-digit hex values');
+    }
+    if ((!nodeShapes.includes(shape) && !preserveSourceShape)
+      || !lineStyles.includes(lineStyle)
+      || !arrowShapes.includes(attrArrowhead.value)
+      || !arrowShapes.includes(attrArrowtail.value)
+      || !edgeDirections.includes(attrDir.value)) {
+      throw new Error('Unsupported attribute value');
+    }
+    setParsedAttribute(
+      parsed,
+      'label',
+      label ? dotValueSource(label) : undefined,
+      label
+    );
+    setParsedAttribute(
+      parsed,
+      'color',
+      color ? dotValueSource(color, 40) : undefined,
+      color
+    );
+    const oldStyles = (parsed.attributes.get('style')?.value || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const controlled = new Set(['solid', 'dashed', 'dotted', 'bold']);
+    controlled.add('invis');
+    if (kind === 'node') controlled.add('filled');
+    const styles = oldStyles.filter((style) => !controlled.has(style));
+    if (lineStyle) styles.push(lineStyle);
+    if (kind === 'node') {
+      const hadFillcolor = parsed.attributes.has('fillcolor');
+      const keepFilled = fillcolor
+        || (oldStyles.includes('filled') && !hadFillcolor);
+      if (keepFilled) styles.push('filled');
+      if (!preserveSourceShape) {
+        setParsedAttribute(
+          parsed,
+          'shape',
+          shape || undefined,
+          shape
+        );
+      }
+      setParsedAttribute(
+        parsed,
+        'fillcolor',
+        fillcolor ? dotValueSource(fillcolor, 40) : undefined,
+        fillcolor
+      );
+    } else {
+      const penwidth = numericAttribute(
+        attrPenwidth.value,
+        'Pen width'
+      );
+      const arrowsize = numericAttribute(
+        attrArrowsize.value,
+        'Arrow size'
+      );
+      const minlen = numericAttribute(
+        attrMinlen.value,
+        'Minimum length',
+        true
+      );
+      const weight = numericAttribute(
+        attrWeight.value,
+        'Weight',
+        true
+      );
+      const fontsize = numericAttribute(
+        attrFontsize.value,
+        'Font size'
+      );
+      const edgeValues = [
+        ['penwidth', penwidth],
+        ['arrowhead', attrArrowhead.value || undefined],
+        ['arrowtail', attrArrowtail.value || undefined],
+        ['arrowsize', arrowsize],
+        ['dir', attrDir.value || undefined],
+        ['minlen', minlen],
+        ['weight', weight],
+        [
+          'fontname',
+          attrFontname.value
+            ? dotValueSource(attrFontname.value, 80)
+            : undefined,
+          attrFontname.value
+        ],
+        ['fontsize', fontsize],
+        [
+          'fontcolor',
+          fontcolor ? dotValueSource(fontcolor, 40) : undefined,
+          fontcolor
+        ]
+      ];
+      for (const [name, value, decoded = value] of edgeValues) {
+        setParsedAttribute(parsed, name, value, decoded);
+      }
+    }
+    const uniqueStyles = [...new Set(styles)];
+    setParsedAttribute(
+      parsed,
+      'style',
+      uniqueStyles.length
+        ? dotValueSource(uniqueStyles.join(','), 80)
+        : undefined,
+      uniqueStyles.join(',')
+    );
+    return parsed;
+  }
+
+  function replaceStatementAttributes(source, statements, kind) {
+    const unique = [...new Map(statements.map((statement) => {
+      return [`${statement.start}:${statement.end}`, statement];
+    })).values()].sort((left, right) => right.start - left.start);
+    let result = source;
+    for (const statement of unique) {
+      const parsed = applyFormAttributes(
+        readStatementAttributes(statement),
+        kind
+      );
+      result = result.slice(0, statement.start)
+        + writeStatementAttributes(parsed)
+        + result.slice(statement.end);
+    }
+    return result;
+  }
+
+  function changeAllAttributes(source, kind) {
+    const statements = dotStatements(source);
+    if (kind === 'edge') {
+      const edges = statements.filter((statement) => {
+        return statement.kind === 'edge';
+      });
+      return replaceStatementAttributes(source, edges, kind);
+    }
+    const names = [...new Set(statements.flatMap((statement) => {
+      return statement.nodeNames;
+    }))];
+    const explicit = new Map();
+    for (const statement of statements) {
+      if (statement.kind === 'node' && statement.nodeNames.length === 1) {
+        explicit.set(statement.nodeNames[0], statement);
+      }
+    }
+    let result = replaceStatementAttributes(
+      source,
+      [...explicit.values()],
+      kind
+    );
+    for (const name of names.filter((name) => !explicit.has(name))) {
+      const parsed = applyFormAttributes({
+        base: dotIdSource(name),
+        semicolon: false,
+        attributes: new Map()
+      }, kind);
+      result = insertRootStatement(result, writeStatementAttributes(parsed));
+    }
+    return result;
+  }
+
+  function addAttributeDefault(source, kind) {
+    const parsed = applyFormAttributes({
+      base: kind,
+      semicolon: false,
+      attributes: new Map()
+    }, kind);
+    if (!parsed.attributes.size) return source;
+    if (kind === 'node') {
+      showNewNodeDefaultShape(parsed.attributes.get('shape')?.value || '');
+    }
+    return insertRootStatement(source, writeStatementAttributes(parsed));
+  }
+
   function applySelectedAttributes(event) {
     event.preventDefault();
     try {
@@ -1950,146 +2173,36 @@
         throw new Error('Select one node or edge to edit');
       }
       const selected = selectedItems[0];
-      let statement = editableStatement(selected.kind, selected.identity);
-      if (selected.kind === 'edge' && statement?.edges.length > 1) {
-        splitEdgeStatement(statement);
-        statement = editableStatement(selected.kind, selected.identity);
-      }
-      const parsed = statement
-        ? readStatementAttributes(statement)
-        : {
-            base: dotIdSource(selected.identity),
-            semicolon: false,
-            attributes: new Map()
-          };
-      const label = attrLabel.value;
-      const color = attrColor.value.trim();
-      const fillcolor = attrFillcolor.value.trim();
-      const sourceShape = selected.kind === 'node'
-        ? attrShape.dataset.sourceShape || ''
-        : '';
-      const preserveSourceShape = Boolean(sourceShape && !attrShape.value);
-      const shape = preserveSourceShape ? sourceShape : attrShape.value;
-      const lineStyle = attrStyle.value;
-      const lineStyles = [
-        '', 'solid', 'dashed', 'dotted', 'bold', 'invis'
-      ];
-      const fontcolor = attrFontcolor.value.trim();
-      if (!validColor(color) || !validColor(fillcolor)
-        || !validColor(fontcolor)) {
-        throw new Error('Colors must be names or six-digit hex values');
-      }
-      if ((!nodeShapes.includes(shape) && !preserveSourceShape)
-        || !lineStyles.includes(lineStyle)
-        || !arrowShapes.includes(attrArrowhead.value)
-        || !arrowShapes.includes(attrArrowtail.value)
-        || !edgeDirections.includes(attrDir.value)) {
-        throw new Error('Unsupported attribute value');
-      }
-      setParsedAttribute(
-        parsed,
-        'label',
-        label ? dotValueSource(label) : undefined,
-        label
-      );
-      setParsedAttribute(
-        parsed,
-        'color',
-        color ? dotValueSource(color, 40) : undefined,
-        color
-      );
-      const oldStyles = (parsed.attributes.get('style')?.value || '')
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean);
-      const controlled = new Set(['solid', 'dashed', 'dotted', 'bold']);
-      controlled.add('invis');
-      if (selected.kind === 'node') controlled.add('filled');
-      const styles = oldStyles.filter((style) => !controlled.has(style));
-      if (lineStyle) styles.push(lineStyle);
-      if (selected.kind === 'node') {
-        const hadFillcolor = parsed.attributes.has('fillcolor');
-        const keepFilled = fillcolor
-          || (oldStyles.includes('filled') && !hadFillcolor);
-        if (keepFilled) styles.push('filled');
-        if (!preserveSourceShape) {
-          setParsedAttribute(
-            parsed,
-            'shape',
-            shape || undefined,
-            shape
-          );
-        }
-        setParsedAttribute(
-          parsed,
-          'fillcolor',
-          fillcolor ? dotValueSource(fillcolor, 40) : undefined,
-          fillcolor
-        );
+      let source = dot.value;
+      if (attrChangeAll.checked) {
+        source = changeAllAttributes(source, selected.kind);
       } else {
-        const penwidth = numericAttribute(
-          attrPenwidth.value,
-          'Pen width'
-        );
-        const arrowsize = numericAttribute(
-          attrArrowsize.value,
-          'Arrow size'
-        );
-        const minlen = numericAttribute(
-          attrMinlen.value,
-          'Minimum length',
-          true
-        );
-        const weight = numericAttribute(
-          attrWeight.value,
-          'Weight',
-          true
-        );
-        const fontsize = numericAttribute(
-          attrFontsize.value,
-          'Font size'
-        );
-        const edgeValues = [
-          ['penwidth', penwidth],
-          ['arrowhead', attrArrowhead.value || undefined],
-          ['arrowtail', attrArrowtail.value || undefined],
-          ['arrowsize', arrowsize],
-          ['dir', attrDir.value || undefined],
-          ['minlen', minlen],
-          ['weight', weight],
-          [
-            'fontname',
-            attrFontname.value
-              ? dotValueSource(attrFontname.value, 80)
-              : undefined,
-            attrFontname.value
-          ],
-          ['fontsize', fontsize],
-          [
-            'fontcolor',
-            fontcolor ? dotValueSource(fontcolor, 40) : undefined,
-            fontcolor
-          ]
-        ];
-        for (const [name, value, decoded = value] of edgeValues) {
-          setParsedAttribute(parsed, name, value, decoded);
+        let statement = editableStatement(selected.kind, selected.identity);
+        if (selected.kind === 'edge' && statement?.edges.length > 1) {
+          splitEdgeStatement(statement);
+          source = dot.value;
+          statement = editableStatement(selected.kind, selected.identity);
         }
+        const parsed = applyFormAttributes(
+          statement
+            ? readStatementAttributes(statement)
+            : {
+                base: dotIdSource(selected.identity),
+                semicolon: false,
+                attributes: new Map()
+              },
+          selected.kind
+        );
+        const replacement = writeStatementAttributes(parsed);
+        source = statement
+          ? source.slice(0, statement.start)
+            + replacement
+            + source.slice(statement.end)
+          : insertRootStatement(source, replacement);
       }
-      const uniqueStyles = [...new Set(styles)];
-      setParsedAttribute(
-        parsed,
-        'style',
-        uniqueStyles.length
-          ? dotValueSource(uniqueStyles.join(','), 80)
-          : undefined,
-        uniqueStyles.join(',')
-      );
-      const replacement = writeStatementAttributes(parsed);
-      const source = statement
-        ? dot.value.slice(0, statement.start)
-          + replacement
-          + dot.value.slice(statement.end)
-        : insertRootStatement(dot.value, replacement);
+      if (attrUseDefault.checked) {
+        source = addAttributeDefault(source, selected.kind);
+      }
       applyVisualMutation(source);
     } catch (cause) {
       mutationProblem(cause);
@@ -2652,6 +2765,9 @@
     attrShape.dataset.sourceShape = '';
   });
   newNodeCategory.addEventListener('change', populateNewNodeShapes);
+  newNodeShape.addEventListener('change', () => {
+    inheritNewNodeShape = false;
+  });
   newNodeName.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
