@@ -7,7 +7,7 @@
 ::  (emits y-up coordinates unchanged).  The canvas scale factor
 ::  from size= is applied as a transform.
 ::
-::  record/mrecord/html shapes are rejected as unsupported (the %|
+::  Record and HTML shapes are rejected as unsupported (the %|
 ::  branch carries the message).  Unknown color names pass through
 ::  untouched; the name table carries X11 values, which differ from
 ::  SVG for green, purple, gray and friends.
@@ -32,9 +32,74 @@
   |-  ^-  (unit @t)
   ?~  ns  ~
   =/  shp  shape.i.ns
-  ?:  ?|(=('record' shp) =('mrecord' shp) =('html' shp))
+  ?.  (real-shape shp)
     `(cat 3 'unsupported node shape: ' shp)
   $(ns t.ns)
+::
+++  real-shape
+  |=  shp=@t
+  ^-  ?
+  ?+  shp  %.n
+    %ellipse          %.y
+    %circle           %.y
+    %egg              %.y
+    %triangle         %.y
+    %box              %.y
+    %square           %.y
+    %plaintext        %.y
+    %plain            %.y
+    %diamond          %.y
+    %trapezium        %.y
+    %parallelogram    %.y
+    %house            %.y
+    %pentagon         %.y
+    %hexagon          %.y
+    %septagon         %.y
+    %octagon          %.y
+    %note             %.y
+    %tab              %.y
+    %folder           %.y
+    %box3d            %.y
+    %component        %.y
+    %underline        %.y
+    %cylinder         %.y
+    %doublecircle     %.y
+    %invtriangle      %.y
+    %invtrapezium     %.y
+    %invhouse         %.y
+    %doubleoctagon    %.y
+    %tripleoctagon    %.y
+    %mdiamond         %.y
+    %msquare          %.y
+    %mcircle          %.y
+    %star             %.y
+    %promoter         %.y
+    %cds              %.y
+    %terminator       %.y
+    %utr              %.y
+    %insulator        %.y
+    %ribosite         %.y
+    %rnastab          %.y
+    %proteasesite     %.y
+    %proteinstab      %.y
+    %primersite       %.y
+    %restrictionsite  %.y
+    %fivepoverhang    %.y
+    %threepoverhang   %.y
+    %noverhang        %.y
+    %assembly         %.y
+    %signature        %.y
+    %rpromoter        %.y
+    %larrow           %.y
+    %rarrow           %.y
+    %lpromoter        %.y
+    %polygon          %.y
+    %oval             %.y
+    %point            %.y
+    %none             %.y
+    %rect             %.y
+    %rectangle        %.y
+  ==
 ::  +|  Number and text formatting
 ::
 ::
@@ -125,6 +190,28 @@
     ?~  cur  $(tp t.tp)
     $(tp t.tp, out [(flop cur) out], cur ~)
   $(tp t.tp, cur [i.tp cur])
+::
+++  bio-label-offset
+  ::  Move labels below the centerline of baseline-style bio symbols
+  |=  shp=@t
+  ^-  @rs
+  ?:  ?|  =('promoter' shp)
+          =('terminator' shp)
+          =('utr' shp)
+          =('insulator' shp)
+          =('ribosite' shp)
+          =('rnastab' shp)
+          =('proteasesite' shp)
+          =('proteinstab' shp)
+          =('primersite' shp)
+          =('restrictionsite' shp)
+          =('fivepoverhang' shp)
+          =('threepoverhang' shp)
+          =('noverhang' shp)
+          =('assembly' shp)
+      ==
+    .7
+  .0
 ::
 ++  hsv-hex
   |=  [h=@rs s=@rs v=@rs]
@@ -317,7 +404,10 @@
       ?:  invis  ""
       =/  lbl=tape
         ?:  =('' label.n)  ""
-        (text-lines label-at.n x.half.n label.n attrs.n)
+        =/  at  label-at.n
+        =/  off  (bio-label-offset shape.n)
+        =/  at  [x.at (sub:rs y.at off)]
+        (text-lines at x.half.n label.n attrs.n)
       (weld (shape-el n styles) lbl)
     ;:  weld
       "<g id=\"node{(nfmt ix)}\" class=\"node\">\0a"
@@ -346,6 +436,34 @@
       ""
     ==
   ::
+  ++  shape-points
+    |=  [units=(list [ux=@rs uy=@rs]) cx=@rs cy=@rs rx=@rs ry=@rs]
+    ^-  (list tape)
+    %+  turn  units
+    |=  [ux=@rs uy=@rs]
+    ^-  tape
+    %-  pt
+    :-  (add:rs cx (mul:rs ux rx))
+    (add:rs cy (mul:rs uy ry))
+  ::
+  ++  polygon-el
+    |=  [units=(list [ux=@rs uy=@rs]) cx=@rs cy=@rs rx=@rs ry=@rs fill=tape sb=tape]
+    ^-  tape
+    ;:  weld
+      "<polygon fill=\"{fill}\" {sb} points=\""
+      (join-sp (shape-points units cx cy rx ry))
+      "\"/>\0a"
+    ==
+  ::
+  ++  polyline-el
+    |=  [units=(list [ux=@rs uy=@rs]) cx=@rs cy=@rs rx=@rs ry=@rs sb=tape]
+    ^-  tape
+    ;:  weld
+      "<polyline fill=\"none\" {sb} points=\""
+      (join-sp (shape-points units cx cy rx ry))
+      "\"/>\0a"
+    ==
+  ::
   ++  shape-el
     |=  [n=gnode:gg styles=(list @t)]
     ^-  tape
@@ -358,7 +476,41 @@
     =/  cy  y.center.n
     =/  rx  x.half.n
     =/  ry  y.half.n
-    ?:  ?|(=('plaintext' shp) =('none' shp))  ""
+    =/  oct-units=(list [ux=@rs uy=@rs])
+      :~  [.0.92 .0.38]  [.0.38 .0.92]  [.-0.38 .0.92]
+          [.-0.92 .0.38]  [.-0.92 .-0.38]  [.-0.38 .-0.92]
+          [.0.38 .-0.92]  [.0.92 .-0.38]
+      ==
+    ?:  ?|(=('plaintext' shp) =('plain' shp) =('none' shp))  ""
+    ?:  =('underline' shp)
+      ;:  weld
+        "<path fill=\"none\" {sb} d=\"M{(fmt (sub:rs cx rx))},"
+        "{(fmt (yy (sub:rs cy ry)))}L{(fmt (add:rs cx rx))},"
+        "{(fmt (yy (sub:rs cy ry)))}\"/>\0a"
+      ==
+    ?:  =('doublecircle' shp)
+      ;:  weld
+        "<ellipse fill=\"{fill}\" {sb} cx=\"{(fmt cx)}\" "
+        "cy=\"{(fmt (yy cy))}\" rx=\"{(fmt rx)}\" ry=\"{(fmt ry)}\"/>\0a"
+        "<ellipse fill=\"none\" {sb} cx=\"{(fmt cx)}\" "
+        "cy=\"{(fmt (yy cy))}\" rx=\"{(fmt (sub:rs rx .4))}\" "
+        "ry=\"{(fmt (sub:rs ry .4))}\"/>\0a"
+      ==
+    ?:  =('mcircle' shp)
+      ;:  weld
+        "<ellipse fill=\"{fill}\" {sb} cx=\"{(fmt cx)}\" "
+        "cy=\"{(fmt (yy cy))}\" rx=\"{(fmt rx)}\" ry=\"{(fmt ry)}\"/>\0a"
+        (polyline-el ~[[.-0.72 .0.7] [.0.72 .0.7]] cx cy rx ry sb)
+        (polyline-el ~[[.-0.72 .-0.7] [.0.72 .-0.7]] cx cy rx ry sb)
+      ==
+    ?:  =('egg' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.0 .1]  [.0.55 .0.92]  [.0.85 .0.7]  [.0.98 .0.38]
+            [.1 .0]  [.0.94 .-0.4]  [.0.68 .-0.78]  [.0 .-1]
+            [.-0.68 .-0.78]  [.-0.94 .-0.4]  [.-1 .0]
+            [.-0.98 .0.38]  [.-0.85 .0.7]  [.-0.55 .0.92]
+        ==
+      (polygon-el units cx cy rx ry fill sb)
     ?:  ?|(=('ellipse' shp) =('circle' shp) =('oval' shp))
       ;:  weld
         "<ellipse fill=\"{fill}\" {sb} cx=\"{(fmt cx)}\" "
@@ -370,11 +522,367 @@
         "<ellipse fill=\"{c}\" {sb} cx=\"{(fmt cx)}\" "
         "cy=\"{(fmt (yy cy))}\" rx=\"1.80\" ry=\"1.80\"/>\0a"
       ==
+    ?:  =('note' shp)
+      ;:  weld
+        %:  polygon-el
+          ~[[.-1 .1] [.0.72 .1] [.1 .0.72] [.1 .-1] [.-1 .-1]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        %:  polyline-el
+          ~[[.0.72 .1] [.0.72 .0.72] [.1 .0.72]]
+          cx
+          cy
+          rx
+          ry
+          sb
+        ==
+      ==
+    ?:  =('tab' shp)
+      ;:  weld
+        %:  polygon-el
+          ~[[.-1 .0.82] [.-0.66 .0.82] [.-0.66 .1] [.1 .1] [.1 .-1] [.-1 .-1]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        (polyline-el ~[[.-1 .0.82] [.-0.66 .0.82]] cx cy rx ry sb)
+      ==
+    ?:  =('folder' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-1 .0.82]  [.-0.92 .1]  [.-0.34 .1]  [.-0.25 .0.82]
+            [.1 .0.82]  [.1 .-1]  [.-1 .-1]
+        ==
+      (polygon-el units cx cy rx ry fill sb)
+    ?:  =('box3d' shp)
+      ;:  weld
+        %:  polygon-el
+          ~[[.-1 .0.82] [.-0.88 .1] [.1 .1] [.1 .-0.82] [.0.88 .-1] [.-1 .-1]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        %:  polyline-el
+          ~[[.-1 .0.82] [.0.88 .0.82] [.1 .1]]
+          cx
+          cy
+          rx
+          ry
+          sb
+        ==
+        (polyline-el ~[[.0.88 .0.82] [.0.88 .-1]] cx cy rx ry sb)
+      ==
+    ?:  =('component' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.86 .1]  [.1 .1]  [.1 .-1]  [.-0.86 .-1]
+            [.-0.86 .-0.82]  [.-1 .-0.82]  [.-1 .-0.66]
+            [.-0.86 .-0.66]  [.-0.86 .0.66]  [.-1 .0.66]
+            [.-1 .0.82]  [.-0.86 .0.82]
+        ==
+      ;:  weld
+        (polygon-el units cx cy rx ry fill sb)
+        %:  polyline-el
+          ~[[.-0.86 .0.82] [.-0.72 .0.82] [.-0.72 .0.66] [.-0.86 .0.66]]
+          cx
+          cy
+          rx
+          ry
+          sb
+        ==
+        %:  polyline-el
+          ~[[.-0.86 .-0.66] [.-0.72 .-0.66] [.-0.72 .-0.82] [.-0.86 .-0.82]]
+          cx
+          cy
+          rx
+          ry
+          sb
+        ==
+      ==
+    ?:  =('cylinder' shp)
+      =/  top  (add:rs cy ry)
+      =/  bot  (sub:rs cy ry)
+      =/  cap  (mul:rs ry .0.18)
+      ;:  weld
+        "<path fill=\"{fill}\" {sb} d=\"M{(fmt (sub:rs cx rx))},"
+        "{(fmt (yy (sub:rs top cap)))}C{(fmt (sub:rs cx rx))},"
+        "{(fmt (yy top))} {(fmt (add:rs cx rx))},{(fmt (yy top))} "
+        "{(fmt (add:rs cx rx))},{(fmt (yy (sub:rs top cap)))}L"
+        "{(fmt (add:rs cx rx))},{(fmt (yy (add:rs bot cap)))}C"
+        "{(fmt (add:rs cx rx))},{(fmt (yy bot))} "
+        "{(fmt (sub:rs cx rx))},{(fmt (yy bot))} "
+        "{(fmt (sub:rs cx rx))},{(fmt (yy (add:rs bot cap)))}Z\"/>\0a"
+        "<path fill=\"none\" {sb} d=\"M{(fmt (sub:rs cx rx))},"
+        "{(fmt (yy (sub:rs top cap)))}C{(fmt (sub:rs cx rx))},"
+        "{(fmt (yy (sub:rs top (mul:rs cap .2))))} "
+        "{(fmt (add:rs cx rx))},{(fmt (yy (sub:rs top (mul:rs cap .2))))} "
+        "{(fmt (add:rs cx rx))},{(fmt (yy (sub:rs top cap)))}\"/>\0a"
+      ==
+    ?:  =('msquare' shp)
+      ;:  weld
+        (polygon-el ~[[.-1 .1] [.1 .1] [.1 .-1] [.-1 .-1]] cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0.72] [.-0.72 .1]] cx cy rx ry sb)
+        (polyline-el ~[[.0.72 .1] [.1 .0.72]] cx cy rx ry sb)
+        (polyline-el ~[[.1 .-0.72] [.0.72 .-1]] cx cy rx ry sb)
+        (polyline-el ~[[.-0.72 .-1] [.-1 .-0.72]] cx cy rx ry sb)
+      ==
+    ?:  =('mdiamond' shp)
+      ;:  weld
+        (polygon-el ~[[.0 .1] [.1 .0] [.0 .-1] [.-1 .0]] cx cy rx ry fill sb)
+        (polyline-el ~[[.-0.72 .0.28] [.-0.28 .0.72]] cx cy rx ry sb)
+        (polyline-el ~[[.0.28 .0.72] [.0.72 .0.28]] cx cy rx ry sb)
+        (polyline-el ~[[.0.72 .-0.28] [.0.28 .-0.72]] cx cy rx ry sb)
+        (polyline-el ~[[.-0.28 .-0.72] [.-0.72 .-0.28]] cx cy rx ry sb)
+      ==
+    ?:  =('doubleoctagon' shp)
+      ;:  weld
+        (polygon-el oct-units cx cy rx ry fill sb)
+        (polygon-el oct-units cx cy (sub:rs rx .4) (sub:rs ry .4) "none" sb)
+      ==
+    ?:  =('tripleoctagon' shp)
+      ;:  weld
+        (polygon-el oct-units cx cy rx ry fill sb)
+        (polygon-el oct-units cx cy (sub:rs rx .4) (sub:rs ry .4) "none" sb)
+        (polygon-el oct-units cx cy (sub:rs rx .8) (sub:rs ry .8) "none" sb)
+      ==
+    ?:  =('promoter' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.5 .0]  [.-0.5 .0.48]  [.0.25 .0.48]
+            [.0.25 .0.62]  [.0.58 .0.36]  [.0.25 .0.1]
+            [.0.25 .0.24]  [.-0.3 .0.24]  [.-0.3 .0]
+        ==
+      ;:  weld
+        (polygon-el units cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('cds' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        ~[[.-1 .0.76] [.0.66 .0.76] [.1 .0] [.0.66 .-0.76] [.-1 .-0.76]]
+      (polygon-el units cx cy rx ry fill sb)
+    ?:  =('terminator' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.08 .0]  [.-0.08 .0.24]  [.-0.25 .0.24]
+            [.-0.25 .0.48]  [.0.25 .0.48]  [.0.25 .0.24]
+            [.0.08 .0.24]  [.0.08 .0]
+        ==
+      ;:  weld
+        (polygon-el units cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('utr' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.25 .0]  [.-0.25 .0.12]  [.-0.08 .0.36]
+            [.0.08 .0.36]  [.0.25 .0.12]  [.0.25 .0]
+        ==
+      ;:  weld
+        (polygon-el units cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('primersite' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.5 .0.12]  [.0.16 .0.12]  [.0.16 .0.36]
+            [.0.5 .0.12]  [.0.16 .-0.12]  [.0.16 .0]
+            [.-0.5 .0]
+        ==
+      ;:  weld
+        (polygon-el units cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('restrictionsite' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.32 .0.12]  [.0.34 .0.12]  [.0.34 .0.36]
+            [.0.5 .0.36]  [.0.5 .-0.12]  [.-0.16 .-0.12]
+            [.-0.16 .-0.36]  [.-0.32 .-0.36]
+        ==
+      ;:  weld
+        (polygon-el units cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0] [.-0.32 .0]] cx cy rx ry sb)
+        (polyline-el ~[[.0.5 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('fivepoverhang' shp)
+      ;:  weld
+        (polygon-el ~[[.-1 .0.06] [.-0.34 .0.06] [.-0.34 .0.3] [.-1 .0.3]] cx cy rx ry fill sb)
+        %:  polygon-el
+          ~[[.-0.66 .-0.3] [.-0.34 .-0.3] [.-0.34 .-0.06] [.-0.66 .-0.06]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        (polyline-el ~[[.-0.34 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('threepoverhang' shp)
+      ;:  weld
+        (polygon-el ~[[.0.34 .0.06] [.1 .0.06] [.1 .0.3] [.0.34 .0.3]] cx cy rx ry fill sb)
+        %:  polygon-el
+          ~[[.0.34 .-0.3] [.0.66 .-0.3] [.0.66 .-0.06] [.0.34 .-0.06]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        (polyline-el ~[[.-1 .0] [.0.34 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('noverhang' shp)
+      ;:  weld
+        %:  polygon-el
+          ~[[.-0.36 .0.06] [.-0.02 .0.06] [.-0.02 .0.3] [.-0.36 .0.3]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        %:  polygon-el
+          ~[[.-0.36 .-0.3] [.-0.02 .-0.3] [.-0.02 .-0.06] [.-0.36 .-0.06]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        (polygon-el ~[[.0.06 .0.06] [.0.4 .0.06] [.0.4 .0.3] [.0.06 .0.3]] cx cy rx ry fill sb)
+        (polygon-el ~[[.0.06 .-0.3] [.0.4 .-0.3] [.0.4 .-0.06] [.0.06 .-0.06]] cx cy rx ry fill sb)
+        (polyline-el ~[[.-1 .0] [.-0.36 .0]] cx cy rx ry sb)
+        (polyline-el ~[[.0.4 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('assembly' shp)
+      ;:  weld
+        (polygon-el ~[[.-0.34 .0.06] [.0.34 .0.06] [.0.34 .0.3] [.-0.34 .0.3]] cx cy rx ry fill sb)
+        %:  polygon-el
+          ~[[.-0.34 .-0.3] [.0.34 .-0.3] [.0.34 .-0.06] [.-0.34 .-0.06]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        (polyline-el ~[[.-1 .0] [.-0.34 .0]] cx cy rx ry sb)
+        (polyline-el ~[[.0.34 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('signature' shp)
+      ;:  weld
+        (polygon-el ~[[.-1 .0.76] [.1 .0.76] [.1 .-0.76] [.-1 .-0.76]] cx cy rx ry fill sb)
+        (polyline-el ~[[.-0.92 .0.06] [.-0.82 .-0.06]] cx cy rx ry sb)
+        (polyline-el ~[[.-0.92 .-0.06] [.-0.82 .0.06]] cx cy rx ry sb)
+        (polyline-el ~[[.-0.82 .-0.64] [.0.92 .-0.64]] cx cy rx ry sb)
+      ==
+    ?:  =('insulator' shp)
+      ;:  weld
+        %:  polygon-el
+          ~[[.-0.16 .0.24] [.0.16 .0.24] [.0.16 .-0.24] [.-0.16 .-0.24]]
+          cx
+          cy
+          rx
+          ry
+          fill
+          sb
+        ==
+        %:  polyline-el
+          ~[[.-0.25 .0.36] [.0.25 .0.36] [.0.25 .-0.36] [.-0.25 .-0.36] [.-0.25 .0.36]]
+          cx
+          cy
+          rx
+          ry
+          sb
+        ==
+        (polyline-el ~[[.-1 .0] [.-0.25 .0]] cx cy rx ry sb)
+        (polyline-el ~[[.0.25 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('ribosite' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.08 .0.24]  [.0 .0.16]  [.0.08 .0.24]
+            [.0.08 .0.12]  [.0.16 .0.04]  [.0.08 .-0.04]
+            [.0.08 .-0.16]  [.0 .-0.08]  [.-0.08 .-0.16]
+            [.-0.08 .-0.04]  [.-0.16 .0.04]  [.-0.08 .0.12]
+        ==
+      ;:  weld
+        (polygon-el units cx (add:rs cy (mul:rs ry .0.34)) rx ry fill sb)
+        (polyline-el ~[[.0 .0] [.0 .0.18]] cx cy rx ry sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  ?|(=('rnastab' shp) =('proteinstab' shp))
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.06 .0.24]  [.0.06 .0.24]  [.0.12 .0.16]
+            [.0.12 .0.04]  [.0.06 .-0.04]  [.-0.06 .-0.04]
+            [.-0.12 .0.04]  [.-0.12 .0.16]
+        ==
+      ;:  weld
+        (polygon-el units cx (add:rs cy (mul:rs ry .0.28)) rx ry fill sb)
+        (polyline-el ~[[.0 .0] [.0 .0.16]] cx cy rx ry sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('proteasesite' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-0.08 .0.24]  [.0 .0.16]  [.0.08 .0.24]
+            [.0.08 .0.12]  [.0.16 .0.04]  [.0.08 .-0.04]
+            [.0.08 .-0.16]  [.0 .-0.08]  [.-0.08 .-0.16]
+            [.-0.08 .-0.04]  [.-0.16 .0.04]  [.-0.08 .0.12]
+        ==
+      ;:  weld
+        (polygon-el units cx (add:rs cy (mul:rs ry .0.34)) rx ry fill sb)
+        (polyline-el ~[[.0 .0] [.0 .0.28]] cx cy rx ry sb)
+        (polyline-el ~[[.-1 .0] [.1 .0]] cx cy rx ry sb)
+      ==
+    ?:  =('rpromoter' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-1 .0.76]  [.0.5 .0.76]  [.0.5 .1]  [.1 .0]
+            [.0.5 .-1]  [.0.5 .-0.76]  [.0 .-0.76]  [.0 .-1]
+            [.-0.5 .-1]  [.-0.5 .-0.76]  [.-1 .-0.76]
+        ==
+      (polygon-el units cx cy rx ry fill sb)
+    ?:  =('lpromoter' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.1 .0.76]  [.-0.5 .0.76]  [.-0.5 .1]  [.-1 .0]
+            [.-0.5 .-1]  [.-0.5 .-0.76]  [.0 .-0.76]  [.0 .-1]
+            [.0.5 .-1]  [.0.5 .-0.76]  [.1 .-0.76]
+        ==
+      (polygon-el units cx cy rx ry fill sb)
+    ?:  =('rarrow' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.-1 .0.76]  [.0.5 .0.76]  [.0.5 .1]  [.1 .0]
+            [.0.5 .-1]  [.0.5 .-0.76]  [.-1 .-0.76]
+        ==
+      (polygon-el units cx cy rx ry fill sb)
+    ?:  =('larrow' shp)
+      =/  units=(list [ux=@rs uy=@rs])
+        :~  [.1 .0.76]  [.-0.5 .0.76]  [.-0.5 .1]  [.-1 .0]
+            [.-0.5 .-1]  [.-0.5 .-0.76]  [.1 .-0.76]
+        ==
+      (polygon-el units cx cy rx ry fill sb)
     =/  units=(list [ux=@rs uy=@rs])
       ?:  =('diamond' shp)
         ~[[.0 .1] [.1 .0] [.0 .-1] [.-1 .0]]
       ?:  =('triangle' shp)
         ~[[.0 .1] [.1 .-1] [.-1 .-1]]
+      ?:  =('invtriangle' shp)
+        ~[[.-1 .1] [.1 .1] [.0 .-1]]
+      ?:  =('trapezium' shp)
+        ~[[.-0.7 .1] [.0.7 .1] [.1 .-1] [.-1 .-1]]
+      ?:  =('invtrapezium' shp)
+        ~[[.-1 .1] [.1 .1] [.0.7 .-1] [.-0.7 .-1]]
+      ?:  =('parallelogram' shp)
+        ~[[.-0.7 .1] [.1 .1] [.0.7 .-1] [.-1 .-1]]
+      ?:  =('house' shp)
+        ~[[.-1 .-1] [.1 .-1] [.1 .0.25] [.0 .1] [.-1 .0.25]]
+      ?:  =('invhouse' shp)
+        ~[[.-1 .0.25] [.0 .-1] [.1 .0.25] [.1 .1] [.-1 .1]]
       ?:  =('pentagon' shp)
         :~  [.0 .1]  [.0.951 .0.309]  [.0.588 .-0.809]
             [.-0.588 .-0.809]  [.-0.951 .0.309]
@@ -383,25 +891,25 @@
         :~  [.1 .0]  [.0.5 .1]  [.-0.5 .1]
             [.-1 .0]  [.-0.5 .-1]  [.0.5 .-1]
         ==
+      ?:  =('septagon' shp)
+        :~  [.0 .1]  [.0.782 .0.623]  [.0.975 .-0.223]
+            [.0.434 .-0.901]  [.-0.434 .-0.901]
+            [.-0.975 .-0.223]  [.-0.782 .0.623]
+        ==
       ?:  =('octagon' shp)
         :~  [.0.924 .0.383]  [.0.383 .0.924]  [.-0.383 .0.924]
             [.-0.924 .0.383]  [.-0.924 .-0.383]  [.-0.383 .-0.924]
             [.0.383 .-0.924]  [.0.924 .-0.383]
         ==
-      ::  box family and anything unrecognized
+      ?:  =('star' shp)
+        :~  [.0 .1]  [.0.235 .0.324]  [.0.951 .0.309]
+            [.0.38 .-0.124]  [.0.588 .-0.809]  [.0 .-0.4]
+            [.-0.588 .-0.809]  [.-0.38 .-0.124]
+            [.-0.951 .0.309]  [.-0.235 .0.324]
+        ==
+      ::  box, square, rect, rectangle and default polygon
       ~[[.-1 .1] [.1 .1] [.1 .-1] [.-1 .-1]]
-    =/  pts
-      %+  turn  units
-      |=  [ux=@rs uy=@rs]
-      ^-  tape
-      %-  pt
-      :-  (add:rs cx (mul:rs ux rx))
-      (add:rs cy (mul:rs uy ry))
-    ;:  weld
-      "<polygon fill=\"{fill}\" {sb} points=\""
-      (join-sp pts)
-      "\"/>\0a"
-    ==
+    (polygon-el units cx cy rx ry fill sb)
   ::
   ++  en-edge
     |=  [ix=@ud e=gedge:gg]

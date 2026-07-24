@@ -149,7 +149,7 @@ const selectors = [
   '#attr-style', '#attr-penwidth', '#attr-arrowhead', '#attr-arrowtail',
   '#attr-arrowsize', '#attr-dir', '#attr-minlen', '#attr-weight',
   '#attr-fontname', '#attr-fontsize', '#attr-fontcolor',
-  '#new-node-name', '#new-node-shape', '#add-node',
+  '#new-node-name', '#new-node-category', '#new-node-shape', '#add-node',
   '#draw-edge'
 ];
 const elements = Object.fromEntries(selectors.map((name) => {
@@ -158,7 +158,6 @@ const elements = Object.fromEntries(selectors.map((name) => {
 elements['#auto-render'].checked = true;
 elements['#file-browser-modal'].hidden = true;
 elements['#clay-error-modal'].hidden = true;
-elements['#new-node-shape'].value = 'box';
 
 const requests = [];
 const saved = new Map();
@@ -243,6 +242,29 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#dot'].value, 'digraph saved { Alpha -> Beta }');
   assert.equal(elements['#workspace'].values['--editor-width'], '62%');
   assert.equal(elements['#auto-render'].checked, false);
+  assert.equal(elements['#new-node-category'].value, 'basic-shapes');
+  assert.equal(elements['#new-node-shape'].value, 'ellipse');
+  assert.equal(elements['#new-node-shape'].children.length, 16);
+  elements['#new-node-category'].value = 'dna-construction-symbols';
+  elements['#new-node-category'].listeners.change({});
+  assert.equal(elements['#new-node-shape'].value, 'primersite');
+  assert.equal(elements['#new-node-shape'].children.length, 11);
+  assert(elements['#new-node-shape'].children.some((option) => {
+    return option.value === 'lpromoter';
+  }));
+  for (const [category, first, count] of [
+    ['basic-symbols', 'note', 7],
+    ['special-shapes', 'doublecircle', 10],
+    ['gene-expression-symbols', 'promoter', 9],
+    ['other-shapes', 'polygon', 6]
+  ]) {
+    elements['#new-node-category'].value = category;
+    elements['#new-node-category'].listeners.change({});
+    assert.equal(elements['#new-node-shape'].value, first);
+    assert.equal(elements['#new-node-shape'].children.length, count);
+  }
+  elements['#new-node-category'].value = 'basic-shapes';
+  elements['#new-node-category'].listeners.change({});
 
   requests[0].resolve(response(true, '<svg id="initial"/>'));
   await tick();
@@ -322,7 +344,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     '}'
   ].join('\n');
   elements['#preview'].listeners.click({target: svg.groups[0]});
-  assert.equal(elements['#attr-shape'].value, '');
+  assert.equal(elements['#attr-shape'].value, 'doublecircle');
   assert.equal(
     elements['#attr-shape'].dataset.sourceShape,
     'doublecircle'

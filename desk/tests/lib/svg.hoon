@@ -71,6 +71,15 @@
     !>  ^-  (list [align=?(%c %l %r) text=tape])
         ~[[%c "ab"] [%l "cd"] [%c "ef"]]
   !>((label-lines:svg "ab\\ncd\\lef"))
+::
+++  test-svg-bio-label-offset
+  ;:  weld
+    (expect-eq !>(.7) !>((bio-label-offset:svg 'promoter')))
+    (expect-eq !>(.7) !>((bio-label-offset:svg 'primersite')))
+    (expect-eq !>(.0) !>((bio-label-offset:svg 'cds')))
+    (expect-eq !>(.0) !>((bio-label-offset:svg 'rarrow')))
+    (expect-eq !>(.0) !>((bio-label-offset:svg 'box')))
+  ==
 ::  +|  Golden (hand-built positioned graph)
 ::
 ::
@@ -199,11 +208,28 @@
 ::
 ++  test-svg-record-rejected
   =/  out  (render:svg (pipe 'digraph {a [shape=record]}') %.n)
-  ;:  weld
-    (expect !>(?=(%| -.out)))
-    %-  expect
-    !>  ?&  ?=(%| -.out)
-            =('unsupported node shape: record' p.out)
-        ==
-  ==
+  (expect !>(?=(%| -.out)))
+::
+++  test-svg-real-shapes
+  =/  shapes=(list @t)
+    :~  'ellipse'  'circle'  'egg'  'triangle'  'box'  'square'
+        'plaintext'  'plain'  'diamond'  'trapezium'  'parallelogram'
+        'house'  'pentagon'  'hexagon'  'septagon'  'octagon'
+        'note'  'tab'  'folder'  'box3d'  'component'  'underline'
+        'cylinder'  'doublecircle'  'invtriangle'  'invtrapezium'
+        'invhouse'  'doubleoctagon'  'tripleoctagon'  'Mdiamond'
+        'Msquare'  'Mcircle'  'star'  'promoter'  'cds'  'terminator'
+        'utr'  'insulator'  'ribosite'  'rnastab'  'proteasesite'
+        'proteinstab'  'primersite'  'restrictionsite'  'fivepoverhang'
+        'threepoverhang'  'noverhang'  'assembly'  'signature'
+        'rpromoter'  'larrow'  'rarrow'  'lpromoter'  'polygon'
+        'oval'  'point'  'none'  'rect'  'rectangle'
+    ==
+  =/  pass
+    %+  lien  shapes
+    |=  shape=@t
+    =/  source  (cat 3 'digraph {a [shape=' (cat 3 shape ']}'))
+    =/  out  (render:svg (pipe source) %.n)
+    ?=(%& -.out)
+  (expect !>(pass))
 --

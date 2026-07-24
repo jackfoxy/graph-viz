@@ -63,7 +63,13 @@
 ++  is-elly
   |=  shp=@t
   ^-  ?
-  ?|(=('ellipse' shp) =('circle' shp) =('oval' shp))
+  ?|  =('ellipse' shp)
+      =('circle' shp)
+      =('oval' shp)
+      =('egg' shp)
+      =('doublecircle' shp)
+      =('mcircle' shp)
+  ==
 ::
 ++  node-shape
   |=  [res=resolved:attr v=@ud]

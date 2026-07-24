@@ -137,6 +137,7 @@
   =/  js  (trip javascript:web)
   ;:  weld
     (expect !>(?=(^ (find "id=\"new-node-name\"" html))))
+    (expect !>(?=(^ (find "id=\"new-node-category\"" html))))
     (expect !>(?=(^ (find "id=\"new-node-shape\"" html))))
     (expect !>(?=(^ (find "id=\"add-node\"" html))))
     (expect !>(?=(^ (find "id=\"draw-edge\"" html))))
@@ -155,6 +156,9 @@
     (expect !>(?=(^ (find "#shape-control[hidden]" (trip css:web)))))
     (expect !>(?=(^ (find "id=\"delete-selection\"" html))))
     (expect !>(?=(^ (find "addVisualNode" js))))
+    (expect !>(?=(^ (find "nodeShapeCategories" js))))
+    (expect !>(?=(^ (find "populateNewNodeShapes" js))))
+    (expect !>(?=(^ (find "populateAttributeShapes" js))))
     (expect !>(?=(^ (find "drawSelectedEdge" js))))
     (expect !>(?=(^ (find "deleteSelectedItem" js))))
     (expect !>(?=(^ (find "applySelectedAttributes" js))))

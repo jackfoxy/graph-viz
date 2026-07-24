@@ -74,14 +74,19 @@
               ;input#new-node-name(type "text", placeholder "new_node");
             ==
             ;label.control
-              ;span: Shape
-              ;select#new-node-shape
-                ;option(value "box"): Box
-                ;option(value "ellipse"): Ellipse
-                ;option(value "circle"): Circle
-                ;option(value "diamond"): Diamond
-                ;option(value "point"): Point
+              ;span: Category
+              ;select#new-node-category
+                ;option(value "basic-shapes"): Basic shapes
+                ;option(value "basic-symbols"): Basic symbols
+                ;option(value "special-shapes"): Special shapes
+                ;option(value "gene-expression-symbols"): Gene expression symbols
+                ;option(value "dna-construction-symbols"): DNA construction symbols
+                ;option(value "other-shapes"): Other shapes
               ==
+            ==
+            ;label.control
+              ;span: Shape
+              ;select#new-node-shape;
             ==
             ;button#add-node(type "button"): Add node
             ;button#draw-edge
@@ -396,7 +401,8 @@
     border-bottom: 1px solid var(--border);
     display: grid;
     gap: 0.5rem;
-    grid-template-columns: minmax(8rem, 1fr) auto auto auto;
+    grid-template-columns:
+      minmax(8rem, 1fr) minmax(8rem, auto) minmax(8rem, auto) auto auto;
     padding: 0.5rem 0.75rem;
   }
 
@@ -844,6 +850,7 @@
   const attrFontsize = document.querySelector('#attr-fontsize');
   const attrFontcolor = document.querySelector('#attr-fontcolor');
   const newNodeName = document.querySelector('#new-node-name');
+  const newNodeCategory = document.querySelector('#new-node-category');
   const newNodeShape = document.querySelector('#new-node-shape');
   const addNode = document.querySelector('#add-node');
   const drawEdge = document.querySelector('#draw-edge');
@@ -882,7 +889,38 @@
   const maxSharedSourceBytes = 12 * 1024;
   const maxShareParamChars = 16 * 1024;
   const storageKey = 'graph-viz.session.v1';
-  const nodeShapes = ['', 'box', 'ellipse', 'circle', 'diamond', 'point'];
+  const nodeShapeCategories = {
+    'basic-shapes': [
+      'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
+      'plaintext', 'plain', 'diamond', 'trapezium', 'parallelogram',
+      'house', 'pentagon', 'hexagon', 'septagon', 'octagon'
+    ],
+    'basic-symbols': [
+      'note', 'tab', 'folder', 'box3d', 'component', 'underline',
+      'cylinder'
+    ],
+    'special-shapes': [
+      'doublecircle', 'invtriangle', 'invtrapezium', 'invhouse',
+      'doubleoctagon', 'tripleoctagon', 'Mdiamond', 'Msquare',
+      'Mcircle', 'star'
+    ],
+    'gene-expression-symbols': [
+      'promoter', 'cds', 'terminator', 'utr', 'insulator', 'ribosite',
+      'rnastab', 'proteasesite', 'proteinstab'
+    ],
+    'dna-construction-symbols': [
+      'primersite', 'restrictionsite', 'fivepoverhang',
+      'threepoverhang', 'noverhang', 'assembly', 'signature',
+      'rpromoter', 'larrow', 'rarrow', 'lpromoter'
+    ],
+    'other-shapes': [
+      'polygon', 'oval', 'point', 'none', 'rect', 'rectangle'
+    ]
+  };
+  const nodeShapes = [
+    '',
+    ...new Set(Object.values(nodeShapeCategories).flat())
+  ];
   const arrowShapes = [
     '', 'normal', 'empty', 'vee', 'dot', 'diamond', 'none'
   ];
@@ -904,6 +942,29 @@
   function setState(state, label) {
     previewShell.dataset.state = state;
     renderStatus.textContent = label;
+  }
+
+  function populateNewNodeShapes() {
+    const shapes = nodeShapeCategories[newNodeCategory.value]
+      || nodeShapeCategories['basic-shapes'];
+    const options = shapes.map((shape) => {
+      const option = document.createElement('option');
+      option.value = shape;
+      option.textContent = shape || 'Default';
+      return option;
+    });
+    newNodeShape.replaceChildren(...options);
+    newNodeShape.value = shapes[0];
+  }
+
+  function populateAttributeShapes() {
+    const options = nodeShapes.map((shape) => {
+      const option = document.createElement('option');
+      option.value = shape;
+      option.textContent = shape || 'Default';
+      return option;
+    });
+    attrShape.replaceChildren(...options);
   }
 
   function setPreviewControls(enabled) {
@@ -1616,7 +1677,7 @@
       const identity = newNodeName.value.trim();
       const id = dotIdSource(identity);
       const shape = newNodeShape.value;
-      if (!shape || !nodeShapes.includes(shape)) {
+      if (!nodeShapes.includes(shape)) {
         throw new Error('Unsupported node shape');
       }
       const exists = dotStatements(dot.value).some((statement) => {
@@ -1625,7 +1686,7 @@
       if (exists) throw new Error('A node with that name already exists');
       const source = insertRootStatement(
         dot.value,
-        `${id} [shape=${shape}]`
+        shape ? `${id} [shape=${shape}]` : id
       );
       newNodeName.value = '';
       applyVisualMutation(source);
@@ -2590,6 +2651,7 @@
   attrShape.addEventListener('change', () => {
     attrShape.dataset.sourceShape = '';
   });
+  newNodeCategory.addEventListener('change', populateNewNodeShapes);
   newNodeName.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
@@ -2738,6 +2800,9 @@
     dot.value = savedSession?.source ?? starter;
     initialProblem = String(cause);
   }
+  newNodeCategory.value = 'basic-shapes';
+  populateNewNodeShapes();
+  populateAttributeShapes();
   updateLineNumbers();
   render();
   if (initialProblem) showClientProblem(initialProblem);

@@ -146,12 +146,25 @@
   ?:  fixedsize:gvd  [minw minh]
   =/  ts  (text-size:metrics (rd-rs fontsize:gvd) (node-label res v))
   =/  shp  shape:gvd
-  =/  elly  |(=('ellipse' shp) =('circle' shp) =('oval' shp))
+  =/  elly
+    ?|  =('ellipse' shp)
+        =('circle' shp)
+        =('oval' shp)
+        =('egg' shp)
+        =('doublecircle' shp)
+        =('mcircle' shp)
+    ==
   =/  bw  (add:rs w.ts .16)
   =/  bh  (add:rs h.ts .8)
   =/  w  (rmax minw ?:(elly (mul:rs bw .1.414214) bw))
   =/  h  (rmax minh ?:(elly (mul:rs bh .1.414214) bh))
-  ?.  =('circle' shp)  [w h]
+  ?.  ?|  =('circle' shp)
+          =('doublecircle' shp)
+          =('mcircle' shp)
+          =('square' shp)
+          =('msquare' shp)
+      ==
+    [w h]
   [(rmax w h) (rmax w h)]
 ::  +|  Main
 ::
