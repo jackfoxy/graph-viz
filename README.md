@@ -12,39 +12,6 @@ poke-driven Urbit agent. `dot` engine and SVG output only in v1.
 
 [Practical recipes and best practices](https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns/)
 
-## Layout
-
-```
-desk/                     the %graph-viz desk (zuse 409/408)
-  sur/ast.hoon              DOT AST
-  sur/graph.hoon            positioned graph (public consumable noun)
-  sur/gviz.hoon             poke/response protocol types
-  lib/parse.hoon            DOT grammar (parser combinators)
-  lib/print.hoon            AST → canonical DOT text (parser test oracle)
-  lib/attr.hoon             attribute resolution + typed decoding
-  lib/metrics.hoon          text metrics (single interface, Helvetica AFM)
-  lib/acyc.hoon             cycle breaking
-  lib/rank.hoon             rank assignment
-  lib/order.hoon            ordering / crossing reduction
-  lib/coord.hoon            coordinate assignment
-  lib/route.hoon            edge routing, splines, arrowheads
-  lib/svg.hoon              SVG codegen
-  lib/gviz.hoon             top-level pipeline gate (command → response)
-  lib/gviz-web.hoon         browser page, styles, script, and JSON
-  lib/server.hoon           vendored Eyre response helper
-  app/graph-viz.hoon        noun API/render agent
-  app/graph-viz-web.hoon    Eyre/Sail browser agent
-  desk.docket-0             direct site metadata (no frontend glob)
-  mar/gviz/*.hoon           poke/response marks; mar/dot, mar/svg
-  tests/lib/*, tests/app/*  per-stage unit suites (~125 arms)
-  tests/dot/*.dot           parser/layout corpus
-  tests/svg/*.svg           byte-exact SVG regression goldens
-check.sh                  offline reference validation (see below)
-tests/browser/             Node browser behavior smoke suite
-docs/screenshots/          desktop and responsive release screenshots
-RELEASE.md                 release and manual smoke checklist
-```
-
 ## Protocol
 
 Pokes only ack/nack, so results ride a one-shot subscription: subscribe
