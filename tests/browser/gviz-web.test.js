@@ -136,6 +136,7 @@ function svgDocument(source) {
 
 const selectors = [
   '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
+  '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',
   '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
   '#browse-dot', '#load-dot', '#save-dot',
@@ -301,13 +302,31 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     'translate(20px, 30px) scale(2)');
   await elements['#fullscreen-svg'].listeners.click({});
   assert.equal(document.fullscreenElement, elements['#preview-shell']);
+  assert(elements['#preview-shell'].classes.has('is-fullscreen'));
   assert.equal(elements['#fullscreen-svg']['aria-pressed'], 'true');
+  assert.equal(elements['#fullscreen-zoom-out'].disabled, false);
+  assert.equal(elements['#fullscreen-zoom-in'].disabled, false);
+  const beforeFullscreenZoom =
+    elements['#preview'].children[0].style.transform;
+  elements['#fullscreen-zoom-out'].listeners.click({});
+  assert.notEqual(
+    elements['#preview'].children[0].style.transform,
+    beforeFullscreenZoom
+  );
+  const afterFullscreenZoomOut =
+    elements['#preview'].children[0].style.transform;
+  elements['#fullscreen-zoom-in'].listeners.click({});
+  assert.notEqual(
+    elements['#preview'].children[0].style.transform,
+    afterFullscreenZoomOut
+  );
   assert.equal(
     elements['#fullscreen-svg'].title,
     'Return SVG to preview panel'
   );
   await elements['#fullscreen-svg'].listeners.click({});
   assert.equal(document.fullscreenElement, null);
+  assert(!elements['#preview-shell'].classes.has('is-fullscreen'));
   assert.equal(elements['#fullscreen-svg']['aria-pressed'], 'false');
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, true);

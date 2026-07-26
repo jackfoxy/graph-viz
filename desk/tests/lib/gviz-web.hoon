@@ -30,6 +30,10 @@
     (expect !>(?=(~ (find "id=\"share\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"auto-render\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"help\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"zoom-out\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"zoom-in\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"fullscreen-zoom-out\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"fullscreen-zoom-in\"" (trip html)))))
     (expect !>(?=(^ (find "data-state=\"empty\"" (trip html)))))
   ==
 ::
@@ -62,6 +66,7 @@
     (expect !>(?=(^ (find "unsafe SVG response" js))))
     (expect !>(?=(^ (find ":scope > title" js))))
     (expect !>(?=(^ (find "fitToWindow" js))))
+    (expect !>(?=(^ (find "zoomAtCenter" js))))
     (expect !>(?=(^ (find "addEventListener('wheel'" js))))
     (expect !>(?=(^ (find "addEventListener('pointermove'" js))))
     (expect !>(?=(^ (find "replaceChildren(svg)" js))))

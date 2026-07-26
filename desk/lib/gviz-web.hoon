@@ -19,7 +19,6 @@
     ;body
       ;header.app-header
         ;div.brand
-          ;span.eyebrow: Pure Hoon renderer
           ;h1: Graph Viz
         ==
         ;nav.toolbar(aria-label "Graph controls")
@@ -38,17 +37,33 @@
             =title  "Render (Ctrl+Enter)"
             ;span: Render
           ==
-          ;button#reset-view
-            =type      "button"
-            =disabled  ""
-            =title     "Reset view (Ctrl+1)"
-            ;span: Reset
+          ;div.zoom-controls(aria-label "Zoom controls")
+            ;button#zoom-in.icon-button
+              =type        "button"
+              =disabled    ""
+              =title       "Zoom in"
+              =aria-label  "Zoom in"
+              ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+            ==
+            ;button#zoom-out.icon-button
+              =type        "button"
+              =disabled    ""
+              =title       "Zoom out"
+              =aria-label  "Zoom out"
+              ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+            ==
           ==
           ;button#fit
             =type      "button"
             =disabled  ""
             =title     "Fit graph (Ctrl+0)"
             ;span: Fit
+          ==
+          ;button#reset-view
+            =type      "button"
+            =disabled  ""
+            =title     "Reset view (Ctrl+1)"
+            ;span: Reset
           ==
           ;label.preference
             ;input#auto-render(type "checkbox", checked "");
@@ -256,21 +271,37 @@
             ==
           ==
           ;div#preview-shell.preview-shell(data-state "empty")
-            ;button#copy-svg.copy-svg
-              =type        "button"
-              =disabled    ""
-              =title       "Copy SVG source"
-              =aria-label  "Copy SVG source to clipboard"
-              ;span.copy-icon(aria-hidden "true");
-            ==
-            ;button#fullscreen-svg.fullscreen-svg
-              =type          "button"
-              =disabled      ""
-              =hidden        ""
-              =title         "Expand SVG to fullscreen"
-              =aria-label    "Expand SVG to fullscreen"
-              =aria-pressed  "false"
-              ;span.fullscreen-icon(aria-hidden "true");
+            ;div.preview-actions(aria-label "Preview controls")
+              ;button#copy-svg.preview-action
+                =type        "button"
+                =disabled    ""
+                =title       "Copy SVG source"
+                =aria-label  "Copy SVG source to clipboard"
+                ;span.copy-icon(aria-hidden "true");
+              ==
+              ;button#fullscreen-svg.preview-action
+                =type          "button"
+                =disabled      ""
+                =hidden        ""
+                =title         "Expand SVG to fullscreen"
+                =aria-label    "Expand SVG to fullscreen"
+                =aria-pressed  "false"
+                ;span.fullscreen-icon(aria-hidden "true");
+              ==
+              ;button#fullscreen-zoom-out.preview-action.fullscreen-only
+                =type        "button"
+                =disabled    ""
+                =title       "Zoom out"
+                =aria-label  "Zoom out"
+                ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+              ==
+              ;button#fullscreen-zoom-in.preview-action.fullscreen-only
+                =type        "button"
+                =disabled    ""
+                =title       "Zoom in"
+                =aria-label  "Zoom in"
+                ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+              ==
             ==
             ;div#empty-state.state-panel
               ;p.state-title: Nothing rendered yet
@@ -296,6 +327,14 @@
             ;button#close-help(type "button", aria-label "Close help"): Close
           ==
           ;p: Write DOT on the left and inspect the SVG on the right.
+          ;p
+            ;a
+              =href    "https://www.graphviz.org/doc/info/lang.html"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              DOT Language Reference
+            ==
+          ==
           ;p: Drag the divider to resize the panes on larger screens.
           ;h3: Keyboard shortcuts
           ;ul.shortcut-list
@@ -421,6 +460,55 @@
   }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  .zoom-controls { display: inline-flex; gap: 0.25rem; }
+
+  .icon-button {
+    align-items: center;
+    display: inline-flex;
+    height: 2.65rem;
+    justify-content: center;
+    padding: 0;
+    width: 2.65rem;
+  }
+
+  .zoom-icon {
+    border: 2px solid currentcolor;
+    border-radius: 50%;
+    display: block;
+    height: 0.9rem;
+    position: relative;
+    width: 0.9rem;
+  }
+
+  .zoom-icon::after {
+    background: currentcolor;
+    content: '';
+    height: 2px;
+    left: 0.65rem;
+    position: absolute;
+    top: 0.72rem;
+    transform: rotate(45deg);
+    transform-origin: left center;
+    width: 0.55rem;
+  }
+
+  .zoom-icon::before {
+    background:
+      linear-gradient(currentcolor, currentcolor) center / 0.35rem 2px
+        no-repeat;
+    content: '';
+    inset: 0.1rem;
+    position: absolute;
+  }
+
+  .zoom-in-icon::before {
+    background:
+      linear-gradient(currentcolor, currentcolor) center / 0.35rem 2px
+        no-repeat,
+      linear-gradient(currentcolor, currentcolor) center / 2px 0.35rem
+        no-repeat;
+  }
 
   .visual-tools {
     align-items: end;
@@ -561,35 +649,32 @@
     position: relative;
   }
 
-  .copy-svg {
-    align-items: center;
-    background: rgb(255 255 255 / 0.9);
-    display: inline-flex;
-    height: 2rem;
-    justify-content: center;
-    padding: 0;
+  .preview-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
     position: absolute;
     right: 0.75rem;
     top: 0.75rem;
-    width: 2rem;
     z-index: 3;
   }
 
-  .fullscreen-svg {
+  .preview-action {
     align-items: center;
     background: rgb(255 255 255 / 0.9);
     display: inline-flex;
     height: 2rem;
     justify-content: center;
     padding: 0;
-    position: absolute;
-    right: 0.75rem;
-    top: 3.25rem;
     width: 2rem;
-    z-index: 3;
   }
 
-  .fullscreen-svg[hidden] { display: none; }
+  .preview-action[hidden] { display: none; }
+  .preview-action.fullscreen-only { display: none; }
+
+  .preview-shell.is-fullscreen .preview-action.fullscreen-only {
+    display: inline-flex;
+  }
 
   .copy-icon {
     height: 0.9rem;
@@ -992,6 +1077,10 @@
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
   const sourceStatus = document.querySelector('#source-status');
+  const zoomOut = document.querySelector('#zoom-out');
+  const zoomIn = document.querySelector('#zoom-in');
+  const fullscreenZoomOut = document.querySelector('#fullscreen-zoom-out');
+  const fullscreenZoomIn = document.querySelector('#fullscreen-zoom-in');
   const resetView = document.querySelector('#reset-view');
   const browseDot = document.querySelector('#browse-dot');
   const loadDot = document.querySelector('#load-dot');
@@ -1116,6 +1205,10 @@
 
   function setPreviewControls(enabled) {
     if (!enabled) setSvgSourceVisible(false);
+    zoomOut.disabled = !enabled || showingSvgSource;
+    zoomIn.disabled = !enabled || showingSvgSource;
+    fullscreenZoomOut.disabled = !enabled || showingSvgSource;
+    fullscreenZoomIn.disabled = !enabled || showingSvgSource;
     resetView.disabled = !enabled || showingSvgSource;
     saveSvg.disabled = !enabled;
     fit.disabled = !enabled || showingSvgSource;
@@ -1136,6 +1229,10 @@
     toggleSvgSource.textContent = showingSvgSource
       ? 'View rendered'
       : 'View source';
+    zoomOut.disabled = !currentSvg || showingSvgSource;
+    zoomIn.disabled = !currentSvg || showingSvgSource;
+    fullscreenZoomOut.disabled = !currentSvg || showingSvgSource;
+    fullscreenZoomIn.disabled = !currentSvg || showingSvgSource;
     resetView.disabled = !currentSvg || showingSvgSource;
     fit.disabled = !currentSvg || showingSvgSource;
     fullscreenSvg.hidden = !currentSvg || showingSvgSource;
@@ -1194,6 +1291,7 @@
     fullscreenSvg.setAttribute('aria-pressed', String(expanded));
     fullscreenSvg.setAttribute('aria-label', label);
     fullscreenSvg.title = label;
+    previewShell.classList.toggle('is-fullscreen', expanded);
     if (currentSvg && !showingSvgSource) {
       requestAnimationFrame(fitToWindow);
     }
@@ -2524,6 +2622,20 @@
     queueSaveSession();
   }
 
+  function zoomAtCenter(factor) {
+    if (!currentSvg || showingSvgSource) return;
+    const bounds = preview.getBoundingClientRect();
+    const centerX = bounds.width / 2;
+    const centerY = bounds.height / 2;
+    const graphX = (centerX - view.x) / view.scale;
+    const graphY = (centerY - view.y) / view.scale;
+    const nextScale = clamp(view.scale * factor, minScale, maxScale);
+    view.x = centerX - graphX * nextScale;
+    view.y = centerY - graphY * nextScale;
+    view.scale = nextScale;
+    applyView();
+  }
+
   function fitToWindow() {
     if (!currentSvg) return;
     const bounds = preview.getBoundingClientRect();
@@ -2970,6 +3082,13 @@
   dot.addEventListener('input', editorChanged);
   dot.addEventListener('keydown', handleEditorKeydown);
   dot.addEventListener('scroll', syncEditorScroll);
+  zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
+  zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
+  fullscreenZoomOut.addEventListener(
+    'click',
+    () => zoomAtCenter(1 / 1.25)
+  );
+  fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
   help.addEventListener('click', () => showHelp(helpPanel.hidden));
