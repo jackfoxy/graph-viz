@@ -4,15 +4,15 @@
 ::  piecewise cubic bezier through the chain waypoints (straight
 ::  edges are one segment); box-constrained spline fitting
 ::  (routespl.c) is post-v1 behind the same interface.  Endpoints
-::  clip to the node boundary (box or ellipse math); compass ports
-::  override the attachment point.  Self-loops bow out to the
-::  right; parallel edges between adjacent ranks fan apart; flat
-::  edges run straight between facing sides.
+::  clip to the node's outer stroke edge (box or ellipse math);
+::  compass ports override the attachment point.  Self-loops bow
+::  out to the right; parallel edges between adjacent ranks fan
+::  apart; flat edges run straight between facing sides.
 ::
 ::  Arrowheads render as polygons scaled by arrowsize, honoring
 ::  dir=forward/back/both/none and the P7 reversal flag, so arrows
 ::  always point along the original edge direction.  Splines end on
-::  the node boundary; arrow tips sit on the endpoint.
+::  the outer node stroke; arrow tips sit on the endpoint.
 ::
 ::  +build-graph assembles the full public positioned graph.
 ::
@@ -77,6 +77,21 @@
   ?:  (gte v (lent nodes.res))  'box'
   ~(shape gv:attr attrs:(snag v nodes.res))
 ::
+++  node-stroke-pad
+  ::  distance from the geometric boundary to the outer stroke edge
+  |=  [res=resolved:attr v=@ud]
+  ^-  @rs
+  ?:  (gte v (lent nodes.res))  .0
+  =/  n  (snag v nodes.res)
+  =/  gvd  ~(. gv:attr attrs.n)
+  =/  shp  shape:gvd
+  ?:  ?|(=('plaintext' shp) =('plain' shp) =('none' shp))  .0
+  =/  styles  style:gvd
+  =/  bold  (lien styles |=(s=@t =('bold' s)))
+  =/  pw  (rd-rs:coord penwidth:gvd)
+  =/  pw  ?:(&(bold (lte:rs pw .1)) .2 pw)
+  (hf pw)
+::
 ++  ellipse-clip
   |=  [ctr=fp ab=fp target=fp]
   ^-  fp
@@ -124,7 +139,8 @@
   ^-  fp
   =/  ctr  `fp`(~(got by pos.c) v)
   =/  d  (~(got by dims.c) v)
-  =/  ab  `fp`[(hf w.d) (hf h.d)]
+  =/  pad  (node-stroke-pad res v)
+  =/  ab  `fp`[(add:rs (hf w.d) pad) (add:rs (hf h.d) pad)]
   =/  elly  (is-elly (node-shape res v))
   ?^  compass.pt
     =/  cp  (compass-pt ctr ab elly u.compass.pt)

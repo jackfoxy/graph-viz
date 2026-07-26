@@ -10,7 +10,8 @@
 ::  Record and HTML shapes are rejected as unsupported (the %|
 ::  branch carries the message).  Unknown color names pass through
 ::  untouched; the name table carries X11 values, which differ from
-::  SVG for green, purple, gray and friends.
+::  SVG for green, purple, gray and friends.  Edges precede nodes in
+::  paint order so node fills and strokes remain on top.
 ::
 /-  gg=graph
 /+  attr=attr, metrics=metrics
@@ -331,8 +332,8 @@
       "transform=\"translate(4 4) scale({(fmt s)})\">\0a"
       "<title>{(esc (trip name.g))}</title>\0a"
       all-clusters
-      all-nodes
       all-edges
+      all-nodes
       "</g>\0a</svg>\0a"
     ==
   ::

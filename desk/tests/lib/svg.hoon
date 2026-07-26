@@ -128,6 +128,13 @@
       "<g id=\"graph0\" class=\"graph\" "
       "transform=\"translate(4 4) scale(1.00)\">\0a"
       "<title>t</title>\0a"
+      "<g id=\"edge1\" class=\"edge\">\0a"
+      "<title>A-&gt;B</title>\0a"
+      "<path fill=\"none\" stroke=\"#000000\" "
+      "d=\"M50.00,30.00C50.00,40.00 50.00,60.00 50.00,70.00\"/>\0a"
+      "<polygon fill=\"#000000\" stroke=\"#000000\" "
+      "points=\"50.00,70.00 53.00,60.00 47.00,60.00\"/>\0a"
+      "</g>\0a"
       "<g id=\"node1\" class=\"node\">\0a"
       "<title>A</title>\0a"
       "<polygon fill=\"#d3d3d3\" stroke=\"#000000\" "
@@ -144,13 +151,6 @@
       "font-family=\"Times,serif\" font-size=\"14.00\" "
       "fill=\"#000000\">B</text>\0a"
       "</g>\0a"
-      "<g id=\"edge1\" class=\"edge\">\0a"
-      "<title>A-&gt;B</title>\0a"
-      "<path fill=\"none\" stroke=\"#000000\" "
-      "d=\"M50.00,30.00C50.00,40.00 50.00,60.00 50.00,70.00\"/>\0a"
-      "<polygon fill=\"#000000\" stroke=\"#000000\" "
-      "points=\"50.00,70.00 53.00,60.00 47.00,60.00\"/>\0a"
-      "</g>\0a"
       "</g>\0a</svg>\0a"
     ==
   (expect-eq !>((crip expected)) !>(p.out))
@@ -159,6 +159,8 @@
 ::
 ++  test-svg-structure
   =/  s  (svg-of 'digraph G {hello -> world}')
+  =/  edge-pos  (need (find "<g id=\"edge1\"" s))
+  =/  node-pos  (need (find "<g id=\"node1\"" s))
   ;:  weld
     (expect !>((has-part s "<?xml version=")))
     (expect !>((has-part s "<g id=\"node1\" class=\"node\">")))
@@ -166,6 +168,7 @@
     (expect !>((has-part s "<g id=\"edge1\" class=\"edge\">")))
     (expect !>((has-part s "<title>hello-&gt;world</title>")))
     (expect !>((has-part s "</svg>")))
+    (expect !>((lth edge-pos node-pos)))
   ::  balanced groups
     (expect-eq !>((count-part s "<g ")) !>((count-part s "</g>")))
   ==

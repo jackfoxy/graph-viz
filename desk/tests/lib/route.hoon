@@ -36,8 +36,9 @@
   ^-  ?
   =/  ctr  (~(got by pos.c) v)
   =/  d  (~(got by dims.c) v)
-  =/  a  (div:rs w.d .2)
-  =/  b  (div:rs h.d .2)
+  =/  pad  (node-stroke-pad:route res v)
+  =/  a  (add:rs (div:rs w.d .2) pad)
+  =/  b  (add:rs (div:rs h.d .2) pad)
   =/  dx  (sub:rs x.p x.ctr)
   =/  dy  (sub:rs y.p y.ctr)
   =/  adx  ?:((lth:rs dx .0) (sub:rs .0 dx) dx)
@@ -110,6 +111,21 @@
   ::  undirected: none
     =/  t  (go 'graph {a--b}')
     (expect-eq !>(0) !>((lent arrows:(snag 0 ro.t))))
+  ==
+::
+++  test-route-box-arrow-clearance
+  =/  t  (go 'digraph {rankdir=LR node [shape=box] a->b}')
+  =/  e  (snag 0 ro.t)
+  =/  tip  (snag 0 (snag 0 arrows.e))
+  =/  head  (snag head.e nodes.res.t)
+  =/  ctr  (~(got by pos.c.t) head.e)
+  =/  dims  (~(got by dims.c.t) head.e)
+  =/  boundary  (sub:rs x.ctr (div:rs w.dims .2))
+  =/  pad  (node-stroke-pad:route res.t head.e)
+  ;:  weld
+    (expect !>((lth:rs x.tip boundary)))
+    (expect !>((gte:rs (sub:rs boundary x.tip) pad)))
+    (expect-eq !>((snag (dec (lent spline.e)) spline.e)) !>(tip))
   ==
 ::
 ++  test-route-arrow-dirs

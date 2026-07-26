@@ -2,6 +2,90 @@
 <svg width="756.67pt" height="326.31pt" viewBox="0.00 0.00 756.67 326.31" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <g id="graph0" class="graph" transform="translate(4 4) scale(1.00)">
 <title>finite_state_machine</title>
+<g id="edge1" class="edge">
+<title>LR_0-&gt;LR_2</title>
+<path fill="none" stroke="#000000" d="M63.79,165.21C89.83,146.52 115.86,127.82 141.90,109.13"/>
+<polygon fill="#000000" stroke="#000000" points="141.90,109.13 131.74,112.12 135.82,117.81"/>
+<text text-anchor="middle" x="102.85" y="132.21" font-family="Times,serif" font-size="14.00" fill="#000000">SS(B)</text>
+</g>
+<g id="edge2" class="edge">
+<title>LR_0-&gt;LR_1</title>
+<path fill="none" stroke="#000000" d="M63.79,206.58C89.83,225.27 115.86,243.96 141.90,262.65"/>
+<polygon fill="#000000" stroke="#000000" points="141.90,262.65 135.82,253.98 131.74,259.67"/>
+<text text-anchor="middle" x="102.85" y="229.66" font-family="Times,serif" font-size="14.00" fill="#000000">SS(S)</text>
+</g>
+<g id="edge3" class="edge">
+<title>LR_1-&gt;LR_3</title>
+<path fill="none" stroke="#000000" d="M206.19,283.34C227.79,283.34 249.39,283.34 270.99,283.34"/>
+<polygon fill="#000000" stroke="#000000" points="270.99,283.34 260.99,279.84 260.99,286.84"/>
+<text text-anchor="middle" x="238.59" y="278.38" font-family="Times,serif" font-size="14.00" fill="#000000">S($end)</text>
+</g>
+<g id="edge4" class="edge">
+<title>LR_2-&gt;LR_6</title>
+<path fill="none" stroke="#000000" d="M203.72,75.45C226.97,66.29 250.21,57.13 273.46,47.98"/>
+<polygon fill="#000000" stroke="#000000" points="273.46,47.98 262.87,48.38 265.44,54.90"/>
+<text text-anchor="middle" x="238.59" y="56.75" font-family="Times,serif" font-size="14.00" fill="#000000">SS(b)</text>
+</g>
+<g id="edge5" class="edge">
+<title>LR_2-&gt;LR_5</title>
+<path fill="none" stroke="#000000" d="M206.19,88.45C239.62,88.45 273.04,88.45 306.46,88.45 339.89,88.45 373.31,88.45 406.73,88.45"/>
+<polygon fill="#000000" stroke="#000000" points="406.73,88.45 396.73,84.95 396.73,91.95"/>
+<text text-anchor="middle" x="306.46" y="83.49" font-family="Times,serif" font-size="14.00" fill="#000000">SS(a)</text>
+</g>
+<g id="edge6" class="edge">
+<title>LR_2-&gt;LR_4</title>
+<path fill="none" stroke="#000000" d="M198.58,110.40C225.25,131.41 251.93,152.43 278.60,173.44"/>
+<polygon fill="#000000" stroke="#000000" points="278.60,173.44 272.91,164.50 268.58,170.00"/>
+<text text-anchor="middle" x="238.59" y="136.96" font-family="Times,serif" font-size="14.00" fill="#000000">S(A)</text>
+</g>
+<g id="edge7" class="edge">
+<title>LR_5-&gt;LR_7</title>
+<path fill="none" stroke="#000000" d="M477.26,93.87C499.14,100.87 521.02,100.87 542.90,93.87"/>
+<polygon fill="#000000" stroke="#000000" points="542.90,93.87 532.31,93.58 534.44,100.25"/>
+<text text-anchor="middle" x="510.08" y="94.16" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge8" class="edge">
+<title>LR_5-&gt;LR_5</title>
+<path fill="none" stroke="#000000" d="M473.58,71.88C495.18,60.47 495.18,116.43 473.58,105.01"/>
+<polygon fill="#000000" stroke="#000000" points="473.58,105.01 480.78,112.78 484.05,106.59"/>
+<text text-anchor="middle" x="499.78" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+<g id="edge9" class="edge">
+<title>LR_6-&gt;LR_6</title>
+<path fill="none" stroke="#000000" d="M337.83,18.41C359.44,6.99 359.44,62.95 337.83,51.54"/>
+<polygon fill="#000000" stroke="#000000" points="337.83,51.54 345.04,59.31 348.31,53.12"/>
+<text text-anchor="middle" x="364.04" y="40.01" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge10" class="edge">
+<title>LR_6-&gt;LR_5</title>
+<path fill="none" stroke="#000000" d="M339.47,47.98C362.71,57.13 385.96,66.29 409.20,75.45"/>
+<polygon fill="#000000" stroke="#000000" points="409.20,75.45 401.18,68.52 398.62,75.04"/>
+<text text-anchor="middle" x="374.34" y="56.75" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+<g id="edge11" class="edge">
+<title>LR_7-&gt;LR_8</title>
+<path fill="none" stroke="#000000" d="M613.43,88.45C635.03,88.45 656.63,88.45 678.22,88.45"/>
+<polygon fill="#000000" stroke="#000000" points="678.22,88.45 668.22,84.95 668.22,91.95"/>
+<text text-anchor="middle" x="645.83" y="83.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge12" class="edge">
+<title>LR_5-&gt;LR_7</title>
+<path fill="none" stroke="#000000" d="M477.26,83.02C499.14,76.02 521.02,76.02 542.90,83.02"/>
+<polygon fill="#000000" stroke="#000000" points="477.26,83.02 487.86,83.31 485.72,76.64"/>
+<text text-anchor="middle" x="510.08" y="72.81" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
+<g id="edge13" class="edge">
+<title>LR_6-&gt;LR_8</title>
+<path fill="none" stroke="#000000" d="M341.94,34.97C375.36,34.97 408.78,34.97 442.21,34.97 487.46,34.97 532.71,34.97 577.95,34.97 612.20,48.46 646.45,61.95 680.69,75.45"/>
+<polygon fill="#000000" stroke="#000000" points="341.94,34.97 351.94,38.47 351.94,31.47"/>
+<text text-anchor="middle" x="510.08" y="30.01" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
+</g>
+<g id="edge14" class="edge">
+<title>LR_5-&gt;LR_8</title>
+<path fill="none" stroke="#000000" d="M475.21,101.45C509.46,114.94 543.71,128.43 577.95,141.92 612.20,128.43 646.45,114.94 680.69,101.45"/>
+<polygon fill="#000000" stroke="#000000" points="475.21,101.45 483.23,108.37 485.80,101.86"/>
+<text text-anchor="middle" x="577.95" y="136.96" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
+</g>
 <g id="node1" class="node">
 <title>LR_0</title>
 <ellipse fill="none" stroke="#000000" cx="34.97" cy="185.89" rx="34.97" ry="34.97"/>
@@ -50,90 +134,6 @@
 <title>LR_7</title>
 <ellipse fill="none" stroke="#000000" cx="577.95" cy="88.45" rx="34.97" ry="34.97"/>
 <text text-anchor="middle" x="577.95" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">LR_7</text>
-</g>
-<g id="edge1" class="edge">
-<title>LR_0-&gt;LR_2</title>
-<path fill="none" stroke="#000000" d="M63.38,165.50C89.69,146.61 116.00,127.73 142.31,108.84"/>
-<polygon fill="#000000" stroke="#000000" points="142.31,108.84 132.14,111.83 136.23,117.52"/>
-<text text-anchor="middle" x="102.85" y="132.21" font-family="Times,serif" font-size="14.00" fill="#000000">SS(B)</text>
-</g>
-<g id="edge2" class="edge">
-<title>LR_0-&gt;LR_1</title>
-<path fill="none" stroke="#000000" d="M63.38,206.29C89.69,225.17 116.00,244.06 142.31,262.95"/>
-<polygon fill="#000000" stroke="#000000" points="142.31,262.95 136.23,254.27 132.14,259.96"/>
-<text text-anchor="middle" x="102.85" y="229.66" font-family="Times,serif" font-size="14.00" fill="#000000">SS(S)</text>
-</g>
-<g id="edge3" class="edge">
-<title>LR_1-&gt;LR_3</title>
-<path fill="none" stroke="#000000" d="M205.69,283.34C227.62,283.34 249.56,283.34 271.49,283.34"/>
-<polygon fill="#000000" stroke="#000000" points="271.49,283.34 261.49,279.84 261.49,286.84"/>
-<text text-anchor="middle" x="238.59" y="278.38" font-family="Times,serif" font-size="14.00" fill="#000000">S($end)</text>
-</g>
-<g id="edge4" class="edge">
-<title>LR_2-&gt;LR_6</title>
-<path fill="none" stroke="#000000" d="M203.26,75.63C226.81,66.35 250.37,57.07 273.92,47.79"/>
-<polygon fill="#000000" stroke="#000000" points="273.92,47.79 263.34,48.20 265.90,54.71"/>
-<text text-anchor="middle" x="238.59" y="56.75" font-family="Times,serif" font-size="14.00" fill="#000000">SS(b)</text>
-</g>
-<g id="edge5" class="edge">
-<title>LR_2-&gt;LR_5</title>
-<path fill="none" stroke="#000000" d="M205.69,88.45C239.28,88.45 272.87,88.45 306.46,88.45 340.05,88.45 373.64,88.45 407.23,88.45"/>
-<polygon fill="#000000" stroke="#000000" points="407.23,88.45 397.23,84.95 397.23,91.95"/>
-<text text-anchor="middle" x="306.46" y="83.49" font-family="Times,serif" font-size="14.00" fill="#000000">SS(a)</text>
-</g>
-<g id="edge6" class="edge">
-<title>LR_2-&gt;LR_4</title>
-<path fill="none" stroke="#000000" d="M198.19,110.09C225.12,131.31 252.06,152.53 278.99,173.75"/>
-<polygon fill="#000000" stroke="#000000" points="278.99,173.75 273.30,164.81 268.97,170.31"/>
-<text text-anchor="middle" x="238.59" y="136.96" font-family="Times,serif" font-size="14.00" fill="#000000">S(A)</text>
-</g>
-<g id="edge7" class="edge">
-<title>LR_5-&gt;LR_7</title>
-<path fill="none" stroke="#000000" d="M476.77,93.79C498.98,100.79 521.18,100.79 543.39,93.79"/>
-<polygon fill="#000000" stroke="#000000" points="543.39,93.79 532.80,93.46 534.91,100.14"/>
-<text text-anchor="middle" x="510.08" y="94.08" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
-</g>
-<g id="edge8" class="edge">
-<title>LR_5-&gt;LR_5</title>
-<path fill="none" stroke="#000000" d="M473.13,72.11C495.18,60.47 495.18,116.43 473.13,104.78"/>
-<polygon fill="#000000" stroke="#000000" points="473.13,104.78 480.34,112.55 483.61,106.36"/>
-<text text-anchor="middle" x="499.67" y="93.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
-</g>
-<g id="edge9" class="edge">
-<title>LR_6-&gt;LR_6</title>
-<path fill="none" stroke="#000000" d="M337.39,18.64C359.44,6.99 359.44,62.95 337.39,51.31"/>
-<polygon fill="#000000" stroke="#000000" points="337.39,51.31 344.60,59.07 347.87,52.88"/>
-<text text-anchor="middle" x="363.92" y="40.01" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
-</g>
-<g id="edge10" class="edge">
-<title>LR_6-&gt;LR_5</title>
-<path fill="none" stroke="#000000" d="M339.00,47.79C362.56,57.07 386.11,66.35 409.67,75.63"/>
-<polygon fill="#000000" stroke="#000000" points="409.67,75.63 401.65,68.71 399.08,75.22"/>
-<text text-anchor="middle" x="374.34" y="56.75" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
-</g>
-<g id="edge11" class="edge">
-<title>LR_7-&gt;LR_8</title>
-<path fill="none" stroke="#000000" d="M612.93,88.45C634.86,88.45 656.79,88.45 678.72,88.45"/>
-<polygon fill="#000000" stroke="#000000" points="678.72,88.45 668.72,84.95 668.72,91.95"/>
-<text text-anchor="middle" x="645.83" y="83.49" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
-</g>
-<g id="edge12" class="edge">
-<title>LR_5-&gt;LR_7</title>
-<path fill="none" stroke="#000000" d="M476.77,83.10C498.98,76.10 521.18,76.10 543.39,83.10"/>
-<polygon fill="#000000" stroke="#000000" points="476.77,83.10 487.36,83.43 485.26,76.76"/>
-<text text-anchor="middle" x="510.08" y="72.89" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
-</g>
-<g id="edge13" class="edge">
-<title>LR_6-&gt;LR_8</title>
-<path fill="none" stroke="#000000" d="M341.44,34.97C375.03,34.97 408.62,34.97 442.21,34.97 487.46,34.97 532.71,34.97 577.95,34.97 612.36,48.53 646.76,62.08 681.16,75.63"/>
-<polygon fill="#000000" stroke="#000000" points="341.44,34.97 351.44,38.47 351.44,31.47"/>
-<text text-anchor="middle" x="510.08" y="30.01" font-family="Times,serif" font-size="14.00" fill="#000000">S(b)</text>
-</g>
-<g id="edge14" class="edge">
-<title>LR_5-&gt;LR_8</title>
-<path fill="none" stroke="#000000" d="M474.75,101.27C509.15,114.82 543.55,128.37 577.95,141.92 612.36,128.37 646.76,114.82 681.16,101.27"/>
-<polygon fill="#000000" stroke="#000000" points="474.75,101.27 482.77,108.19 485.34,101.67"/>
-<text text-anchor="middle" x="577.95" y="136.96" font-family="Times,serif" font-size="14.00" fill="#000000">S(a)</text>
 </g>
 </g>
 </svg>
