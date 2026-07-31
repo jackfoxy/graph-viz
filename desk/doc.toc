@@ -1,4 +1,4 @@
 /reference/md          Reference
 /guide/md              Users Gudie
 /graph-noun/md         The positioned-graph noun
-/release-notes         Release Notes
+/release-notes/md         Release Notes

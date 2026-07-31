@@ -326,7 +326,6 @@
             ;h2: Editor help
             ;button#close-help(type "button", aria-label "Close help"): Close
           ==
-          ;p: Write DOT on the left and inspect the SVG on the right.
           ;p
             ;a
               =href    "https://www.graphviz.org/doc/info/lang.html"
@@ -335,6 +334,7 @@
               DOT Language Reference
             ==
           ==
+          ;p: Write DOT on the left and inspect the SVG on the right.
           ;p: Drag the divider to resize the panes on larger screens.
           ;h3: Keyboard shortcuts
           ;ul.shortcut-list
@@ -346,6 +346,33 @@
             ;li: Tab / Shift + Tab: indent / unindent
             ;li: Shift-click: select two nodes for an edge
             ;li: Delete: remove the selected node or edge
+          ==
+          ;h3: LLM skill files
+          ;ul
+            ;li
+              ;a
+                =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-dot-syntax"
+                =target  "_blank"
+                =rel     "noopener noreferrer"
+                DOT Syntax
+              ==
+            ==
+            ;li
+              ;a
+                =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-gall-api"
+                =target  "_blank"
+                =rel     "noopener noreferrer"
+                Gall API
+              ==
+            ==
+            ;li
+              ;a
+                =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns"
+                =target  "_blank"
+                =rel     "noopener noreferrer"
+                Common Patterns
+              ==
+            ==
           ==
         ==
       ==
