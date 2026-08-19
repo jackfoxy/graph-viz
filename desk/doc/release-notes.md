@@ -1,3 +1,7 @@
+# v1.0.1
+
+UI help and editing enhancements
+
 # v1.0.0
 
 Known gaps, in rough priority order. Each sits behind an interface

@@ -81,6 +81,10 @@
       ==
     (save-file eyre-id req %dot)
   ?:  ?&  =(%'POST' method)
+          =("/apps/graph-viz/file/dot/delete" url)
+      ==
+    (delete-file eyre-id req %dot)
+  ?:  ?&  =(%'POST' method)
           =("/apps/graph-viz/file/svg/browse" url)
       ==
     (browse-files eyre-id req %svg)
@@ -92,6 +96,10 @@
           =("/apps/graph-viz/file/svg/save" url)
       ==
     (save-file eyre-id req %svg)
+  ?:  ?&  =(%'POST' method)
+          =("/apps/graph-viz/file/svg/delete" url)
+      ==
+    (delete-file eyre-id req %svg)
   ?.  ?&  =(%'POST' method)  =("/apps/graph-viz/render" url)  ==
     :_  this
     (respond eyre-id 404 'text/plain; charset=utf-8' 'not found')
@@ -254,6 +262,29 @@
     ==
   :_  this
   [save (respond eyre-id 200 'text/plain; charset=utf-8' 'saved')]
+::
+++  delete-file
+  |=  [eyre-id=@ta req=inbound-request:eyre kind=?(%dot %svg)]
+  ^-  (quip card _this)
+  ?.  authenticated.req
+    :_  this
+    (respond eyre-id 401 'text/plain; charset=utf-8' 'authentication required')
+  =/  raw=(unit @t)
+    (get-header:http 'x-graph-viz-path' header-list.request.req)
+  ?~  raw
+    :_  this
+    (respond eyre-id 400 'text/plain; charset=utf-8' 'missing Clay path')
+  =/  pax=(unit path)
+    (file-path:clay u.raw ?:(=(%dot kind) %txt %svg))
+  ?~  pax
+    :_  this
+    (respond eyre-id 400 'text/plain; charset=utf-8' 'invalid Clay path')
+  =/  remove=card
+    :*  %pass  /clay/delete  %arvo  %c
+        %info  q.byk.bowl  %&  ~[[u.pax %del ~]]
+    ==
+  :_  this
+  [remove (respond eyre-id 200 'text/plain; charset=utf-8' 'deleted')]
 --
 ::
 ++  on-watch

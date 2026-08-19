@@ -217,4 +217,22 @@
     (expect-eq !>(expected) !>(save))
     (expect-eq !>(200) !>((response-status t.cards)))
   ==
+::
+++  test-web-delete-dot
+  =/  req
+    (file-request '/apps/graph-viz/file/dot/delete' 'examples/source' ~)
+  =/  out  (poke-http req)
+  =/  cards  -.out
+  ?>  ?=(^ cards)
+  =/  remove  i.cards
+  =/  pax  /data/graph-viz/examples/source/txt
+  =/  expected=card:agent:gall
+    :*  %pass  /clay/delete  %arvo  %c
+        %info  %graph-viz  %&  ~[[pax %del ~]]
+    ==
+  ;:  weld
+    (expect-eq !>(expected) !>(remove))
+    (expect-eq !>(200) !>((response-status t.cards)))
+    (expect-eq !>('deleted') !>((response-body t.cards)))
+  ==
 --

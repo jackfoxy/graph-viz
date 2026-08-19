@@ -6,7 +6,8 @@ const application = process.argv[2];
 if (!application) throw new Error('usage: node gviz-web.test.js APP_JS');
 
 class Element {
-  constructor() {
+  constructor(localName = 'div') {
+    this.localName = localName;
     this.dataset = {};
     this.listeners = {};
     this.values = {};
@@ -34,21 +35,46 @@ class Element {
   }
 
   addEventListener(name, callback) { this.listeners[name] = callback; }
+  getAttribute(name) { return this[name] ?? null; }
   setAttribute(name, value) { this[name] = value; }
   removeAttribute(name) { delete this[name]; }
-  focus() { this.focused = true; }
+  focus() {
+    this.focused = true;
+    if (global.document) global.document.activeElement = this;
+  }
   click() { this.clicked = true; }
-  append(child) { this.children.push(child); }
+  append(...children) {
+    for (const child of children) {
+      child.parent = this;
+      this.children.push(child);
+    }
+  }
+  after(...siblings) {
+    if (!this.parent) return;
+    const index = this.parent.children.indexOf(this);
+    this.parent.children.splice(index + 1, 0, ...siblings);
+    for (const sibling of siblings) sibling.parent = this.parent;
+  }
+  remove() {
+    if (!this.parent) return;
+    this.parent.children = this.parent.children.filter((item) => item !== this);
+    this.parent = undefined;
+  }
+  get parentElement() { return this.parent; }
   setPointerCapture(id) { this.captured.add(id); }
   releasePointerCapture(id) { this.captured.delete(id); }
   hasPointerCapture(id) { return this.captured.has(id); }
   getBoundingClientRect() {
-    return {left: 0, top: 0, width: 800, height: 600};
+    return {
+      left: 0, top: 0, right: 800, bottom: 600,
+      width: 800, height: 600
+    };
   }
   replaceChildren(...children) {
     this.children = children.length === 1 && children[0].fragment
       ? children[0].children
       : children;
+    for (const child of this.children) child.parent = this;
   }
   contains(item) {
     return item === this || this.children.some((child) => {
@@ -65,10 +91,35 @@ class Element {
       return name.trim().toLowerCase() === this.localName?.toLowerCase();
     });
   }
-  querySelector(name) {
-    return name === 'svg'
-      ? this.children.find((item) => item.localName === 'svg')
-      : null;
+  querySelector(selector) {
+    return this.querySelectorAll(selector)[0] || null;
+  }
+  querySelectorAll(selector) {
+    const all = descendants(this);
+    if (selector === '[role="tab"]') {
+      return all.filter((item) => item.role === 'tab');
+    }
+    if (selector === '[data-docs-tab]') {
+      return all.filter((item) => item.dataset.docsTab);
+    }
+    if (selector === '.docs-explorer-panel') {
+      return all.filter((item) => item.className === 'explorer-panel docs-explorer-panel');
+    }
+    if (selector === 'svg') {
+      return all.filter((item) => item.localName === 'svg');
+    }
+    const view = selector.match(/^\[data-explorer-view="([^"]+)"\]$/);
+    if (view) {
+      return all.filter((item) => item.dataset.explorerView === view[1]);
+    }
+    const panelFrame = selector.match(/^#([^ ]+) iframe$/);
+    if (panelFrame) {
+      const panel = all.find((item) => item.id === panelFrame[1]);
+      return panel ? descendants(panel).filter((item) => {
+        return item.localName === 'iframe';
+      }) : [];
+    }
+    return [];
   }
   setSelectionRange(start, end) {
     this.selectionStart = start;
@@ -141,9 +192,14 @@ const selectors = [
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
   '#browse-dot', '#load-dot', '#save-dot',
   '#browse-svg', '#load-svg', '#save-svg', '#fit',
-  '#auto-render', '#help',
-  '#help-panel', '#close-help', '#file-browser-modal',
-  '#file-browser-title', '#file-browser-tree', '#close-file-browser',
+  '#auto-render', '#theme', '#help',
+  '#help-panel', '#editor-help-card', '#close-help',
+  '#fallback-help-content', '#docs-help-content',
+  '#workbench', '#explorer-pane', '#explorer-tabs', '#explorer-resizer',
+  '#dot-files-tab', '#svg-files-tab',
+  '#dot-files-panel', '#svg-files-panel',
+  '#dot-files-tree', '#svg-files-tree',
+  '#file-context-menu', '#file-context-open', '#file-context-delete',
   '#clay-error-modal',
   '#clay-error-message', '#close-clay-error', '#workspace', '#splitter',
   '#inspector',
@@ -161,9 +217,41 @@ const selectors = [
 const elements = Object.fromEntries(selectors.map((name) => {
   return [name, new Element()];
 }));
+const docsHelpLinks = [
+  ['usr/users-guide', '/docs/d/graph-viz/usr/users-guide'],
+  ['reference', '/docs/d/graph-viz/reference'],
+  ['graph-noun', '/docs/d/graph-viz/graph-noun'],
+  ['release-notes', '/docs/d/graph-viz/release-notes']
+].map(([path, href]) => {
+  const link = new Element();
+  link.dataset.docPath = path;
+  link.href = href;
+  link.textContent = path === 'usr/users-guide' ? 'Users Guide' : path;
+  return link;
+});
 elements['#auto-render'].checked = true;
-elements['#file-browser-modal'].hidden = true;
+elements['#help-panel'].hidden = true;
+elements['#docs-help-content'].hidden = true;
+elements['#file-context-menu'].hidden = true;
 elements['#clay-error-modal'].hidden = true;
+
+for (const [name, view, panel] of [
+  ['#dot-files-tab', 'dot-files', '#dot-files-panel'],
+  ['#svg-files-tab', 'svg-files', '#svg-files-panel']
+]) {
+  const wrapper = new Element();
+  const tab = elements[name];
+  tab.dataset.explorerView = view;
+  tab.setAttribute('role', 'tab');
+  tab.setAttribute('aria-controls', panel.slice(1));
+  wrapper.append(tab);
+  elements['#explorer-tabs'].append(wrapper);
+}
+elements['#explorer-pane'].append(
+  elements['#explorer-tabs'],
+  elements['#dot-files-panel'],
+  elements['#svg-files-panel']
+);
 
 const requests = [];
 const saved = new Map();
@@ -181,16 +269,51 @@ saved.set('graph-viz.session.v1', JSON.stringify({
   preferences: {autoRender: false}
 }));
 
+function documentDescendants() {
+  return Object.values(elements).flatMap((element) => {
+    return [element, ...descendants(element)];
+  });
+}
+
 global.document = {
   fullscreenElement: null,
-  querySelector: (selector) => elements[selector],
+  documentElement: new Element('html'),
+  querySelector: (selector) => {
+    if (elements[selector]) return elements[selector];
+    const panelFrame = selector.match(/^#([^ ]+) iframe$/);
+    if (panelFrame) {
+      const panel = documentDescendants().find((item) => {
+        return item.id === panelFrame[1];
+      });
+      return panel ? descendants(panel).find((item) => {
+        return item.localName === 'iframe';
+      }) : null;
+    }
+    if (selector.startsWith('#')) {
+      return documentDescendants().find((item) => {
+        return item.id === selector.slice(1);
+      }) || null;
+    }
+    const docs = selector.match(/^\[data-docs-tab="([^"]+)"\]$/);
+    if (docs) {
+      return documentDescendants().find((item) => {
+        return item.dataset?.docsTab === docs[1];
+      });
+    }
+    return null;
+  },
+  querySelectorAll: (selector) => selector === '.docs-help-link'
+    ? docsHelpLinks
+    : [],
+  getElementById: (id) => elements[`#${id}`] ||
+    documentDescendants().find((item) => item.id === id) || null,
   importNode: (node) => node,
   createDocumentFragment: () => ({
     fragment: true,
     children: [],
     append(item) { this.children.push(item); }
   }),
-  createElement: () => new Element(),
+  createElement: (name) => new Element(name),
   addEventListener: (name, callback) => { documentListeners[name] = callback; },
   exitFullscreen: async () => {
     global.document.fullscreenElement = null;
@@ -200,7 +323,15 @@ global.document = {
 global.DOMParser = class {
   parseFromString(source) { return svgDocument(source); }
 };
-global.matchMedia = () => ({matches: false});
+const themeMedia = {
+  matches: false,
+  listeners: {},
+  addEventListener(name, callback) { this.listeners[name] = callback; },
+  addListener(callback) { this.listeners.change = callback; }
+};
+global.matchMedia = (query) => query === '(prefers-color-scheme: dark)'
+  ? themeMedia
+  : {matches: false};
 Object.defineProperty(global, 'navigator', {
   configurable: true,
   value: {
@@ -212,7 +343,8 @@ Object.defineProperty(global, 'navigator', {
 global.getComputedStyle = (element) => ({
   lineHeight: '22px',
   paddingTop: '16px',
-  getPropertyValue: () => element.values['--editor-width'] || '44%'
+  getPropertyValue: (name) => element.values[name] ||
+    (name === '--explorer-width' ? '288px' : '44%')
 });
 global.requestAnimationFrame = (callback) => callback();
 URL.createObjectURL = () => 'blob:test';
@@ -222,7 +354,12 @@ global.localStorage = {
   setItem: (key, value) => saved.set(key, value)
 };
 global.window = {
-  location: {href: 'http://localhost:18080/apps/graph-viz/'},
+  innerWidth: 1_024,
+  innerHeight: 768,
+  location: {
+    href: 'http://localhost:18080/apps/graph-viz/',
+    origin: 'http://localhost:18080'
+  },
   addEventListener: (name, callback) => { windowListeners[name] = callback; },
   prompt: () => prompts.shift(),
   confirm: (message) => {
@@ -243,6 +380,16 @@ function response(ok, body, status = ok ? 200 : 422) {
   };
 }
 
+function docsResponse(url = 'http://localhost:18080/docs') {
+  return {
+    ok: true,
+    status: 200,
+    url,
+    headers: {get: () => 'text/html; charset=utf-8'},
+    text: async () => '<html></html>'
+  };
+}
+
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function resolveBrowse(path, file, children) {
   const request = requests.at(-1);
@@ -252,7 +399,7 @@ async function resolveBrowse(path, file, children) {
   await tick();
 }
 function descendants(element) {
-  return element.children.flatMap((child) => {
+  return (element.children || []).flatMap((child) => {
     return [child, ...descendants(child)];
   });
 }
@@ -261,6 +408,20 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
 (async () => {
   assert.equal(elements['#dot'].value, 'digraph saved { Alpha -> Beta }');
   assert.equal(elements['#workspace'].values['--editor-width'], '62%');
+  assert.equal(elements['#workbench'].values['--explorer-width'], '288px');
+  assert.equal(elements['#theme'].value, 'system');
+  assert.equal(document.documentElement.dataset.theme, 'system');
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  assert.equal(document.documentElement.style.colorScheme, 'light');
+  assert.equal(requests[0].url, '/apps/graph-viz/file/dot/browse');
+  assert.equal(requests[1].url, '/apps/graph-viz/file/svg/browse');
+  requests[0].resolve(response(true, JSON.stringify({
+    file: false, children: []
+  })));
+  requests[1].resolve(response(true, JSON.stringify({
+    file: false, children: []
+  })));
+  await tick();
   assert.equal(elements['#auto-render'].checked, false);
   assert.equal(elements['#new-node-category'].value, 'basic-shapes');
   assert.equal(elements['#new-node-shape'].value, 'ellipse');
@@ -286,7 +447,26 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#new-node-category'].value = 'basic-shapes';
   elements['#new-node-category'].listeners.change({});
 
-  requests[0].resolve(response(true, '<svg id="initial"/>'));
+  elements['#theme'].value = 'dark';
+  elements['#theme'].listeners.change({});
+  assert.equal(document.documentElement.dataset.theme, 'dark');
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
+  assert.equal(document.documentElement.style.colorScheme, 'dark');
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(JSON.parse(saved.get('graph-viz.session.v1'))
+    .preferences.theme, 'dark');
+  themeMedia.matches = true;
+  elements['#theme'].value = 'light';
+  elements['#theme'].listeners.change({});
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  elements['#theme'].value = 'system';
+  elements['#theme'].listeners.change({});
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
+  themeMedia.matches = false;
+  themeMedia.listeners.change({matches: false});
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+
+  requests[2].resolve(response(true, '<svg id="initial"/>'));
   await tick();
   await tick();
   assert(elements['#preview'].children[0], elements['#error'].textContent);
@@ -300,6 +480,113 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#source-status'].textContent, 'SVG copied');
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
+  const themedSvg = elements['#preview'].children[0];
+  elements['#theme'].value = 'dark';
+  elements['#theme'].listeners.change({});
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
+  assert.equal(elements['#preview'].children[0], themedSvg);
+  assert.equal(themedSvg.renderSource, '<svg id="initial"/>');
+  elements['#theme'].value = 'system';
+  elements['#theme'].listeners.change({});
+  assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  assert.equal(requests[3].url, '/docs');
+  assert.equal(requests[3].options.credentials, 'same-origin');
+  assert.equal(requests[3].options.cache, 'no-store');
+  requests[3].resolve(docsResponse('http://localhost:18080/login'));
+  await tick();
+  assert.equal(elements['#fallback-help-content'].hidden, false);
+  assert.equal(elements['#docs-help-content'].hidden, true);
+  elements['#help'].listeners.click({});
+  assert.equal(elements['#help-panel'].hidden, false);
+  let helpTab = document.querySelector('#help-tab');
+  assert(helpTab);
+  assert.equal(helpTab.textContent, 'Help');
+  assert.equal(helpTab['aria-selected'], 'true');
+  assert.deepEqual(
+    descendants(elements['#explorer-tabs'])
+      .filter((item) => item.role === 'tab')
+      .map((item) => item.dataset.explorerView),
+    ['dot-files', 'svg-files', 'help']
+  );
+  elements['#help'].listeners.click({});
+  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.id === 'help-tab';
+  }).length, 1);
+  helpTab.parentElement.children.find((item) => {
+    return item.className === 'docs-tab-close';
+  }).listeners.click({});
+  assert.equal(document.querySelector('#help-tab'), null);
+  assert.equal(elements['#svg-files-tab']['aria-selected'], 'true');
+  elements['#help'].listeners.click({});
+  helpTab = document.querySelector('#help-tab');
+  assert(helpTab);
+  assert.equal(helpTab['aria-selected'], 'true');
+  requests[4].resolve(docsResponse());
+  await tick();
+  assert.equal(elements['#fallback-help-content'].hidden, true);
+  assert.equal(elements['#docs-help-content'].hidden, false);
+  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.className === 'docs-tab-control';
+  }).length, 0);
+  docsHelpLinks[0].listeners.click({preventDefault() {}});
+  assert.equal(elements['#help-panel'].hidden, true);
+  assert(document.querySelector('#help-tab'));
+  let docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.className === 'docs-tab-control';
+  });
+  assert.equal(docsControls.length, 1);
+  assert.deepEqual(
+    descendants(elements['#explorer-tabs'])
+      .filter((item) => item.role === 'tab')
+      .map((item) => item.dataset.explorerView),
+    ['dot-files', 'svg-files', 'help', 'docs-1']
+  );
+  let docsPanels = descendants(elements['#explorer-pane']).filter((item) => {
+    return item.className === 'explorer-panel docs-explorer-panel';
+  });
+  assert.equal(docsPanels.length, 1);
+  let docsFrame = descendants(docsPanels[0]).find((item) => {
+    return item.localName === 'iframe';
+  });
+  assert.equal(docsFrame.src, '/docs/d/graph-viz/usr/users-guide');
+  docsFrame.contentDocument = {
+    title: 'Docs / Graph Viz / Users Guide',
+    querySelector: () => null
+  };
+  docsFrame.contentWindow = {
+    location: {pathname: '/docs/d/graph-viz/usr/users-guide'}
+  };
+  docsFrame.listeners.load({});
+  assert.equal(docsControls[0].children[0].textContent, 'Users Guide');
+  docsHelpLinks[0].listeners.click({preventDefault() {}});
+  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.className === 'docs-tab-control';
+  }).length, 1);
+  docsHelpLinks[1].listeners.click({preventDefault() {}});
+  docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.className === 'docs-tab-control';
+  });
+  assert.equal(docsControls.length, 2);
+  docsPanels = descendants(elements['#explorer-pane']).filter((item) => {
+    return item.className === 'explorer-panel docs-explorer-panel';
+  });
+  const referenceFrame = descendants(docsPanels[1]).find((item) => {
+    return item.localName === 'iframe';
+  });
+  assert.equal(referenceFrame.src, '/docs/d/graph-viz/reference');
+  const referenceClose = descendants(docsControls[1]).find((item) => {
+    return item.className === 'docs-tab-close';
+  });
+  referenceClose.listeners.click({});
+  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.className === 'docs-tab-control';
+  }).length, 1);
+  docsFrame.listeners.error({});
+  assert.equal(elements['#fallback-help-content'].hidden, false);
+  assert.equal(elements['#docs-help-content'].hidden, true);
+  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
+    return item.className === 'docs-tab-control';
+  }).length, 0);
   await elements['#fullscreen-svg'].listeners.click({});
   assert.equal(document.fullscreenElement, elements['#preview-shell']);
   assert(elements['#preview-shell'].classes.has('is-fullscreen'));
@@ -586,10 +873,34 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
 
   dot.value = 'digraph persisted { Alpha -> Beta }';
   dot.listeners.input({});
+  elements['#dot-files-tab'].listeners.keydown({
+    key: 'ArrowRight', currentTarget: elements['#dot-files-tab'],
+    preventDefault() {}
+  });
+  assert.equal(elements['#svg-files-tab']['aria-selected'], 'true');
+  elements['#svg-files-tab'].listeners.keydown({
+    key: 'ArrowLeft', currentTarget: elements['#svg-files-tab'],
+    preventDefault() {}
+  });
+  assert.equal(elements['#dot-files-tab']['aria-selected'], 'true');
+  elements['#explorer-resizer'].listeners.keydown({
+    key: 'ArrowRight', preventDefault() {}
+  });
+  elements['#explorer-resizer'].listeners.pointerdown({pointerId: 21});
+  elements['#explorer-resizer'].listeners.pointermove({
+    pointerId: 21,
+    clientX: 2_000
+  });
+  assert.equal(elements['#workbench'].values['--explorer-width'], '790px');
   await new Promise((resolve) => setTimeout(resolve, 200));
   const session = JSON.parse(saved.get('graph-viz.session.v1'));
   assert.equal(session.source, dot.value);
   assert(Number.isFinite(session.view.scale));
+  assert.equal(session.explorerWidth, 790);
+  assert.equal(session.explorerView, 'dot-files');
+  assert.deepEqual(session.docsTabs, []);
+  assert.equal(session.nextDocs, 3);
+  assert.equal(session.preferences.theme, 'system');
 
   prompts.push('/examples/source');
   const saveDotRequest = elements['#save-dot'].listeners.click({});
@@ -604,6 +915,9 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(requests.at(-1).options.headers['x-graph-viz-overwrite'],
     'true');
   requests.at(-1).resolve(response(true, 'saved'));
+  await tick();
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/browse');
+  await resolveBrowse('', false, []);
   await saveDotRequest;
 
   prompts.push('examples/output');
@@ -619,6 +933,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(requests.length, requestCount);
 
   const browseDotRequest = elements['#browse-dot'].listeners.click({});
+  assert.equal(elements['#dot-files-tab']['aria-selected'], 'true');
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/browse');
   await resolveBrowse('', false, ['examples']);
   await resolveBrowse('examples', false, ['alpha', 'beta']);
@@ -627,8 +942,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   await resolveBrowse('examples/beta', false, ['txt']);
   await resolveBrowse('examples/beta/txt', true, []);
   await browseDotRequest;
-  assert.equal(elements['#file-browser-modal'].hidden, false);
-  const dotFile = descendants(elements['#file-browser-tree']).find((item) => {
+  const dotFile = descendants(elements['#dot-files-tree']).find((item) => {
     return item.dataset?.path === 'examples/beta/txt';
   });
   assert(dotFile);
@@ -641,15 +955,57 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   await browseLoadDot;
   assert.equal(dot.value, 'digraph browsed { B -> C }');
 
+  const dotFileRow = dotFile.parentElement;
+  const dotFileActions = dotFileRow.children.find((item) => {
+    return item.className === 'file-tree-actions';
+  });
+  assert(dotFileActions);
+  assert.equal(dotFileActions['aria-haspopup'], 'menu');
+  dotFileRow.listeners.contextmenu({
+    type: 'contextmenu', clientX: 120, clientY: 140,
+    preventDefault() {}, stopPropagation() {}
+  });
+  assert.equal(elements['#file-context-menu'].hidden, false);
+  assert.equal(dotFile['aria-expanded'], 'true');
+  const contextLoadDot = elements['#file-context-open'].listeners.click({});
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
+  requests.at(-1).resolve(response(true, 'digraph context { C -> D }'));
+  await contextLoadDot;
+  assert.equal(dot.value, 'digraph context { C -> D }');
+  assert.equal(elements['#file-context-menu'].hidden, true);
+
+  dotFileRow.listeners.contextmenu({
+    type: 'contextmenu', clientX: 120, clientY: 140,
+    preventDefault() {}, stopPropagation() {}
+  });
+  confirmationAnswers.push(true);
+  const deleteDot = elements['#file-context-delete'].listeners.click({});
+  assert(confirmations.at(-1).includes(
+    'Delete examples/beta/txt? This cannot be undone.'
+  ));
+  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/delete');
+  assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
+    'examples/beta/txt');
+  requests.at(-1).resolve(response(true, 'deleted'));
+  await tick();
+  await resolveBrowse('', false, []);
+  await deleteDot;
+  assert.equal(elements['#source-status'].textContent,
+    'examples/beta/txt deleted');
+  assert(!descendants(elements['#dot-files-tree']).some((item) => {
+    return item.dataset?.path === 'examples/beta/txt';
+  }));
+
   elements['#auto-render'].checked = true;
   const browseSvgRequest = elements['#browse-svg'].listeners.click({});
+  assert.equal(elements['#svg-files-tab']['aria-selected'], 'true');
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/browse');
   await resolveBrowse('', false, ['examples']);
   await resolveBrowse('examples', false, ['preview']);
   await resolveBrowse('examples/preview', false, ['svg']);
   await resolveBrowse('examples/preview/svg', true, []);
   await browseSvgRequest;
-  const svgFile = descendants(elements['#file-browser-tree']).find((item) => {
+  const svgFile = descendants(elements['#svg-files-tree']).find((item) => {
     return item.dataset?.path === 'examples/preview/svg';
   });
   assert(svgFile);
@@ -681,8 +1037,11 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
 
   const failedBrowse = elements['#browse-dot'].listeners.click({});
   requests.at(-1).resolve(response(false, 'Clay browse failed'));
+  await tick();
   await failedBrowse;
-  assert.equal(elements['#file-browser-modal'].hidden, true);
+  assert(elements['#dot-files-tree'].textContent.includes(
+    'Unable to load files'
+  ));
   assert.equal(elements['#clay-error-modal'].hidden, false);
   elements['#close-clay-error'].listeners.click({});
 

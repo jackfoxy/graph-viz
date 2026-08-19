@@ -12,6 +12,9 @@
       ;meta(charset "utf-8");
       ;meta(name "viewport", content "width=device-width, initial-scale=1");
       ;title: Graph Viz
+      ;script
+        ;+  ;/  (trip theme-bootstrap)
+      ==
       ;style
         ;+  ;/  (trip css)
       ==
@@ -65,14 +68,76 @@
             =title     "Reset view (Ctrl+1)"
             ;span: Reset
           ==
-          ;label.preference
-            ;input#auto-render(type "checkbox", checked "");
-            ;span: Auto-render
+          ;label.theme-control
+            ;span: Theme
+            ;select#theme(aria-label "Theme")
+              ;option(value "system"): System
+              ;option(value "light"): Light
+              ;option(value "dark"): Dark
+            ==
           ==
           ;button#help(type "button", aria-expanded "false"): Help
         ==
       ==
-      ;main#workspace.workspace
+      ;main#workbench.workbench
+        ;aside#explorer-pane.explorer-pane
+          =aria-label  "Graph Viz explorer"
+          ;div.explorer-header
+            ;div#explorer-tabs.explorer-tabs
+              =role        "tablist"
+              =aria-label  "Graph Viz explorer"
+              ;div.explorer-tab-control.active(role "presentation")
+                ;button#dot-files-tab.explorer-tab.active
+                  =type                "button"
+                  =role                "tab"
+                  =data-explorer-view  "dot-files"
+                  =aria-selected       "true"
+                  =aria-controls       "dot-files-panel"
+                  DOT Files
+                ==
+              ==
+              ;div.explorer-tab-control(role "presentation")
+                ;button#svg-files-tab.explorer-tab
+                  =type                "button"
+                  =role                "tab"
+                  =data-explorer-view  "svg-files"
+                  =aria-selected       "false"
+                  =aria-controls       "svg-files-panel"
+                  =tabindex            "-1"
+                  SVG Files
+                ==
+              ==
+            ==
+          ==
+          ;div#dot-files-panel.explorer-panel
+            =role              "tabpanel"
+            =aria-labelledby   "dot-files-tab"
+            ;div#dot-files-tree.explorer-file-tree
+              =role       "tree"
+              =aria-label  "DOT files"
+              =aria-busy   "true"
+              ;p: Loading…
+            ==
+          ==
+          ;div#svg-files-panel.explorer-panel(hidden "")
+            =role              "tabpanel"
+            =aria-labelledby   "svg-files-tab"
+            ;div#svg-files-tree.explorer-file-tree
+              =role       "tree"
+              =aria-label  "SVG files"
+              =aria-busy   "true"
+              ;p: Loading…
+            ==
+          ==
+        ==
+        ;button#explorer-resizer.explorer-resizer
+          =type              "button"
+          =role              "separator"
+          =aria-orientation  "vertical"
+          =aria-label        "Resize explorer"
+          ;span.sr-only: Resize explorer
+        ==
+        ;section#workspace.workspace
         ;section#editor-pane.pane.editor-pane
           ;div.pane-header
             ;h2: DOT source
@@ -80,6 +145,10 @@
               ;button#browse-dot(type "button"): Browse
               ;button#load-dot(type "button"): Load DOT
               ;button#save-dot(type "button"): Save DOT
+            ==
+            ;label.preference.source-auto-render
+              ;input#auto-render(type "checkbox", checked "");
+              ;span: Auto-render
             ==
             ;span#source-status.status: Ready
           ==
@@ -319,82 +388,101 @@
             ;pre#svg-source(hidden "", tabindex "0", aria-label "SVG source");
           ==
         ==
+        ==
       ==
-      ;aside#help-panel.help-panel(hidden "", aria-label "Help")
-        ;div.help-card
+      ;aside#help-panel.explorer-panel.help-explorer-panel
+        =hidden            ""
+        =role              "tabpanel"
+        =aria-labelledby   "help-tab"
+        =aria-label        "Help"
+        ;div#editor-help-card.help-card.editor-help-card
           ;div.pane-header
             ;h2: Editor help
             ;button#close-help(type "button", aria-label "Close help"): Close
           ==
-          ;p
-            ;a
-              =href    "https://www.graphviz.org/doc/info/lang.html"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              DOT Language Reference
-            ==
-          ==
-          ;p: Write DOT on the left and inspect the SVG on the right.
-          ;p: Drag the divider to resize the panes on larger screens.
-          ;h3: Keyboard shortcuts
-          ;ul.shortcut-list
-            ;li: Ctrl/Cmd + Enter: render now
-            ;li: Ctrl/Cmd + S: save DOT to Clay
-            ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
-            ;li: Ctrl/Cmd + 0: fit graph
-            ;li: Ctrl/Cmd + 1: reset graph view
-            ;li: Tab / Shift + Tab: indent / unindent
-            ;li: Shift-click: select two nodes for an edge
-            ;li: Delete: remove the selected node or edge
-          ==
-          ;h3: LLM skill files
-          ;ul
-            ;li
+          ;div#fallback-help-content
+            ;p
               ;a
-                =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-dot-syntax"
+                =href    "https://www.graphviz.org/doc/info/lang.html"
                 =target  "_blank"
                 =rel     "noopener noreferrer"
-                DOT Syntax
+                DOT Language Reference
               ==
             ==
-            ;li
-              ;a
-                =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-gall-api"
-                =target  "_blank"
-                =rel     "noopener noreferrer"
-                Gall API
+            ;p: Write DOT on the left and inspect the SVG on the right.
+            ;p: Drag the divider to resize the panes on larger screens.
+            ;h3: Keyboard shortcuts
+            ;ul.shortcut-list
+              ;li: Ctrl/Cmd + Enter: render now
+              ;li: Ctrl/Cmd + S: save DOT to Clay
+              ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
+              ;li: Ctrl/Cmd + 0: fit graph
+              ;li: Ctrl/Cmd + 1: reset graph view
+              ;li: Tab / Shift + Tab: indent / unindent
+              ;li: Shift-click: select two nodes for an edge
+              ;li: Delete: remove the selected node or edge
+            ==
+            ;h3: LLM skill files
+            ;ul
+              ;li
+                ;a
+                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-dot-syntax"
+                  =target  "_blank"
+                  =rel     "noopener noreferrer"
+                  DOT Syntax
+                ==
+              ==
+              ;li
+                ;a
+                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-gall-api"
+                  =target  "_blank"
+                  =rel     "noopener noreferrer"
+                  Gall API
+                ==
+              ==
+              ;li
+                ;a
+                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns"
+                  =target  "_blank"
+                  =rel     "noopener noreferrer"
+                  Common Patterns
+                ==
               ==
             ==
-            ;li
-              ;a
-                =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns"
-                =target  "_blank"
-                =rel     "noopener noreferrer"
-                Common Patterns
+          ==
+          ;div#docs-help-content.docs-help-content(hidden "")
+            ;nav#docs-help-nav.docs-help-nav
+              =aria-label  "Graph Viz documentation"
+              ;a.docs-help-link
+                =href           "/docs/d/graph-viz/usr/users-guide"
+                =data-doc-path  "usr/users-guide"
+                Users Guide
+              ==
+              ;a.docs-help-link
+                =href           "/docs/d/graph-viz/reference"
+                =data-doc-path  "reference"
+                Reference
+              ==
+              ;a.docs-help-link
+                =href           "/docs/d/graph-viz/graph-noun"
+                =data-doc-path  "graph-noun"
+                Positioned graph
+              ==
+              ;a.docs-help-link
+                =href           "/docs/d/graph-viz/release-notes"
+                =data-doc-path  "release-notes"
+                Release notes
               ==
             ==
           ==
         ==
       ==
-      ;aside#file-browser-modal.help-panel
-        =hidden      ""
-        =role        "dialog"
-        =aria-modal  "true"
-        =aria-labelledby  "file-browser-title"
-        ;div.help-card.file-browser-card
-          ;div.pane-header
-            ;h2#file-browser-title: Clay files
-            ;button#close-file-browser
-              =type        "button"
-              =aria-label  "Close file browser"
-              ;span: Close
-            ==
-          ==
-          ;div#file-browser-tree.file-browser-tree
-            =role        "tree"
-            =aria-label  "Available Clay files"
-            ;p: Loading…
-          ==
+      ;div#file-context-menu.file-context-menu(hidden "", role "menu")
+        ;button#file-context-open(type "button", role "menuitem"): Open
+        ;button#file-context-delete.danger-button
+          =type  "button"
+          =role  "menuitem"
+          Delete
         ==
       ==
       ;aside#clay-error-modal.help-panel
@@ -418,19 +506,93 @@
     ==
   ==
 ::
+++  theme-bootstrap
+  ^-  @t
+  '''
+  (() => {
+    const key = 'graph-viz.session.v1';
+    const themes = ['system', 'light', 'dark'];
+    let selected = 'system';
+    try {
+      const saved = JSON.parse(localStorage.getItem(key));
+      const candidate = saved?.preferences?.theme;
+      if (saved?.version === 1 && themes.includes(candidate)) {
+        selected = candidate;
+      }
+    } catch (_) {
+      // Storage failures must not block first paint.
+    }
+    const systemDark = matchMedia(
+      '(prefers-color-scheme: dark)'
+    ).matches;
+    const effective = selected === 'system'
+      ? (systemDark ? 'dark' : 'light')
+      : selected;
+    const root = document.documentElement;
+    root.dataset.theme = selected;
+    root.dataset.effectiveTheme = effective;
+    root.style.colorScheme = effective;
+  })();
+  '''
+::
 ++  css
   ^-  @t
   '''
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
     --background: #f4f4f5;
     --surface: #ffffff;
+    --surface-alt: #fafafa;
     --border: #d4d4d8;
     --ink: #18181b;
     --muted: #71717a;
     --accent: #2563eb;
+    --accent-text: #ffffff;
+    --focus: #93c5fd;
     --danger: #b91c1c;
+    --danger-background: #fef2f2;
+    --danger-border: #fecaca;
+    --editor-error: #fee2e2;
+    --preview-background: #ffffff;
+    --preview-grid: #d4d4d8;
+    --floating-control: rgb(255 255 255 / 0.9);
+    --selection-hover: #2563eb;
+    --selection-active: #f59e0b;
+    --spinner-track: #bfdbfe;
+    --state-ink: #52525b;
+    --state-title: #27272a;
+    --inspector-background: #fffbeb;
+    --inspector-border: #fde68a;
+    --inspector-ink: #78350f;
     --editor-width: 44%;
+  }
+
+  :root[data-effective-theme='dark'] {
+    color-scheme: dark;
+    --background: #11110f;
+    --surface: #191917;
+    --surface-alt: #22221f;
+    --border: #3b3b35;
+    --ink: #f2f2ec;
+    --muted: #a7a79e;
+    --accent: #8b5cf6;
+    --accent-text: #ffffff;
+    --focus: #60a5fa;
+    --danger: #f87171;
+    --danger-background: #35191d;
+    --danger-border: #7f1d1d;
+    --editor-error: #3f1d24;
+    --preview-background: #11110f;
+    --preview-grid: #3b3b35;
+    --floating-control: rgb(25 25 23 / 0.92);
+    --selection-hover: #60a5fa;
+    --selection-active: #fbbf24;
+    --spinner-track: #4c1d95;
+    --state-ink: #a7a79e;
+    --state-title: #f2f2ec;
+    --inspector-background: #33270e;
+    --inspector-border: #854d0e;
+    --inspector-ink: #fde68a;
   }
 
   * { box-sizing: border-box; }
@@ -457,13 +619,14 @@
 
   button, select { cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--accent); }
-  button:focus-visible { outline: 3px solid #93c5fd; }
+  button:focus-visible, select:focus-visible, input:focus-visible,
+  textarea:focus-visible { outline: 3px solid var(--focus); }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
 
   .primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #ffffff;
+    color: var(--accent-text);
   }
 
   .app-header {
@@ -487,6 +650,16 @@
   }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  .theme-control {
+    align-items: center;
+    color: var(--muted);
+    display: inline-flex;
+    font-size: 0.75rem;
+    gap: 0.4rem;
+  }
+
+  .theme-control select { color: var(--ink); }
 
   .zoom-controls { display: inline-flex; gap: 0.25rem; }
 
@@ -571,6 +744,121 @@
   }
 
   .preference input { accent-color: var(--accent); }
+  .source-auto-render { margin-left: 0.5rem; white-space: nowrap; }
+
+  .workbench {
+    display: grid;
+    grid-template-columns: var(--explorer-width, 18rem) 0.6rem
+      minmax(0, 1fr);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .explorer-pane {
+    background: var(--surface);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .explorer-header { border-bottom: 1px solid var(--border); }
+
+  .explorer-tabs {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .explorer-tab-control, .docs-tab-control {
+    align-items: stretch;
+    border-right: 1px solid var(--border);
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .explorer-tab, .docs-tab, .docs-tab-close {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    min-height: 2.5rem;
+  }
+
+  .explorer-tab, .docs-tab {
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .explorer-tab-control.active, .docs-tab-control.active {
+    box-shadow: inset 0 -2px var(--accent);
+  }
+
+  .explorer-tab[aria-selected='true'],
+  .docs-tab[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  .docs-tab-close {
+    font-size: 1rem;
+    padding: 0.25rem 0.45rem;
+  }
+
+  .explorer-panel {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .explorer-panel[hidden] { display: none; }
+
+  .explorer-file-tree {
+    height: 100%;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.75rem;
+  }
+
+  .docs-explorer-frame {
+    background: var(--surface);
+    border: 0;
+    height: 100%;
+    width: 100%;
+  }
+
+  .help-explorer-panel {
+    overflow: auto;
+    padding: 0.75rem;
+  }
+
+  .help-explorer-panel .help-card {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    max-width: none;
+    min-height: 100%;
+  }
+
+  .explorer-resizer {
+    background: var(--border);
+    border: 0;
+    border-radius: 0;
+    cursor: col-resize;
+    padding: 0;
+    touch-action: none;
+  }
+
+  .explorer-resizer:hover, .explorer-resizer:focus {
+    background: var(--accent);
+  }
 
   .workspace {
     display: grid;
@@ -614,7 +902,7 @@
   }
 
   .line-numbers {
-    background: #f4f4f5;
+    background: var(--surface-alt);
     border-right: 1px solid var(--border);
     color: var(--muted);
     flex: 0 0 auto;
@@ -630,7 +918,7 @@
   .line-numbers span { display: block; }
 
   .line-numbers .error-line {
-    background: #fee2e2;
+    background: var(--editor-error);
     color: var(--danger);
     font-weight: 700;
   }
@@ -652,7 +940,9 @@
   #dot:focus { box-shadow: inset 0 0 0 2px var(--accent); }
 
   #dot.has-error-line {
-    background-image: linear-gradient(#fef2f2, #fef2f2);
+    background-image: linear-gradient(
+      var(--danger-background), var(--danger-background)
+    );
     background-position: 0 var(--error-line-top);
     background-repeat: no-repeat;
     background-size: 100% 1.4rem;
@@ -667,8 +957,10 @@
   .splitter:hover, .splitter:focus { background: var(--accent); }
 
   .preview-shell {
-    background-color: #ffffff;
-    background-image: radial-gradient(#d4d4d8 0.8px, transparent 0.8px);
+    background-color: var(--preview-background);
+    background-image: radial-gradient(
+      var(--preview-grid) 0.8px, transparent 0.8px
+    );
     background-size: 18px 18px;
     flex: 1;
     min-height: 0;
@@ -688,7 +980,7 @@
 
   .preview-action {
     align-items: center;
-    background: rgb(255 255 255 / 0.9);
+    background: var(--floating-control);
     display: inline-flex;
     height: 2rem;
     justify-content: center;
@@ -721,7 +1013,7 @@
   .copy-icon::before { left: 0; top: 0; }
 
   .copy-icon::after {
-    background: #ffffff;
+    background: var(--floating-control);
     bottom: 0;
     right: 0;
   }
@@ -783,10 +1075,15 @@
 
   .preview svg {
     display: block;
+    filter: none;
     max-width: none;
     position: absolute;
     transform-origin: 0 0;
     user-select: none;
+  }
+
+  :root[data-effective-theme='dark'] .preview svg {
+    filter: invert(1) hue-rotate(180deg);
   }
 
   .preview .node, .preview .edge {
@@ -796,17 +1093,17 @@
 
   .preview .node:hover, .preview .edge:hover,
   .preview .node:focus-visible, .preview .edge:focus-visible {
-    filter: drop-shadow(0 0 3px #2563eb);
+    filter: drop-shadow(0 0 3px var(--selection-hover));
   }
 
   .preview .node.is-selected, .preview .edge.is-selected {
-    filter: drop-shadow(0 0 2px #f59e0b)
-      drop-shadow(0 0 5px #f59e0b);
+    filter: drop-shadow(0 0 2px var(--selection-active))
+      drop-shadow(0 0 5px var(--selection-active));
   }
 
   #svg-source {
-    background: #fafafa;
-    color: #18181b;
+    background: var(--surface-alt);
+    color: var(--ink);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.8rem;
     inset: 0;
@@ -823,7 +1120,7 @@
 
   .state-panel {
     align-content: center;
-    color: #52525b;
+    color: var(--state-ink);
     display: none;
     inset: 0;
     justify-items: center;
@@ -834,7 +1131,7 @@
   }
 
   .state-panel p { margin: 0.25rem; }
-  .state-title { color: #27272a; font-weight: 650; }
+  .state-title { color: var(--state-title); font-weight: 650; }
 
   [data-state='empty'] #empty-state,
   [data-state='loading'] #loading-state,
@@ -849,7 +1146,7 @@
 
   .spinner {
     animation: spin 0.8s linear infinite;
-    border: 3px solid #bfdbfe;
+    border: 3px solid var(--spinner-track);
     border-radius: 50%;
     border-top-color: var(--accent);
     height: 2rem;
@@ -859,8 +1156,8 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .error {
-    background: #fef2f2;
-    border-bottom: 1px solid #fecaca;
+    background: var(--danger-background);
+    border-bottom: 1px solid var(--danger-border);
     color: var(--danger);
     margin: 0;
     padding: 0.75rem;
@@ -868,9 +1165,9 @@
   }
 
   .inspector {
-    background: #fffbeb;
-    border-bottom: 1px solid #fde68a;
-    color: #78350f;
+    background: var(--inspector-background);
+    border-bottom: 1px solid var(--inspector-border);
+    color: var(--inspector-ink);
     display: grid;
     gap: 0.6rem;
     min-height: 2.5rem;
@@ -923,6 +1220,26 @@
 
   .help-panel[hidden] { display: none; }
 
+  .file-context-menu {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    box-shadow: 0 0.7rem 2rem rgb(0 0 0 / 0.2);
+    display: grid;
+    min-width: 9rem;
+    padding: 0.3rem;
+    position: fixed;
+    z-index: 60;
+  }
+
+  .file-context-menu[hidden] { display: none; }
+
+  .file-context-menu button {
+    background: transparent;
+    border: 0;
+    text-align: left;
+  }
+
   .help-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -933,16 +1250,34 @@
     width: 100%;
   }
 
-  .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
-
-  .file-browser-card { max-width: 40rem; }
-
-  .file-browser-tree {
-    max-height: 60vh;
-    min-height: 8rem;
-    overflow: auto;
-    padding: 0.75rem 0;
+  #fallback-help-content[hidden], .docs-help-content[hidden] {
+    display: none;
   }
+
+  .docs-help-content {
+    padding-top: 0.75rem;
+  }
+
+  .docs-help-nav {
+    align-content: start;
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .docs-help-link {
+    border-radius: 0.35rem;
+    color: var(--accent);
+    padding: 0.5rem;
+    text-decoration: none;
+  }
+
+  .docs-help-link:hover, .docs-help-link[aria-current="page"] {
+    background: var(--background);
+  }
+
+  .docs-help-link[aria-current="page"] { font-weight: 600; }
+
+  .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
 
   .file-tree-list {
     list-style: none;
@@ -950,23 +1285,42 @@
     padding-left: 1.25rem;
   }
 
-  .file-browser-tree > .file-tree-list { padding-left: 0; }
+  .explorer-file-tree > .file-tree-list { padding-left: 0; }
 
   .file-tree-directory {
     color: var(--muted);
     padding: 0.2rem 0;
   }
 
+  .explorer-file-row {
+    align-items: stretch;
+    display: flex;
+    min-width: 0;
+  }
+
   .file-tree-file {
     background: transparent;
     border: 0;
     color: var(--accent);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
     padding: 0.3rem 0.5rem;
     text-align: left;
-    width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: auto;
   }
 
   .file-tree-file:hover:not(:disabled) { background: var(--background); }
+
+  .file-tree-actions {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    flex: 0 0 auto;
+    padding: 0.2rem 0.45rem;
+  }
 
   .clay-error-message {
     color: var(--danger);
@@ -992,6 +1346,14 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .workbench {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(12rem, 35vh) minmax(0, 1fr);
+      overflow: visible;
+    }
+
+    .explorer-resizer { display: none; }
+
     .workspace {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: minmax(18rem, 45vh) minmax(20rem, 55vh);
@@ -1000,6 +1362,13 @@
 
     .splitter { display: none; }
     .preview-pane { border-top: 1px solid var(--border); }
+
+    .docs-help-nav {
+      display: flex;
+      overflow-x: auto;
+    }
+
+    .docs-help-link { flex: 0 0 auto; }
   }
   '''
 ::
@@ -1118,13 +1487,30 @@
   const toggleSvgSource = document.querySelector('#toggle-svg-source');
   const fit = document.querySelector('#fit');
   const autoRender = document.querySelector('#auto-render');
+  const theme = document.querySelector('#theme');
   const help = document.querySelector('#help');
   const helpPanel = document.querySelector('#help-panel');
   const closeHelp = document.querySelector('#close-help');
-  const fileBrowserModal = document.querySelector('#file-browser-modal');
-  const fileBrowserTitle = document.querySelector('#file-browser-title');
-  const fileBrowserTree = document.querySelector('#file-browser-tree');
-  const closeFileBrowser = document.querySelector('#close-file-browser');
+  const fallbackHelpContent = document.querySelector(
+    '#fallback-help-content'
+  );
+  const docsHelpContent = document.querySelector('#docs-help-content');
+  const docsHelpLinks = Array.from(
+    document.querySelectorAll('.docs-help-link')
+  );
+  const workbench = document.querySelector('#workbench');
+  const explorerPane = document.querySelector('#explorer-pane');
+  const explorerTabs = document.querySelector('#explorer-tabs');
+  const explorerResizer = document.querySelector('#explorer-resizer');
+  const dotFilesTab = document.querySelector('#dot-files-tab');
+  const svgFilesTab = document.querySelector('#svg-files-tab');
+  const dotFilesPanel = document.querySelector('#dot-files-panel');
+  const svgFilesPanel = document.querySelector('#svg-files-panel');
+  const dotFilesTree = document.querySelector('#dot-files-tree');
+  const svgFilesTree = document.querySelector('#svg-files-tree');
+  const fileContextMenu = document.querySelector('#file-context-menu');
+  const fileContextOpen = document.querySelector('#file-context-open');
+  const fileContextDelete = document.querySelector('#file-context-delete');
   const clayErrorModal = document.querySelector('#clay-error-modal');
   const clayErrorMessage = document.querySelector('#clay-error-message');
   const closeClayError = document.querySelector('#close-clay-error');
@@ -1132,12 +1518,27 @@
   const splitter = document.querySelector('#splitter');
   const renderDelay = 350;
   const saveDelay = 150;
+  const minExplorerWidth = 180;
+  const explorerDividerWidth = 10;
   const minScale = 0.05;
   const maxScale = 32;
   const maxSourceBytes = 256 * 1024;
   const maxSharedSourceBytes = 12 * 1024;
   const maxShareParamChars = 16 * 1024;
   const storageKey = 'graph-viz.session.v1';
+  const themes = ['system', 'light', 'dark'];
+  const themeMedia = matchMedia('(prefers-color-scheme: dark)');
+  const docsRoot = '/docs/d/graph-viz/';
+  const helpExplorerView = 'help';
+  const permanentExplorerViews = ['dot-files', 'svg-files'];
+  let docsAvailable = null;
+  let docsCheckPending = false;
+  let docsTabs = [];
+  let nextDocs = 1;
+  let explorerView = 'dot-files';
+  let contextFileKind;
+  let contextFilePath;
+  let contextFileSource;
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1188,6 +1589,26 @@
   let pendingView;
   let selectedItems = [];
   let inheritNewNodeShape = false;
+
+  function validTheme(candidate) {
+    return themes.includes(candidate) ? candidate : 'system';
+  }
+
+  function applyTheme(candidate, persist = true) {
+    const selected = validTheme(candidate);
+    const effective = selected === 'system'
+      ? (themeMedia.matches ? 'dark' : 'light')
+      : selected;
+    theme.value = selected;
+    document.documentElement.dataset.theme = selected;
+    document.documentElement.dataset.effectiveTheme = effective;
+    document.documentElement.style.colorScheme = effective;
+    if (persist) queueSaveSession();
+  }
+
+  function systemThemeChanged() {
+    if (theme.value === 'system') applyTheme('system', false);
+  }
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -1337,10 +1758,301 @@
     }
   }
 
-  function showHelp(open) {
-    helpPanel.hidden = !open;
-    help.setAttribute('aria-expanded', String(open));
-    if (open) closeHelp.focus();
+  function docsTabById(id) {
+    return docsTabs.find((tab) => tab.id === id);
+  }
+
+  function explorerTabButtons() {
+    return Array.from(explorerTabs.querySelectorAll('[role="tab"]'));
+  }
+
+  function validExplorerView(viewName) {
+    return permanentExplorerViews.includes(viewName) ||
+      (viewName === helpExplorerView &&
+        Boolean(document.querySelector('#help-tab'))) ||
+      Boolean(docsTabById(viewName));
+  }
+
+  function setExplorerView(viewName, focus = false) {
+    explorerView = validExplorerView(viewName) ? viewName : 'dot-files';
+    for (const tab of explorerTabButtons()) {
+      const active = tab.dataset.explorerView === explorerView;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      tab.classList.toggle('active', active);
+      tab.parentElement?.classList.toggle('active', active);
+      const panelId = tab.getAttribute('aria-controls');
+      const panel = panelId ? document.getElementById(panelId) : undefined;
+      if (panel) panel.hidden = !active;
+    }
+    const selectedDocs = docsTabById(explorerView);
+    help.setAttribute(
+      'aria-expanded',
+      String(explorerView === helpExplorerView)
+    );
+    if (selectedDocs && docsAvailable === true) {
+      const frame = document.querySelector(
+        `#${selectedDocs.id}-panel iframe`
+      );
+      if (frame && !frame.getAttribute('src')) {
+        frame.src = `${docsRoot}${selectedDocs.path}`;
+      }
+    }
+    if (focus) {
+      explorerTabs.querySelector(
+        `[data-explorer-view="${explorerView}"]`
+      )?.focus();
+    }
+    queueSaveSession();
+  }
+
+  function explorerTabKeydown(event) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
+      .includes(event.key)) return;
+    event.preventDefault();
+    const tabs = explorerTabButtons();
+    const current = tabs.indexOf(event.currentTarget);
+    let next = current;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else if (event.key === 'ArrowLeft') {
+      next = (current - 1 + tabs.length) % tabs.length;
+    } else {
+      next = (current + 1) % tabs.length;
+    }
+    setExplorerView(tabs[next].dataset.explorerView, true);
+  }
+
+  function createHelpTab() {
+    const existing = document.querySelector('#help-tab');
+    if (existing) return existing;
+    const wrapper = document.createElement('div');
+    wrapper.id = 'help-tab-control';
+    wrapper.className = 'explorer-tab-control help-tab-control';
+    wrapper.setAttribute('role', 'presentation');
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.id = 'help-tab';
+    control.className = 'explorer-tab';
+    control.dataset.explorerView = helpExplorerView;
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', 'false');
+    control.setAttribute('aria-controls', 'help-panel');
+    control.tabIndex = -1;
+    control.textContent = 'Help';
+    control.addEventListener(
+      'click',
+      () => setExplorerView(helpExplorerView)
+    );
+    control.addEventListener('keydown', explorerTabKeydown);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'docs-tab-close';
+    close.setAttribute('aria-label', 'Close Help');
+    close.textContent = '×';
+    close.addEventListener('click', closeHelpTab);
+    wrapper.append(control, close);
+    const svgControl = svgFilesTab.parentElement;
+    if (svgControl) svgControl.after(wrapper);
+    else explorerTabs.append(wrapper);
+    explorerPane.append(helpPanel);
+    return control;
+  }
+
+  function openHelp() {
+    createHelpTab();
+    setHelpVariant(docsAvailable === true);
+    refreshHelpVariant();
+    setExplorerView(helpExplorerView, true);
+  }
+
+  function closeHelpTab() {
+    const control = document.querySelector('#help-tab');
+    if (!control) return;
+    const wasActive = explorerView === helpExplorerView;
+    control.parentElement?.remove();
+    helpPanel.hidden = true;
+    if (wasActive) setExplorerView('svg-files', true);
+    else queueSaveSession();
+  }
+
+  function docsTabLabel(documentTitle) {
+    const ignored = new Set(['docs', 'graph viz']);
+    const names = String(documentTitle || '').split(/\s*(?:>|\/)\s*/)
+      .map((name) => name.trim())
+      .filter((name) => name && !ignored.has(name.toLowerCase()));
+    return names.length ? names[names.length - 1] : 'Docs';
+  }
+
+  function usefulDocsTitle(title) {
+    return docsTabLabel(title) !== 'Docs';
+  }
+
+  function syncDocsTab(tab, control, close, frame) {
+    try {
+      const title = frame.contentDocument?.title?.trim();
+      const pathname = frame.contentWindow?.location?.pathname || '';
+      if (usefulDocsTitle(title)) {
+        tab.title = title;
+        control.textContent = docsTabLabel(title);
+        control.title = title;
+        close.setAttribute(
+          'aria-label',
+          `Close ${docsTabLabel(title)}`
+        );
+      }
+      if (pathname.startsWith(docsRoot)) {
+        tab.path = pathname.slice(docsRoot.length);
+        control.dataset.docPath = tab.path;
+      }
+      queueSaveSession();
+      const titleNode = frame.contentDocument?.querySelector('title');
+      if (titleNode && typeof MutationObserver !== 'undefined') {
+        const observer = new MutationObserver(() => {
+          const nextTitle = frame.contentDocument?.title?.trim();
+          if (!usefulDocsTitle(nextTitle)) return;
+          tab.title = nextTitle;
+          control.textContent = docsTabLabel(nextTitle);
+          control.title = nextTitle;
+          close.setAttribute(
+            'aria-label',
+            `Close ${docsTabLabel(nextTitle)}`
+          );
+          queueSaveSession();
+        });
+        observer.observe(titleNode, {childList: true, characterData: true,
+          subtree: true});
+      }
+    } catch (_) {
+      // The docs frame remains usable if its title cannot be inspected.
+    }
+  }
+
+  function createDocsTab(tab) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'docs-tab-control';
+    wrapper.setAttribute('role', 'presentation');
+    wrapper.dataset.docsTab = tab.id;
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.className = 'docs-tab';
+    control.id = `${tab.id}-tab`;
+    control.dataset.explorerView = tab.id;
+    control.dataset.docPath = tab.path;
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', 'false');
+    control.setAttribute('aria-controls', `${tab.id}-panel`);
+    control.tabIndex = -1;
+    control.textContent = docsTabLabel(tab.title);
+    control.title = tab.title;
+    control.addEventListener('click', () => setExplorerView(tab.id));
+    control.addEventListener('keydown', explorerTabKeydown);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'docs-tab-close';
+    close.setAttribute('aria-label', `Close ${tab.title}`);
+    close.textContent = '×';
+    close.addEventListener('click', () => closeDocsTab(tab.id));
+    wrapper.append(control, close);
+    explorerTabs.append(wrapper);
+    const panel = document.createElement('div');
+    panel.className = 'explorer-panel docs-explorer-panel';
+    panel.id = `${tab.id}-panel`;
+    panel.hidden = true;
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', control.id);
+    const frame = document.createElement('iframe');
+    frame.className = 'docs-explorer-frame';
+    frame.title = `${tab.title} documentation`;
+    frame.addEventListener(
+      'load',
+      () => syncDocsTab(tab, control, close, frame)
+    );
+    frame.addEventListener('error', disableDocsExplorer);
+    panel.append(frame);
+    explorerPane.append(panel);
+  }
+
+  function renderDocsTabs() {
+    for (const node of explorerTabs.querySelectorAll('[data-docs-tab]')) {
+      node.remove();
+    }
+    for (const node of explorerPane.querySelectorAll(
+      '.docs-explorer-panel'
+    )) {
+      node.remove();
+    }
+    for (const tab of docsTabs) createDocsTab(tab);
+  }
+
+  function openDocsTab(title, path) {
+    if (docsAvailable !== true) return;
+    const existing = docsTabs.find((tab) => tab.path === path);
+    if (existing) {
+      setExplorerView(existing.id, true);
+      return;
+    }
+    const tab = {id: `docs-${nextDocs++}`, title, path};
+    docsTabs.push(tab);
+    createDocsTab(tab);
+    setExplorerView(tab.id, true);
+  }
+
+  function closeDocsTab(id) {
+    const index = docsTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const wasActive = explorerView === id;
+    document.querySelector(`[data-docs-tab="${id}"]`)?.remove();
+    document.querySelector(`#${id}-panel`)?.remove();
+    docsTabs.splice(index, 1);
+    if (wasActive) {
+      const neighbor = docsTabs[Math.min(index, docsTabs.length - 1)];
+      setExplorerView(neighbor?.id || 'dot-files', true);
+    } else {
+      queueSaveSession();
+    }
+  }
+
+  function disableDocsExplorer() {
+    docsAvailable = false;
+    const wasDocs = Boolean(docsTabById(explorerView));
+    docsTabs = [];
+    renderDocsTabs();
+    if (wasDocs) setExplorerView('dot-files');
+    setHelpVariant(false);
+  }
+
+  function setHelpVariant(useDocs) {
+    fallbackHelpContent.hidden = useDocs;
+    docsHelpContent.hidden = !useDocs;
+    if (useDocs && docsTabById(explorerView)) {
+      setExplorerView(explorerView);
+    }
+  }
+
+  async function refreshHelpVariant() {
+    if (docsCheckPending || docsAvailable === true) return;
+    docsCheckPending = true;
+    try {
+      const response = await fetch('/docs', {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      const responseUrl = new URL(response.url, window.location.origin);
+      const contentType = response.headers.get('content-type') || '';
+      const docsPath = responseUrl.pathname === '/docs' ||
+        responseUrl.pathname.startsWith('/docs/');
+      docsAvailable = response.ok &&
+        responseUrl.origin === window.location.origin && docsPath &&
+        contentType.includes('text/html');
+    } catch (_) {
+      docsAvailable = false;
+    } finally {
+      docsCheckPending = false;
+    }
+    if (docsAvailable) setHelpVariant(true);
+    else disableDocsExplorer();
   }
 
   function showClayError(cause) {
@@ -1353,8 +2065,101 @@
     clayErrorModal.hidden = true;
   }
 
-  function hideFileBrowser() {
-    fileBrowserModal.hidden = true;
+  function closeFileContext(restoreFocus = false) {
+    fileContextMenu.hidden = true;
+    if (contextFileSource) {
+      contextFileSource.setAttribute('aria-expanded', 'false');
+      if (restoreFocus) contextFileSource.focus();
+    }
+    contextFileKind = undefined;
+    contextFilePath = undefined;
+    contextFileSource = undefined;
+  }
+
+  function openFileContext(kind, path, source, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeFileContext();
+    contextFileKind = kind;
+    contextFilePath = path;
+    contextFileSource = source;
+    source.setAttribute('aria-expanded', 'true');
+    fileContextMenu.style.left = '0px';
+    fileContextMenu.style.top = '0px';
+    fileContextMenu.hidden = false;
+    const menuRect = fileContextMenu.getBoundingClientRect();
+    const sourceRect = source.getBoundingClientRect();
+    const margin = 8;
+    const maximumLeft = window.innerWidth - menuRect.width - margin;
+    const maximumTop = window.innerHeight - menuRect.height - margin;
+    const pointer = event.type === 'contextmenu';
+    const left = clamp(
+      pointer ? event.clientX : sourceRect.right,
+      margin,
+      Math.max(margin, maximumLeft)
+    );
+    const top = clamp(
+      pointer ? event.clientY : sourceRect.top,
+      margin,
+      Math.max(margin, maximumTop)
+    );
+    fileContextMenu.style.left = `${left}px`;
+    fileContextMenu.style.top = `${top}px`;
+    fileContextOpen.focus();
+  }
+
+  async function openContextFile() {
+    const kind = contextFileKind;
+    const path = contextFilePath;
+    closeFileContext();
+    if (!kind || !path) return;
+    if (kind === 'dot') await loadCurrentDot(path);
+    else await loadCurrentSvg(path);
+  }
+
+  async function deleteContextFile() {
+    const kind = contextFileKind;
+    const path = contextFilePath;
+    const source = contextFileSource;
+    if (!kind || !path) return;
+    if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
+      closeFileContext();
+      source?.focus();
+      return;
+    }
+    closeFileContext();
+    try {
+      await clayFileRequest(kind, 'delete', '', path);
+      await refreshFileTree(kind);
+      const label = `${path} deleted`;
+      if (kind === 'dot') sourceStatus.textContent = label;
+      else renderStatus.textContent = label;
+    } catch (cause) {
+      showClayError(cause);
+    }
+  }
+
+  function fileContextKeydown(event) {
+    const items = [fileContextOpen, fileContextDelete]
+      .filter((item) => !item.disabled);
+    const current = items.indexOf(document.activeElement);
+    let next = current;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeFileContext(true);
+      return;
+    }
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = items.length - 1;
+    else if (event.key === 'ArrowDown') {
+      next = (current + 1) % items.length;
+    } else if (event.key === 'ArrowUp') {
+      next = (current - 1 + items.length) % items.length;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    items[next].focus();
   }
 
   function normalizeClayPath(value) {
@@ -1371,6 +2176,7 @@
   }
 
   function renderFileTree(paths, kind) {
+    const tree = kind === 'dot' ? dotFilesTree : svgFilesTree;
     const root = new Map();
     for (const rawPath of paths) {
       if (typeof rawPath !== 'string') {
@@ -1388,27 +2194,46 @@
         branch = node.children;
       }
     }
-    fileBrowserTree.textContent = '';
+    tree.replaceChildren();
+    tree.setAttribute('aria-busy', 'false');
     if (!root.size) {
-      fileBrowserTree.textContent =
+      tree.textContent =
         `No /${kind === 'dot' ? 'txt' : 'svg'} files found.`;
       return;
     }
     function appendFile(item, label, path) {
+      const row = document.createElement('div');
+      row.className = 'explorer-file-row';
+      row.setAttribute('role', 'treeitem');
       const file = document.createElement('button');
       file.type = 'button';
       file.className = 'file-tree-file';
       file.dataset.path = path;
       file.textContent = label;
+      file.title = path;
       file.addEventListener('click', async () => {
-        hideFileBrowser();
+        closeFileContext();
         if (kind === 'dot') {
           await loadCurrentDot(path);
         } else {
           await loadCurrentSvg(path);
         }
       });
-      item.append(file);
+      row.addEventListener('contextmenu', (event) => {
+        openFileContext(kind, path, file, event);
+      });
+      const actions = document.createElement('button');
+      actions.type = 'button';
+      actions.className = 'file-tree-actions';
+      actions.setAttribute('aria-label', `Actions for ${label}`);
+      actions.setAttribute('aria-haspopup', 'menu');
+      actions.setAttribute('aria-expanded', 'false');
+      actions.textContent = '…';
+      actions.addEventListener('click', (event) => {
+        openFileContext(kind, path, actions, event);
+      });
+      row.append(file, actions);
+      item.append(row);
     }
     function renderBranch(branch) {
       const list = document.createElement('ul');
@@ -1437,7 +2262,7 @@
       }
       return list;
     }
-    fileBrowserTree.append(renderBranch(root));
+    tree.append(renderBranch(root));
   }
 
   async function browseClayNode(kind, path = '') {
@@ -1468,18 +2293,24 @@
     return paths;
   }
 
-  async function browseClayFiles(kind) {
-    fileBrowserTitle.textContent =
-      `${kind === 'dot' ? 'DOT' : 'SVG'} files`;
-    fileBrowserTree.textContent = 'Loading…';
-    fileBrowserModal.hidden = false;
-    closeFileBrowser.focus();
+  async function refreshFileTree(kind) {
+    const tree = kind === 'dot' ? dotFilesTree : svgFilesTree;
+    tree.replaceChildren();
+    tree.textContent = 'Loading…';
+    tree.setAttribute('aria-busy', 'true');
     try {
       renderFileTree(await browseClayNode(kind), kind);
     } catch (cause) {
-      hideFileBrowser();
+      tree.setAttribute('aria-busy', 'false');
+      tree.replaceChildren();
+      tree.textContent = `Unable to load files: ${String(cause)}`;
       showClayError(cause);
     }
+  }
+
+  function showFileExplorer(kind) {
+    setExplorerView(kind === 'dot' ? 'dot-files' : 'svg-files', true);
+    refreshFileTree(kind);
   }
 
   function sourceByteLength(source) {
@@ -1509,20 +2340,69 @@
     };
   }
 
+  function validDocsTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^docs-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    if (typeof candidate.title !== 'string' || !candidate.title.trim()
+      || candidate.title.length > 200) return undefined;
+    if (typeof candidate.path !== 'string' || !candidate.path
+      || candidate.path.length > 1_024
+      || candidate.path.startsWith('/')
+      || candidate.path.split('/').some((part) => {
+        return !part || part === '.' || part === '..';
+      })) return undefined;
+    return {
+      id: candidate.id,
+      title: candidate.title.trim(),
+      path: candidate.path
+    };
+  }
+
   function loadSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey));
       if (!saved || saved.version !== 1) return undefined;
       const source = validateSource(saved.source);
       const paneWidth = Number(saved.paneWidth);
+      const explorerWidth = Number(saved.explorerWidth);
       const preferences = saved.preferences || {};
+      const seenPaths = new Set();
+      const seenIds = new Set();
+      const savedDocsTabs = Array.isArray(saved.docsTabs)
+        ? saved.docsTabs.map(validDocsTab).filter((tab) => {
+          if (!tab || seenPaths.has(tab.path) || seenIds.has(tab.id)) {
+            return false;
+          }
+          seenPaths.add(tab.path);
+          seenIds.add(tab.id);
+          return true;
+        })
+        : [];
+      const highestDocsId = savedDocsTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(5)) + 1);
+      }, 1);
+      const savedNextDocs = Number(saved.nextDocs);
+      const savedExplorerView = typeof saved.explorerView === 'string'
+        && (permanentExplorerViews.includes(saved.explorerView)
+          || savedDocsTabs.some((tab) => tab.id === saved.explorerView))
+        ? saved.explorerView
+        : 'dot-files';
       return {
         source,
         paneWidth: Number.isFinite(paneWidth)
           ? clamp(paneWidth, 25, 70)
           : 44,
+        explorerWidth: Number.isFinite(explorerWidth)
+          ? Math.max(explorerWidth, minExplorerWidth)
+          : 288,
+        explorerView: savedExplorerView,
+        docsTabs: savedDocsTabs,
+        nextDocs: Number.isSafeInteger(savedNextDocs)
+          ? Math.max(savedNextDocs, highestDocsId)
+          : highestDocsId,
         view: validView(saved.view),
-        autoRender: preferences.autoRender !== false
+        autoRender: preferences.autoRender !== false,
+        theme: validTheme(preferences.theme)
       };
     } catch (_) {
       return undefined;
@@ -1535,6 +2415,33 @@
     return clamp(parseFloat(value) || 44, 25, 70);
   }
 
+  function currentExplorerWidth() {
+    const value = getComputedStyle(workbench)
+      .getPropertyValue('--explorer-width');
+    return clamp(
+      parseFloat(value) || 288,
+      minExplorerWidth,
+      maxExplorerWidth()
+    );
+  }
+
+  function maxExplorerWidth() {
+    const bounds = workbench.getBoundingClientRect();
+    return Math.max(
+      minExplorerWidth,
+      bounds.width - explorerDividerWidth
+    );
+  }
+
+  function setExplorerWidth(width) {
+    const nextWidth = clamp(
+      width,
+      minExplorerWidth,
+      maxExplorerWidth()
+    );
+    workbench.style.setProperty('--explorer-width', `${nextWidth}px`);
+  }
+
   function saveSession() {
     clearTimeout(saveTimer);
     try {
@@ -1543,8 +2450,15 @@
         version: 1,
         source: dot.value,
         paneWidth: currentPaneWidth(),
+        explorerWidth: currentExplorerWidth(),
+        explorerView,
+        docsTabs,
+        nextDocs,
         view,
-        preferences: {autoRender: autoRender.checked}
+        preferences: {
+          autoRender: autoRender.checked,
+          theme: theme.value
+        }
       }));
     } catch (_) {
       // Storage can be disabled or full without blocking the editor.
@@ -2838,6 +3752,7 @@
       sourceStatus.textContent = 'Saving';
       const result = await clayFileRequest('dot', 'save', dot.value);
       sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
+      if (result !== undefined) await refreshFileTree('dot');
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -2875,6 +3790,7 @@
       setState('loading', 'Saving');
       const result = await clayFileRequest('svg', 'save', lastSvgSource);
       setState('ready', result === undefined ? 'Rendered' : 'Saved');
+      if (result !== undefined) await refreshFileTree('svg');
     } catch (cause) {
       showClayError(cause);
       error.textContent = String(cause);
@@ -2954,14 +3870,14 @@
       hideClayError();
       return;
     }
-    if (event.key === 'Escape' && !fileBrowserModal.hidden) {
+    if (event.key === 'Escape' && !fileContextMenu.hidden) {
       event.preventDefault();
-      hideFileBrowser();
+      closeFileContext(true);
       return;
     }
-    if (event.key === 'Escape' && !helpPanel.hidden) {
+    if (event.key === 'Escape' && explorerView === helpExplorerView) {
       event.preventDefault();
-      showHelp(false);
+      closeHelpTab();
       help.focus();
       return;
     }
@@ -3092,10 +4008,10 @@
     event.preventDefault();
     addVisualNode();
   });
-  browseDot.addEventListener('click', () => browseClayFiles('dot'));
+  browseDot.addEventListener('click', () => showFileExplorer('dot'));
   loadDot.addEventListener('click', () => loadCurrentDot());
   saveDot.addEventListener('click', saveCurrentDot);
-  browseSvg.addEventListener('click', () => browseClayFiles('svg'));
+  browseSvg.addEventListener('click', () => showFileExplorer('svg'));
   loadSvg.addEventListener('click', () => loadCurrentSvg());
   saveSvg.addEventListener('click', saveCurrentSvg);
   toggleSvgSource.addEventListener('click', toggleSvgView);
@@ -3106,6 +4022,12 @@
     queueSaveSession();
     if (autoRender.checked) queueRender();
   });
+  theme.addEventListener('change', () => applyTheme(theme.value));
+  if (themeMedia.addEventListener) {
+    themeMedia.addEventListener('change', systemThemeChanged);
+  } else {
+    themeMedia.addListener(systemThemeChanged);
+  }
   dot.addEventListener('input', editorChanged);
   dot.addEventListener('keydown', handleEditorKeydown);
   dot.addEventListener('scroll', syncEditorScroll);
@@ -3118,18 +4040,26 @@
   fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
-  help.addEventListener('click', () => showHelp(helpPanel.hidden));
-  closeHelp.addEventListener('click', () => showHelp(false));
-  closeFileBrowser.addEventListener('click', hideFileBrowser);
-  fileBrowserModal.addEventListener('click', (event) => {
-    if (event.target === fileBrowserModal) hideFileBrowser();
+  help.addEventListener('click', openHelp);
+  closeHelp.addEventListener('click', closeHelpTab);
+  docsHelpLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      openDocsTab(link.textContent.trim(), link.dataset.docPath);
+    });
   });
+  for (const tab of [dotFilesTab, svgFilesTab]) {
+    tab.addEventListener('click', () => {
+      setExplorerView(tab.dataset.explorerView);
+    });
+    tab.addEventListener('keydown', explorerTabKeydown);
+  }
+  fileContextOpen.addEventListener('click', openContextFile);
+  fileContextDelete.addEventListener('click', deleteContextFile);
+  fileContextMenu.addEventListener('keydown', fileContextKeydown);
   closeClayError.addEventListener('click', hideClayError);
   clayErrorModal.addEventListener('click', (event) => {
     if (event.target === clayErrorModal) hideClayError();
-  });
-  helpPanel.addEventListener('click', (event) => {
-    if (event.target === helpPanel) showHelp(false);
   });
   clearSelection.addEventListener('click', () => {
     clearVisualSelection();
@@ -3201,6 +4131,26 @@
   preview.addEventListener('pointerup', endPan);
   preview.addEventListener('pointercancel', endPan);
 
+  explorerResizer.addEventListener('pointerdown', (event) => {
+    if (matchMedia('(max-width: 760px)').matches) return;
+    explorerResizer.setPointerCapture(event.pointerId);
+  });
+
+  explorerResizer.addEventListener('pointermove', (event) => {
+    if (!explorerResizer.hasPointerCapture(event.pointerId)) return;
+    const bounds = workbench.getBoundingClientRect();
+    setExplorerWidth(event.clientX - bounds.left);
+    queueSaveSession();
+  });
+
+  explorerResizer.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const change = event.key === 'ArrowLeft' ? -16 : 16;
+    setExplorerWidth(currentExplorerWidth() + change);
+    queueSaveSession();
+  });
+
   splitter.addEventListener('pointerdown', (event) => {
     if (matchMedia('(max-width: 760px)').matches) return;
     splitter.setPointerCapture(event.pointerId);
@@ -3227,18 +4177,33 @@
   });
 
   document.addEventListener('keydown', handleShortcut);
+  document.addEventListener('click', (event) => {
+    if (fileContextMenu.hidden || fileContextMenu.contains(event.target)) {
+      return;
+    }
+    if (contextFileSource?.parentElement?.contains(event.target)) return;
+    closeFileContext();
+  });
   document.addEventListener('fullscreenchange', updateFullscreenControl);
   window.addEventListener('beforeunload', saveSession);
+  window.addEventListener('resize', () => closeFileContext());
   const savedSession = loadSession();
+  applyTheme(savedSession?.theme || 'system', false);
   let initialProblem = '';
   if (savedSession) {
     workspace.style.setProperty(
       '--editor-width',
       `${savedSession.paneWidth}%`
     );
+    setExplorerWidth(savedSession.explorerWidth);
+    docsTabs = savedSession.docsTabs;
+    nextDocs = savedSession.nextDocs;
+    explorerView = savedSession.explorerView;
     autoRender.checked = savedSession.autoRender;
     pendingView = savedSession.view;
   }
+  renderDocsTabs();
+  setExplorerView(explorerView);
   try {
     dot.value = sourceFromUrl() ?? savedSession?.source ?? starter;
   } catch (cause) {
@@ -3249,7 +4214,10 @@
   populateNewNodeShapes();
   populateAttributeShapes();
   updateLineNumbers();
+  refreshFileTree('dot');
+  refreshFileTree('svg');
   render();
+  refreshHelpVariant();
   if (initialProblem) showClientProblem(initialProblem);
   '''
 ::

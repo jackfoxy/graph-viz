@@ -1,4 +1,4 @@
-# %graph-viz user guide
+# %graph-viz Users Guide
 
 `%graph-viz` renders [Graphviz DOT](https://graphviz.org/doc/info/lang.html)
 text to SVG, entirely in Hoon, using the `dot` layered-layout algorithm
