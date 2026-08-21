@@ -9,6 +9,7 @@
   ;:  weld
     (expect !>(?=(^ (find "Graph Viz" (trip html)))))
     (expect !>(?=(^ (find "/apps/graph-viz/app.js" (trip html)))))
+    (expect !>(?=(~ (find "/apps/graph-viz/ace/ace.js" (trip html)))))
     (expect !>(?=(^ (find "id=\"workspace\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"splitter\"" (trip html)))))
     (expect !>(?=(~ (find "id=\"download\"" (trip html)))))

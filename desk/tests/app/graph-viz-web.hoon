@@ -75,6 +75,19 @@
   =/  data  !<((unit octs) q.cage.gift)
   q:(need data)
 ::
+++  check-asset
+  |=  [url=@t content-type=@t needle=@t]
+  ^-  tang
+  =/  out  (poke-http (request %'GET' url ~))
+  ;:  weld
+    (expect-eq !>(200) !>((response-status -.out)))
+    %+  expect-eq
+      !>(~[['content-type' content-type]])
+    !>((response-headers -.out))
+    %-  expect
+    !>(?=(^ (find (trip needle) (trip (response-body -.out)))))
+  ==
+::
 ++  test-web-binds-http
   =/  out  on-init:~(. agent bol)
   =/  expected=card:agent:gall
@@ -102,6 +115,72 @@
     !>((response-headers -.out))
     %-  expect
     !>(?=(^ (find "async function render" (trip (response-body -.out)))))
+  ==
+::
+++  test-web-ace-assets
+  ;:  weld
+    %^  check-asset
+      '/apps/graph-viz/ace/ace.js'
+      'text/javascript; charset=utf-8'
+    'ace.define("ace/ace"'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/graph-viz-config.js'
+      'text/javascript; charset=utf-8'
+    '1.44.0'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/mode-dot.js'
+      'text/javascript; charset=utf-8'
+    'ace/mode/dot'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/theme-github.js'
+      'text/javascript; charset=utf-8'
+    'ace/theme/github'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/theme-monokai.js'
+      'text/javascript; charset=utf-8'
+    'ace/theme/monokai'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/ext-beautify.js'
+      'text/javascript; charset=utf-8'
+    'ace/ext/beautify'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/ext-prompt.js'
+      'text/javascript; charset=utf-8'
+    'ace/ext/prompt'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/ext-searchbox.js'
+      'text/javascript; charset=utf-8'
+    'ace/ext/searchbox'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/ext-settings_menu.js'
+      'text/javascript; charset=utf-8'
+    'ace/ext/settings_menu'
+  ::
+    %^  check-asset
+      '/apps/graph-viz/ace/license.txt'
+      'text/plain; charset=utf-8'
+    'Copyright (c) 2010, Ajax.org B.V.'
+  ==
+::
+++  test-web-ace-assets-are-public
+  =/  req  (request %'GET' '/apps/graph-viz/ace/ace.js' ~)
+  =/  out  (poke-http req(authenticated %.n))
+  (expect-eq !>(200) !>((response-status -.out)))
+::
+++  test-web-ace-not-found
+  =/  out
+    (poke-http (request %'GET' '/apps/graph-viz/ace/not-shipped.js' ~))
+  ;:  weld
+    (expect-eq !>(404) !>((response-status -.out)))
+    (expect-eq !>('not found') !>((response-body -.out)))
   ==
 ::
 ++  test-web-not-found

@@ -118,6 +118,25 @@ async function compileAssets() {
 
 async function main() {
   const [page, javascript] = await compileAssets();
+  const aceRoot = path.join(root, 'desk/web/ace');
+  const aceAssets = new Map([
+    ['/apps/graph-viz/ace/ace.js', 'ace.js'],
+    [
+      '/apps/graph-viz/ace/graph-viz-config.js',
+      'graph-viz-config.js'
+    ],
+    ['/apps/graph-viz/ace/mode-dot.js', 'mode-dot.js'],
+    ['/apps/graph-viz/ace/theme-github.js', 'theme-github.js'],
+    ['/apps/graph-viz/ace/theme-monokai.js', 'theme-monokai.js'],
+    ['/apps/graph-viz/ace/ext-beautify.js', 'ext-beautify.js'],
+    ['/apps/graph-viz/ace/ext-prompt.js', 'ext-prompt.js'],
+    ['/apps/graph-viz/ace/ext-searchbox.js', 'ext-searchbox.js'],
+    [
+      '/apps/graph-viz/ace/ext-settings_menu.js',
+      'ext-settings-menu.js'
+    ],
+    ['/apps/graph-viz/ace/license.txt', 'license.txt']
+  ]);
   const server = http.createServer((request, response) => {
     if (request.method === 'GET'
       && (request.url === '/apps/graph-viz'
@@ -132,6 +151,15 @@ async function main() {
         'content-type': 'text/javascript; charset=utf-8'
       });
       response.end(javascript);
+      return;
+    }
+    if (request.method === 'GET' && aceAssets.has(request.url)) {
+      const filename = aceAssets.get(request.url);
+      const contentType = filename.endsWith('.js')
+        ? 'text/javascript; charset=utf-8'
+        : 'text/plain; charset=utf-8';
+      response.writeHead(200, {'content-type': contentType});
+      response.end(fs.readFileSync(path.join(aceRoot, filename)));
       return;
     }
     response.writeHead(404, {'content-type': 'text/plain; charset=utf-8'});
