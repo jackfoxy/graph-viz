@@ -1,0 +1,11 @@
+{
+  "name": "graph-viz-browser-tests",
+  "private": true,
+  "scripts": {
+    "test:browser:real": "playwright test --config tests/browser/real/playwright.config.js",
+    "test:shortcuts": "node --test tests/browser/ace-shortcuts.test.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}

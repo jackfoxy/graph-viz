@@ -75,6 +75,22 @@ newer:
 GVIZ_URL=http://localhost:8080 tests/browser/run.sh
 ```
 
+Run the real-browser keyboard baseline with the pinned Chromium test runner:
+
+```bash
+npm ci
+npx playwright install chromium
+VERE=~/piers/urbit tests/browser/run-real.sh
+```
+
+Set `GVIZ_URL=http://localhost:8080` instead to test an installed desk.
+
+The Ace Windows/Linux shortcut inventory is checked independently with:
+
+```bash
+npm run test:shortcuts
+```
+
 The suite covers rendering, out-of-order response suppression, structured
 errors, persistence, Clay-backed DOT/SVG browsing, load, and save, URL imports,
 pan/zoom, and SVG-to-source selection. For release validation, follow
