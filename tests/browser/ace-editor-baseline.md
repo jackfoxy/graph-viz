@@ -59,6 +59,27 @@ remaining Ace command path.
 The checked-in manifest is an inventory only. It deliberately makes no claim
 that Ace commands have been implemented or tested in this textarea baseline.
 
+## Editor adapter contract
+
+Work unit 3 routes application behavior through one textarea-backed adapter.
+Its contract is intentionally independent of the eventual Ace implementation:
+
+- `getSource()` and `setSource()` read or replace the complete document;
+- `replaceRange()` applies one absolute-offset edit and emits one change;
+- `getSelection()`, `setSelection()`, and `selectRange()` use absolute UTF-16
+  offsets matching browser string and textarea selection semantics;
+- `offsetToPosition()` and `positionToOffset()` convert between offsets and
+  zero-based `{row, column}` positions, including multiline Unicode source;
+- `focus()` and reveal options preserve editor navigation behavior;
+- `onChange()` is the single application notification path for native and
+  programmatic edits;
+- gutter refresh, scroll synchronization, and parse-error highlighting remain
+  owned by the adapter until Ace replaces them.
+
+Whole-document startup replacement suppresses notification. File loads,
+templates, visual edits, range edits, and native textarea input each notify
+exactly once.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

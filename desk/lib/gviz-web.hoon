@@ -1583,12 +1583,184 @@
   let graphSize = {width: 1, height: 1};
   let view = {scale: 1, x: 0, y: 0};
   let panPoint;
-  let errorLine = 0;
   let lastSvgSource = '';
   let showingSvgSource = false;
   let pendingView;
   let selectedItems = [];
   let inheritNewNodeShape = false;
+
+  function createTextareaEditorAdapter(textarea, gutter) {
+    const changeListeners = new Set();
+    let errorLine = 0;
+
+    function getSource() {
+      return textarea.value;
+    }
+
+    function clampOffset(offset) {
+      const numeric = Number.isFinite(offset) ? Math.trunc(offset) : 0;
+      return Math.max(0, Math.min(getSource().length, numeric));
+    }
+
+    function getSelection() {
+      return {
+        start: clampOffset(textarea.selectionStart),
+        end: clampOffset(textarea.selectionEnd)
+      };
+    }
+
+    function setSelection(start, end = start) {
+      const nextStart = clampOffset(start);
+      const nextEnd = Math.max(nextStart, clampOffset(end));
+      textarea.setSelectionRange(nextStart, nextEnd);
+    }
+
+    function offsetToPosition(offset) {
+      const source = getSource();
+      const nextOffset = clampOffset(offset);
+      const lineStart = source.lastIndexOf('\n', nextOffset - 1) + 1;
+      return {
+        row: source.slice(0, nextOffset).split('\n').length - 1,
+        column: nextOffset - lineStart
+      };
+    }
+
+    function positionToOffset(position) {
+      const lines = getSource().split('\n');
+      const requestedRow = Number.isFinite(position?.row)
+        ? Math.trunc(position.row)
+        : 0;
+      const row = Math.max(0, Math.min(lines.length - 1, requestedRow));
+      const requestedColumn = Number.isFinite(position?.column)
+        ? Math.trunc(position.column)
+        : 0;
+      const column = Math.max(0, Math.min(lines[row].length, requestedColumn));
+      let offset = column;
+      for (let index = 0; index < row; index += 1) {
+        offset += lines[index].length + 1;
+      }
+      return offset;
+    }
+
+    function syncScroll() {
+      gutter.scrollTop = textarea.scrollTop;
+      if (!errorLine) return;
+      const style = getComputedStyle(textarea);
+      const lineHeight = parseFloat(style.lineHeight);
+      const paddingTop = parseFloat(style.paddingTop);
+      const top = paddingTop + (errorLine - 1) * lineHeight
+        - textarea.scrollTop;
+      textarea.style.setProperty('--error-line-top', `${top}px`);
+    }
+
+    function refresh() {
+      const count = getSource().split('\n').length;
+      const numbers = document.createDocumentFragment();
+      for (let number = 1; number <= count; number += 1) {
+        const item = document.createElement('span');
+        item.textContent = String(number);
+        if (number === errorLine) item.className = 'error-line';
+        numbers.append(item);
+      }
+      gutter.replaceChildren(numbers);
+      syncScroll();
+    }
+
+    function notifyChange() {
+      refresh();
+      for (const listener of changeListeners) listener();
+    }
+
+    function setSource(source, options = {}) {
+      textarea.value = source;
+      const selection = options.selection || {
+        start: source.length,
+        end: source.length
+      };
+      setSelection(selection.start, selection.end);
+      if (options.notify === false) {
+        refresh();
+      } else {
+        notifyChange();
+      }
+    }
+
+    function replaceRange(start, end, replacement, options = {}) {
+      const rangeStart = clampOffset(start);
+      const rangeEnd = Math.max(rangeStart, clampOffset(end));
+      textarea.setRangeText(
+        replacement,
+        rangeStart,
+        rangeEnd,
+        'preserve'
+      );
+      const replacementEnd = rangeStart + replacement.length;
+      if (options.selection && typeof options.selection === 'object') {
+        setSelection(options.selection.start, options.selection.end);
+      } else if (options.selection === 'select') {
+        setSelection(rangeStart, replacementEnd);
+      } else if (options.selection === 'start') {
+        setSelection(rangeStart);
+      } else {
+        setSelection(replacementEnd);
+      }
+      if (options.notify === false) {
+        refresh();
+      } else {
+        notifyChange();
+      }
+    }
+
+    function selectRange(start, end, options = {}) {
+      setSelection(start, end);
+      if (options.focus) textarea.focus();
+      if (options.reveal) {
+        const position = offsetToPosition(start);
+        const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+        textarea.scrollTop = Math.max(0, (position.row - 1) * lineHeight);
+        syncScroll();
+      }
+    }
+
+    function setErrorLine(line) {
+      errorLine = Number.isFinite(line) && line > 0 ? line : 0;
+      textarea.classList.toggle('has-error-line', errorLine > 0);
+      refresh();
+    }
+
+    textarea.addEventListener('input', notifyChange);
+    textarea.addEventListener('scroll', syncScroll);
+    refresh();
+
+    return {
+      getSource,
+      setSource,
+      replaceRange,
+      getSelection,
+      setSelection,
+      selectRange,
+      offsetToPosition,
+      positionToOffset,
+      focus: () => textarea.focus(),
+      onChange(listener) {
+        changeListeners.add(listener);
+        return () => changeListeners.delete(listener);
+      },
+      onKeydown(listener) {
+        textarea.addEventListener('keydown', listener);
+      },
+      containsTarget(target) {
+        return target === textarea || textarea.contains(target);
+      },
+      setErrorLine,
+      refresh
+    };
+  }
+
+  const editor = createTextareaEditorAdapter(dot, lineNumbers);
+  if (window.__GVIZ_BROWSER_TEST__) {
+    window.__GVIZ_EDITOR_TEST__ = editor;
+  }
 
   function validTheme(candidate) {
     return themes.includes(candidate) ? candidate : 'system';
@@ -2445,10 +2617,11 @@
   function saveSession() {
     clearTimeout(saveTimer);
     try {
-      validateSource(dot.value);
+      const source = editor.getSource();
+      validateSource(source);
       localStorage.setItem(storageKey, JSON.stringify({
         version: 1,
-        source: dot.value,
+        source,
         paneWidth: currentPaneWidth(),
         explorerWidth: currentExplorerWidth(),
         explorerView,
@@ -2536,33 +2709,8 @@
     setState(hasPreview ? 'ready' : 'empty', 'Render failed');
   }
 
-  function syncEditorScroll() {
-    lineNumbers.scrollTop = dot.scrollTop;
-    if (!errorLine) return;
-    const style = getComputedStyle(dot);
-    const lineHeight = parseFloat(style.lineHeight);
-    const paddingTop = parseFloat(style.paddingTop);
-    const top = paddingTop + (errorLine - 1) * lineHeight - dot.scrollTop;
-    dot.style.setProperty('--error-line-top', `${top}px`);
-  }
-
-  function updateLineNumbers() {
-    const count = dot.value.split('\n').length;
-    const numbers = document.createDocumentFragment();
-    for (let number = 1; number <= count; number += 1) {
-      const item = document.createElement('span');
-      item.textContent = String(number);
-      if (number === errorLine) item.className = 'error-line';
-      numbers.append(item);
-    }
-    lineNumbers.replaceChildren(numbers);
-    syncEditorScroll();
-  }
-
   function setErrorLine(line) {
-    errorLine = Number.isFinite(line) && line > 0 ? line : 0;
-    dot.classList.toggle('has-error-line', errorLine > 0);
-    updateLineNumbers();
+    editor.setErrorLine(line);
   }
 
   function dotTokens(source) {
@@ -2914,8 +3062,7 @@
 
   function applyVisualMutation(source) {
     validateSource(source);
-    dot.value = source;
-    editorChanged();
+    editor.setSource(source);
     renderNow();
   }
 
@@ -2931,12 +3078,13 @@
       if (!nodeShapes.includes(shape)) {
         throw new Error('Unsupported node shape');
       }
-      const exists = dotStatements(dot.value).some((statement) => {
+      const currentSource = editor.getSource();
+      const exists = dotStatements(currentSource).some((statement) => {
         return statement.nodeNames.includes(identity);
       });
       if (exists) throw new Error('A node with that name already exists');
       const source = insertRootStatement(
-        dot.value,
+        currentSource,
         shape ? `${id} [shape=${shape}]` : id
       );
       newNodeName.value = '';
@@ -2952,33 +3100,36 @@
         || selectedItems.some((item) => item.kind !== 'node')) {
         throw new Error('Shift-click two nodes before drawing an edge');
       }
-      const body = graphBody(dot.value);
+      const source = editor.getSource();
+      const body = graphBody(source);
       const [tail, head] = selectedItems.map((item) => item.identity);
       const identity = tail + body.operator + head;
-      const exists = dotStatements(dot.value).some((statement) => {
+      const exists = dotStatements(source).some((statement) => {
         return statement.edges.includes(identity);
       });
       if (exists) throw new Error('That edge already exists');
       const edge = `${dotIdSource(tail)} ${body.operator} ${dotIdSource(head)}`;
-      applyVisualMutation(insertRootStatement(dot.value, edge));
+      applyVisualMutation(insertRootStatement(source, edge));
     } catch (cause) {
       mutationProblem(cause);
     }
   }
 
-  function statementRemovalRange(statement) {
-    const lineStart = dot.value.lastIndexOf('\n', statement.start - 1) + 1;
-    const nextLine = dot.value.indexOf('\n', statement.end);
-    const lineEnd = nextLine < 0 ? dot.value.length : nextLine + 1;
-    const before = dot.value.slice(lineStart, statement.start).trim();
-    const afterEnd = nextLine < 0 ? dot.value.length : nextLine;
-    const after = dot.value.slice(statement.end, afterEnd).trim();
+  function statementRemovalRange(source, statement) {
+    const lineStart = source.lastIndexOf('\n', statement.start - 1) + 1;
+    const nextLine = source.indexOf('\n', statement.end);
+    const lineEnd = nextLine < 0 ? source.length : nextLine + 1;
+    const before = source.slice(lineStart, statement.start).trim();
+    const afterEnd = nextLine < 0 ? source.length : nextLine;
+    const after = source.slice(statement.end, afterEnd).trim();
     if (!before && !after) return {start: lineStart, end: lineEnd};
     return {start: statement.start, end: statement.end};
   }
 
   function removeStatementRanges(source, statements) {
-    const ordered = statements.map(statementRemovalRange)
+    const ordered = statements.map((statement) => {
+      return statementRemovalRange(source, statement);
+    })
       .sort((left, right) => left.start - right.start);
     const merged = [];
     for (const range of ordered) {
@@ -3003,7 +3154,8 @@
         throw new Error('Select one node or edge to delete');
       }
       const selected = selectedItems[0];
-      const statements = dotStatements(dot.value);
+      const source = editor.getSource();
+      const statements = dotStatements(source);
       let removals;
       if (selected.kind === 'edge') {
         const statement = statements.find((candidate) => {
@@ -3025,14 +3177,14 @@
         }
       }
       if (!removals.length) throw new Error('Source statement not found');
-      applyVisualMutation(removeStatementRanges(dot.value, removals));
+      applyVisualMutation(removeStatementRanges(source, removals));
     } catch (cause) {
       mutationProblem(cause);
     }
   }
 
   function editableStatement(kind, identity) {
-    const statements = dotStatements(dot.value);
+    const statements = dotStatements(editor.getSource());
     if (kind === 'edge') {
       return statements.find((candidate) => {
         return candidate.edges.includes(identity);
@@ -3051,8 +3203,9 @@
       return statement;
     }
     const parsed = readStatementAttributes(statement);
-    const lineStart = dot.value.lastIndexOf('\n', statement.start - 1) + 1;
-    const indent = dot.value.slice(lineStart, statement.start)
+    const source = editor.getSource();
+    const lineStart = source.lastIndexOf('\n', statement.start - 1) + 1;
+    const indent = source.slice(lineStart, statement.start)
       .match(/^\s*/)?.[0] || '';
     const statements = statement.edgeParts.map((edge) => {
       const base = dotIdSource(edge.tail) + ' ' + edge.operator + ' '
@@ -3060,15 +3213,18 @@
       return writeStatementAttributes({...parsed, base});
     });
     const replacement = statements.join('\n' + indent);
-    dot.value = dot.value.slice(0, statement.start)
-      + replacement
-      + dot.value.slice(statement.end);
+    editor.replaceRange(
+      statement.start,
+      statement.end,
+      replacement,
+      {notify: false}
+    );
     return undefined;
   }
 
   function readStatementAttributes(statement) {
     if (!statement) return {base: '', semicolon: false, attributes: new Map()};
-    const segment = dot.value.slice(statement.start, statement.end);
+    const segment = editor.getSource().slice(statement.start, statement.end);
     const tokens = dotTokens(segment);
     const firstOpen = tokens.findIndex((token) => token.value === '[');
     const semicolon = tokens.at(-1)?.value === ';';
@@ -3392,14 +3548,14 @@
         throw new Error('Select one node or edge to edit');
       }
       const selected = selectedItems[0];
-      let source = dot.value;
+      let source = editor.getSource();
       if (attrChangeAll.checked) {
         source = changeAllAttributes(source, selected.kind);
       } else {
         let statement = editableStatement(selected.kind, selected.identity);
         if (selected.kind === 'edge' && statement?.edges.length > 1) {
           splitEdgeStatement(statement);
-          source = dot.value;
+          source = editor.getSource();
           statement = editableStatement(selected.kind, selected.identity);
         }
         const parsed = applyFormAttributes(
@@ -3429,7 +3585,7 @@
   }
 
   function sourceRangeFor(kind, identity) {
-    const statements = dotStatements(dot.value);
+    const statements = dotStatements(editor.getSource());
     if (kind === 'node') {
       const explicit = statements.find((statement) => {
         return statement.kind === 'node'
@@ -3452,12 +3608,7 @@
       sourceStatus.textContent = 'Source statement not found';
       return;
     }
-    dot.focus();
-    dot.setSelectionRange(range.start, range.end);
-    const line = dot.value.slice(0, range.start).split('\n').length;
-    const lineHeight = parseFloat(getComputedStyle(dot).lineHeight);
-    dot.scrollTop = Math.max(0, (line - 2) * lineHeight);
-    syncEditorScroll();
+    editor.selectRange(range.start, range.end, {focus: true, reveal: true});
     sourceStatus.textContent = `Selected ${kind}`;
   }
 
@@ -3736,8 +3887,7 @@
       const source = await clayFileRequest('dot', 'load', '', path);
       if (source === undefined) return;
       validateSource(source);
-      dot.value = source;
-      editorChanged();
+      editor.setSource(source);
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -3748,9 +3898,10 @@
 
   async function saveCurrentDot() {
     try {
-      validateSource(dot.value);
+      const source = editor.getSource();
+      validateSource(source);
       sourceStatus.textContent = 'Saving';
-      const result = await clayFileRequest('dot', 'save', dot.value);
+      const result = await clayFileRequest('dot', 'save', source);
       sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
       if (result !== undefined) await refreshFileTree('dot');
     } catch (cause) {
@@ -3802,30 +3953,35 @@
   function handleTab(event) {
     event.preventDefault();
     const indent = '  ';
-    const start = dot.selectionStart;
-    const end = dot.selectionEnd;
+    const source = editor.getSource();
+    const {start, end} = editor.getSelection();
     if (start === end && !event.shiftKey) {
-      dot.setRangeText(indent, start, end, 'end');
-      editorChanged();
+      editor.replaceRange(start, end, indent);
       return;
     }
-    const lineStart = dot.value.lastIndexOf('\n', start - 1) + 1;
+    const lineStart = source.lastIndexOf('\n', start - 1) + 1;
     if (start === end) {
-      const match = dot.value.slice(lineStart, lineStart + 2).match(/^ {1,2}/);
+      const match = source.slice(lineStart, lineStart + 2).match(/^ {1,2}/);
       if (!match) return;
-      dot.setRangeText('', lineStart, lineStart + match[0].length, 'end');
       const cursor = Math.max(lineStart, start - match[0].length);
-      dot.setSelectionRange(cursor, cursor);
-      editorChanged();
+      editor.replaceRange(
+        lineStart,
+        lineStart + match[0].length,
+        '',
+        {selection: {start: cursor, end: cursor}}
+      );
       return;
     }
-    const block = dot.value.slice(lineStart, end);
+    const block = source.slice(lineStart, end);
     const replacement = block.split('\n').map((line) => {
       return event.shiftKey ? line.replace(/^ {1,2}/, '') : indent + line;
     }).join('\n');
-    dot.setRangeText(replacement, lineStart, end, 'select');
-    dot.setSelectionRange(lineStart, lineStart + replacement.length);
-    editorChanged();
+    editor.replaceRange(
+      lineStart,
+      end,
+      replacement,
+      {selection: 'select'}
+    );
   }
 
   function handleEditorKeydown(event) {
@@ -3836,32 +3992,33 @@
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const pairs = {'{': '}', '[': ']', '(': ')', '"': '"'};
     const closers = Object.values(pairs);
-    const start = dot.selectionStart;
-    const end = dot.selectionEnd;
+    const source = editor.getSource();
+    const {start, end} = editor.getSelection();
     if (start === end && closers.includes(event.key)
-      && dot.value[start] === event.key) {
+      && source[start] === event.key) {
       event.preventDefault();
-      dot.setSelectionRange(start + 1, start + 1);
+      editor.setSelection(start + 1);
       return;
     }
     const closing = pairs[event.key];
-    const escapedQuote = event.key === '"' && dot.value[start - 1] === '\\';
+    const escapedQuote = event.key === '"' && source[start - 1] === '\\';
     if (!closing || escapedQuote) return;
     event.preventDefault();
-    const selected = dot.value.slice(start, end);
-    dot.setRangeText(event.key + selected + closing, start, end, 'select');
-    dot.setSelectionRange(start + 1, end + 1);
-    editorChanged();
+    const selected = source.slice(start, end);
+    editor.replaceRange(
+      start,
+      end,
+      event.key + selected + closing,
+      {selection: {start: start + 1, end: end + 1}}
+    );
   }
 
   function insertTemplate() {
     const source = templates[template.value];
     if (!source) return;
-    dot.value = source;
+    editor.setSource(source, {selection: {start: 0, end: 0}});
     template.value = '';
-    dot.focus();
-    dot.setSelectionRange(0, 0);
-    editorChanged();
+    editor.focus();
   }
 
   function handleShortcut(event) {
@@ -3888,6 +4045,7 @@
       return;
     }
     if (event.key === 'Delete' && selectedItems.length === 1
+      && !editor.containsTarget(event.target)
       && !event.target?.matches?.('input, textarea, select')) {
       event.preventDefault();
       deleteSelectedItem();
@@ -3915,15 +4073,16 @@
 
   async function render() {
     const uid = latestRequestUid = ++requestUid;
+    const source = editor.getSource();
     try {
-      validateSource(dot.value);
+      validateSource(source);
     } catch (cause) {
       showClientProblem(String(cause));
       sourceStatus.textContent = 'Too large';
       button.disabled = false;
       return;
     }
-    if (!dot.value.trim()) {
+    if (!source.trim()) {
       preview.replaceChildren();
       currentSvg = undefined;
       lastSvgSource = '';
@@ -3947,7 +4106,7 @@
           'content-type': 'text/vnd.graphviz',
           'x-graph-viz-request': String(uid)
         },
-        body: dot.value
+        body: source
       });
       const body = await response.text();
       if (uid !== latestRequestUid) return;
@@ -4028,9 +4187,8 @@
   } else {
     themeMedia.addListener(systemThemeChanged);
   }
-  dot.addEventListener('input', editorChanged);
-  dot.addEventListener('keydown', handleEditorKeydown);
-  dot.addEventListener('scroll', syncEditorScroll);
+  editor.onChange(editorChanged);
+  editor.onKeydown(handleEditorKeydown);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fullscreenZoomOut.addEventListener(
@@ -4205,15 +4363,20 @@
   renderDocsTabs();
   setExplorerView(explorerView);
   try {
-    dot.value = sourceFromUrl() ?? savedSession?.source ?? starter;
+    editor.setSource(
+      sourceFromUrl() ?? savedSession?.source ?? starter,
+      {notify: false}
+    );
   } catch (cause) {
-    dot.value = savedSession?.source ?? starter;
+    editor.setSource(
+      savedSession?.source ?? starter,
+      {notify: false}
+    );
     initialProblem = String(cause);
   }
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
   populateAttributeShapes();
-  updateLineNumbers();
   refreshFileTree('dot');
   refreshFileTree('svg');
   render();
