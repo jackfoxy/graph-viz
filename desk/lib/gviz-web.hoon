@@ -1676,7 +1676,24 @@
 
     function setSource(source, options = {}) {
       mutate(() => {
-        session.setValue(source);
+        const history = options.history || 'undoable';
+        if (history === 'reset') {
+          session.setValue(source);
+          session.getUndoManager().reset();
+        } else if (history === 'undoable') {
+          const undoManager = session.getUndoManager();
+          const last = offsetToPosition(getSource().length);
+          undoManager.startNewGroup();
+          session.replace(new AceRange(
+            0,
+            0,
+            last.row,
+            last.column
+          ), source);
+          undoManager.startNewGroup();
+        } else {
+          throw new Error(`Unsupported editor history mode: ${history}`);
+        }
         const selection = options.selection || {
           start: source.length,
           end: source.length
@@ -3898,7 +3915,7 @@
       const source = await clayFileRequest('dot', 'load', '', path);
       if (source === undefined) return;
       validateSource(source);
-      editor.setSource(source);
+      editor.setSource(source, {history: 'reset'});
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -3933,6 +3950,8 @@
       }
       installSvg(source);
       autoRender.checked = false;
+      invalidateRender();
+      clearTimeout(renderTimer);
       queueSaveSession();
       error.textContent = '';
       error.hidden = true;
@@ -3964,7 +3983,10 @@
   function insertTemplate() {
     const source = templates[template.value];
     if (!source) return;
-    editor.setSource(source, {selection: {start: 0, end: 0}});
+    editor.setSource(source, {
+      history: 'undoable',
+      selection: {start: 0, end: 0}
+    });
     template.value = '';
     editor.focus();
   }
@@ -4127,7 +4149,12 @@
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();
-    if (autoRender.checked) queueRender();
+    if (autoRender.checked) {
+      queueRender();
+    } else {
+      invalidateRender();
+      clearTimeout(renderTimer);
+    }
   });
   theme.addEventListener('change', () => applyTheme(theme.value));
   if (themeMedia.addEventListener) {
@@ -4317,12 +4344,12 @@
   try {
     editor.setSource(
       sourceFromUrl() ?? savedSession?.source ?? starter,
-      {notify: false}
+      {history: 'reset', notify: false}
     );
   } catch (cause) {
     editor.setSource(
       savedSession?.source ?? starter,
-      {notify: false}
+      {history: 'reset', notify: false}
     );
     initialProblem = String(cause);
   }

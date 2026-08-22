@@ -138,23 +138,24 @@ async function main() {
     ['/apps/graph-viz/ace/license.txt', 'license.txt']
   ]);
   const server = http.createServer((request, response) => {
+    const requestPath = new URL(request.url, 'http://127.0.0.1').pathname;
     if (request.method === 'GET'
-      && (request.url === '/apps/graph-viz'
-        || request.url === '/apps/graph-viz/')) {
+      && (requestPath === '/apps/graph-viz'
+        || requestPath === '/apps/graph-viz/')) {
       response.writeHead(200, {'content-type': 'text/html; charset=utf-8'});
       response.end(page);
       return;
     }
     if (request.method === 'GET'
-      && request.url === '/apps/graph-viz/app.js') {
+      && requestPath === '/apps/graph-viz/app.js') {
       response.writeHead(200, {
         'content-type': 'text/javascript; charset=utf-8'
       });
       response.end(javascript);
       return;
     }
-    if (request.method === 'GET' && aceAssets.has(request.url)) {
-      const filename = aceAssets.get(request.url);
+    if (request.method === 'GET' && aceAssets.has(requestPath)) {
+      const filename = aceAssets.get(requestPath);
       const contentType = filename.endsWith('.js')
         ? 'text/javascript; charset=utf-8'
         : 'text/plain; charset=utf-8';

@@ -94,6 +94,25 @@ no worker, and no print margin. The initial document replacement remains
 silent. A failed runtime or configuration load hides the unusable host and
 shows an actionable alert.
 
+## Work unit 5 lifecycle boundaries
+
+The adapter's `setSource()` uses an explicit history mode. Startup inputs and
+successful DOT file opens use `history: 'reset'`; Ace's undo manager is reset
+after the complete source is installed. Templates use `history: 'undoable'`;
+the whole-document replacement is isolated as one undo group, so one undo
+restores the prior source and one redo reapplies the template. Other
+programmatic whole-document edits default to the undoable mode.
+
+The current shell has no DOT share or download control. Its existing URL import
+and SVG copy/save paths remain the applicable share/export behavior; URL import
+uses the startup reset boundary, while SVG actions read the current rendered
+SVG without changing DOT.
+
+Auto-render remains driven only by adapter change notifications and retains its
+350 ms debounce. Disabling Auto-render, including by loading an SVG file,
+cancels a queued render and invalidates an in-flight response. Re-enabling it
+queues one render of the source read when that render action executes.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

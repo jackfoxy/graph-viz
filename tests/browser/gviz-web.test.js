@@ -385,6 +385,10 @@ function fakeIndexToPosition(source, offset) {
 
 function createFakeAceEditor(host) {
   const changeListeners = [];
+  const undoManager = {
+    reset() {},
+    startNewGroup() {}
+  };
   const session = {
     doc: {
       indexToPosition(offset) {
@@ -408,6 +412,7 @@ function createFakeAceEditor(host) {
     on(name, listener) {
       if (name === 'change') changeListeners.push(listener);
     },
+    getUndoManager() { return undoManager; },
     setMode(mode) { this.mode = mode; },
     setUseWorker(worker) { this.worker = worker; },
     addGutterDecoration(row, name) { this.decoration = {row, name}; },
@@ -1024,10 +1029,12 @@ vm.runInThisContext(applicationSource, {filename: application});
   await saveDotRequest;
 
   prompts.push('examples/output');
+  const svgBeforeSave = elements['#preview'].children[0].renderSource;
   const saveSvgRequest = elements['#save-svg'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/save');
   assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
     'examples/output');
+  assert.equal(requests.at(-1).options.body, svgBeforeSave);
   const requestCount = requests.length;
   confirmationAnswers.push(false);
   requests.at(-1).resolve(response(false, 'Clay file already exists', 409));
@@ -1113,12 +1120,14 @@ vm.runInThisContext(applicationSource, {filename: application});
   });
   assert(svgFile);
   assert.equal(svgFile.textContent, 'preview/svg');
+  const sourceBeforeBrowseSvg = dot.value;
   const browseLoadSvg = svgFile.listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
   requests.at(-1).resolve(response(true, '<svg id="browsed"/>'));
   await browseLoadSvg;
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="browsed"/>');
+  assert.equal(dot.value, sourceBeforeBrowseSvg);
   assert.equal(elements['#auto-render'].checked, false);
 
   prompts.push('/examples/loaded');
@@ -1129,6 +1138,7 @@ vm.runInThisContext(applicationSource, {filename: application});
   assert.equal(dot.value, 'digraph loaded { A -> B }');
 
   elements['#auto-render'].checked = true;
+  const sourceBeforePromptSvg = dot.value;
   prompts.push('examples/loaded');
   const loadSvgRequest = elements['#load-svg'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
@@ -1136,6 +1146,7 @@ vm.runInThisContext(applicationSource, {filename: application});
   await loadSvgRequest;
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="loaded"/>');
+  assert.equal(dot.value, sourceBeforePromptSvg);
   assert.equal(elements['#auto-render'].checked, false);
 
   const failedBrowse = elements['#browse-dot'].listeners.click({});
