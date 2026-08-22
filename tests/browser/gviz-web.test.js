@@ -385,6 +385,7 @@ function fakeIndexToPosition(source, offset) {
 
 function createFakeAceEditor(host) {
   const changeListeners = [];
+  let nextMarker = 1;
   const undoManager = {
     reset() {},
     startNewGroup() {}
@@ -415,8 +416,16 @@ function createFakeAceEditor(host) {
     getUndoManager() { return undoManager; },
     setMode(mode) { this.mode = mode; },
     setUseWorker(worker) { this.worker = worker; },
-    addGutterDecoration(row, name) { this.decoration = {row, name}; },
-    removeGutterDecoration() { this.decoration = undefined; }
+    setAnnotations(annotations) { this.annotations = annotations; },
+    clearAnnotations() { this.annotations = []; },
+    addMarker(range, name, type) {
+      const id = nextMarker++;
+      this.marker = {id, range, name, type};
+      return id;
+    },
+    removeMarker(id) {
+      if (this.marker?.id === id) this.marker = undefined;
+    }
   };
   const selection = {
     getRange() {
@@ -429,8 +438,13 @@ function createFakeAceEditor(host) {
         fakePositionToIndex(host.value, range.start),
         fakePositionToIndex(host.value, range.end)
       );
+    },
+    moveCursorTo(row, column) {
+      const offset = fakePositionToIndex(host.value, {row, column});
+      host.setSelectionRange(offset, offset);
     }
   };
+  host.aceSession = session;
   host.listeners.input = () => {
     for (const listener of changeListeners) listener({action: 'input'});
   };
@@ -441,8 +455,11 @@ function createFakeAceEditor(host) {
     textInput: {getElement: () => host},
     getValue: () => host.value,
     setOptions(options) { this.options = options; },
-    setTheme(theme) { this.theme = theme; },
+    setTheme(theme) { this.theme = theme; host.aceTheme = theme; },
     focus: () => host.focus(),
+    clearSelection() {
+      host.setSelectionRange(host.selectionEnd, host.selectionEnd);
+    },
     scrollToLine(line) { host.scrollLine = line; },
     resize() { host.resizeCount = (host.resizeCount || 0) + 1; }
   };
@@ -521,6 +538,7 @@ vm.runInThisContext(applicationSource, {filename: application});
   assert.equal(document.documentElement.dataset.theme, 'system');
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
   assert.equal(document.documentElement.style.colorScheme, 'light');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
   assert.equal(requests[0].url, '/apps/graph-viz/file/dot/browse');
   assert.equal(requests[1].url, '/apps/graph-viz/file/svg/browse');
   requests[0].resolve(response(true, JSON.stringify({
@@ -560,6 +578,7 @@ vm.runInThisContext(applicationSource, {filename: application});
   assert.equal(document.documentElement.dataset.theme, 'dark');
   assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
   assert.equal(document.documentElement.style.colorScheme, 'dark');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/monokai');
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal(JSON.parse(saved.get('graph-viz.session.v1'))
     .preferences.theme, 'dark');
@@ -567,12 +586,15 @@ vm.runInThisContext(applicationSource, {filename: application});
   elements['#theme'].value = 'light';
   elements['#theme'].listeners.change({});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
   elements['#theme'].value = 'system';
   elements['#theme'].listeners.change({});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/monokai');
   themeMedia.matches = false;
   themeMedia.listeners.change({matches: false});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
 
   requests[2].resolve(response(true, '<svg id="initial"/>'));
   await tick();
@@ -772,6 +794,15 @@ vm.runInThisContext(applicationSource, {filename: application});
   assert.equal(elements['#preview'].children[0], retained);
   assert.equal(elements['#preview-shell'].dataset.state, 'ready');
   assert(elements['#error'].textContent.includes('Line 1, column 9'));
+  assert.deepEqual(elements['#dot'].aceSession.annotations, [{
+    row: 0, column: 8, text: 'syntax error', type: 'error'
+  }]);
+  assert.equal(elements['#dot'].aceSession.marker.range.start.column, 8);
+  assert.equal(elements['#dot']['aria-invalid'], 'true');
+  dot.listeners.input({});
+  assert.deepEqual(elements['#dot'].aceSession.annotations, []);
+  assert.equal(elements['#dot'].aceSession.marker, undefined);
+  assert.equal(elements['#dot']['aria-invalid'], 'false');
 
   let svg = elements['#preview'].children[0];
   const beforeZoom = svg.style.transform;

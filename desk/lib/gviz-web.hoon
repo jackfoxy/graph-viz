@@ -140,7 +140,7 @@
         ;section#workspace.workspace
         ;section#editor-pane.pane.editor-pane
           ;div.pane-header
-            ;h2: DOT source
+            ;h2#dot-source-heading: DOT source
             ;div.file-actions(aria-label "DOT file controls")
               ;button#browse-dot(type "button"): Browse
               ;button#load-dot(type "button"): Load DOT
@@ -189,8 +189,9 @@
               ;span: If the problem continues, verify the Ace assets are installed.
             ==
             ;div#dot.ace-editor-host
-              =role        "region"
-              =aria-label  "DOT source editor"
+              =role               "region"
+              =aria-labelledby    "dot-source-heading"
+              =aria-describedby   "error editor-load-error"
               ;+  ;/  (trip 'digraph { a -> b }')
             ==
           ==
@@ -919,12 +920,17 @@
     width: 100%;
   }
 
-  #dot.ace_focus { box-shadow: inset 0 0 0 2px var(--accent); }
+  #dot.ace_focus, #dot:focus-within {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
+  }
 
-  #dot .ace_gutter-cell.ace-error-line {
+  #dot .ace_marker-layer .ace-error-marker {
     background: var(--editor-error);
-    color: var(--danger);
-    font-weight: 700;
+    border-bottom: 2px solid var(--danger);
+    box-sizing: border-box;
+    position: absolute;
   }
 
   .editor-load-error {
@@ -1591,7 +1597,8 @@
     const aceEditor = window.ace.edit(host);
     const session = aceEditor.session;
     const changeListeners = new Set();
-    let errorLine = 0;
+    const textInput = aceEditor.textInput.getElement();
+    let errorMarker;
     let suppressChanges = 0;
 
     aceEditor.setOptions({
@@ -1603,13 +1610,20 @@
       useSoftTabs: true,
       wrap: true
     });
-    aceEditor.setTheme(assets.lightTheme);
+    aceEditor.setTheme(
+      document.documentElement.dataset.effectiveTheme === 'dark'
+        ? assets.darkTheme
+        : assets.lightTheme
+    );
     session.setMode(assets.mode);
     session.setUseWorker(assets.useWorker);
     if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
       aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
     }
-    aceEditor.textInput.getElement().setAttribute('aria-label', 'DOT source');
+    textInput.setAttribute('aria-label', 'DOT source editor');
+    textInput.setAttribute('aria-labelledby', 'dot-source-heading');
+    textInput.setAttribute('aria-describedby', 'error editor-load-error');
+    textInput.setAttribute('aria-invalid', 'false');
 
     function getSource() {
       return aceEditor.getValue();
@@ -1746,14 +1760,41 @@
       }
     }
 
-    function setErrorLine(line) {
-      if (errorLine > 0) {
-        session.removeGutterDecoration(errorLine - 1, 'ace-error-line');
-      }
-      errorLine = Number.isFinite(line) && line > 0 ? Math.trunc(line) : 0;
-      if (errorLine > 0) {
-        session.addGutterDecoration(errorLine - 1, 'ace-error-line');
-      }
+    function clearDiagnostic() {
+      session.clearAnnotations();
+      if (errorMarker !== undefined) session.removeMarker(errorMarker);
+      errorMarker = undefined;
+      textInput.setAttribute('aria-invalid', 'false');
+    }
+
+    function setDiagnostic(problem) {
+      clearDiagnostic();
+      if (!problem) return;
+      const requestedLine = Number(problem.line);
+      if (!Number.isFinite(requestedLine) || requestedLine < 1) return;
+      const lines = getSource().split('\n');
+      const row = Math.min(lines.length - 1, Math.trunc(requestedLine) - 1);
+      const requestedColumn = Number(problem.column);
+      const column = Math.max(0, Math.min(
+        lines[row].length,
+        Number.isFinite(requestedColumn)
+          ? Math.trunc(requestedColumn) - 1
+          : 0
+      ));
+      const endColumn = Math.min(lines[row].length, column + 1);
+      const markerEnd = endColumn > column ? endColumn : column + 1;
+      const message = problem.message || 'syntax error';
+      session.setAnnotations([{row, column, text: message, type: 'error'}]);
+      errorMarker = session.addMarker(
+        new AceRange(row, column, row, markerEnd),
+        'ace-error-marker',
+        'text',
+        false
+      );
+      aceEditor.selection.moveCursorTo(row, column);
+      aceEditor.clearSelection();
+      aceEditor.scrollToLine(row, true, true);
+      textInput.setAttribute('aria-invalid', 'true');
     }
 
     session.on('change', () => {
@@ -1781,7 +1822,12 @@
       containsTarget(target) {
         return target === host || host.contains(target);
       },
-      setErrorLine,
+      setDiagnostic,
+      setTheme(effective) {
+        aceEditor.setTheme(
+          effective === 'dark' ? assets.darkTheme : assets.lightTheme
+        );
+      },
       refresh: () => aceEditor.resize(true)
     };
   }
@@ -1799,6 +1845,21 @@
     window.__GVIZ_EDITOR_TEST__ = editor;
   }
 
+  let editorResizeQueued = false;
+  function refreshEditor() {
+    if (editorResizeQueued) return;
+    editorResizeQueued = true;
+    requestAnimationFrame(() => {
+      editorResizeQueued = false;
+      editor.refresh();
+    });
+  }
+
+  if (typeof ResizeObserver === 'function') {
+    const editorResizeObserver = new ResizeObserver(refreshEditor);
+    editorResizeObserver.observe(dot);
+  }
+
   function validTheme(candidate) {
     return themes.includes(candidate) ? candidate : 'system';
   }
@@ -1812,6 +1873,7 @@
     document.documentElement.dataset.theme = selected;
     document.documentElement.dataset.effectiveTheme = effective;
     document.documentElement.style.colorScheme = effective;
+    editor.setTheme(effective);
     if (persist) queueSaveSession();
   }
 
@@ -2012,6 +2074,7 @@
         `[data-explorer-view="${explorerView}"]`
       )?.focus();
     }
+    refreshEditor();
     queueSaveSession();
   }
 
@@ -2649,7 +2712,7 @@
       maxExplorerWidth()
     );
     workbench.style.setProperty('--explorer-width', `${nextWidth}px`);
-    if (editor) requestAnimationFrame(() => editor.refresh());
+    if (editor) refreshEditor();
   }
 
   function saveSession() {
@@ -2716,6 +2779,7 @@
   }
 
   function showClientProblem(message) {
+    setEditorProblem();
     error.textContent = message;
     error.hidden = false;
     setState(currentSvg ? 'ready' : 'empty', 'Input error');
@@ -2740,15 +2804,15 @@
   }
 
   function showProblem(problem) {
-    setErrorLine(problem.kind === 'parse' ? Number(problem.line) : 0);
+    setEditorProblem(problem.kind === 'parse' ? problem : undefined);
     error.textContent = formatProblem(problem);
     error.hidden = false;
     const hasPreview = Boolean(preview.querySelector('svg'));
     setState(hasPreview ? 'ready' : 'empty', 'Render failed');
   }
 
-  function setErrorLine(line) {
-    editor.setErrorLine(line);
+  function setEditorProblem(problem) {
+    editor.setDiagnostic(problem);
   }
 
   function dotTokens(source) {
@@ -3747,7 +3811,7 @@
   function editorChanged() {
     clearVisualSelection();
     error.hidden = true;
-    setErrorLine(0);
+    setEditorProblem();
     queueSaveSession();
     if (autoRender.checked) {
       queueRender();
@@ -4085,7 +4149,7 @@
       currentSvg = undefined;
       lastSvgSource = '';
       error.hidden = true;
-      setErrorLine(0);
+      setEditorProblem();
       setPreviewControls(false);
       setState('empty', 'Empty');
       sourceStatus.textContent = 'Ready';
@@ -4132,7 +4196,7 @@
         showProblem({kind: 'request', message: 'Invalid SVG response'});
         return;
       }
-      setErrorLine(0);
+      setEditorProblem();
       setPreviewControls(true);
       setState('ready', 'Rendered');
     } catch (cause) {
@@ -4322,7 +4386,7 @@
     const percent = ((event.clientX - bounds.left) / bounds.width) * 100;
     const width = Math.max(25, Math.min(70, percent));
     workspace.style.setProperty('--editor-width', `${width}%`);
-    editor.refresh();
+    refreshEditor();
     queueSaveSession();
   });
 
@@ -4334,7 +4398,7 @@
     const change = event.key === 'ArrowLeft' ? -2 : 2;
     const width = Math.max(25, Math.min(70, current + change));
     workspace.style.setProperty('--editor-width', `${width}%`);
-    editor.refresh();
+    refreshEditor();
     queueSaveSession();
   });
 
@@ -4350,7 +4414,7 @@
   window.addEventListener('beforeunload', saveSession);
   window.addEventListener('resize', () => {
     closeFileContext();
-    editor.refresh();
+    refreshEditor();
   });
   const savedSession = loadSession();
   applyTheme(savedSession?.theme || 'system', false);

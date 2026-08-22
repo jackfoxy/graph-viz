@@ -126,6 +126,24 @@ groups, emits one application change, and therefore gives every visual action
 one undo/redo entry. Edge-chain splitting is calculated without an intermediate
 editor mutation, so an attribute edit remains one logical action.
 
+## Work unit 7 editor surface boundaries
+
+Parse failures use a zero-based Ace annotation and text marker translated from
+the server's one-based line and column. The error cursor and viewport reveal
+that location without changing history. Any source edit or successful render
+clears the annotation, marker, and editor invalid state; the existing error
+panel remains the full visible and announced message.
+
+The effective light or dark application scheme selects the pinned GitHub or
+Monokai Ace theme. Explicit and system scheme changes do not replace the
+document or reset selection, cursor, scroll, focus, or undo history.
+
+A `ResizeObserver` follows the Ace host, while splitter, explorer-view, and
+window events request a coalesced resize. This covers restored dimensions,
+divider extremes, responsive layout changes, and Help/document tab changes.
+The Ace input is labelled by the visible DOT source heading, described by both
+error regions, exposes invalid parse state, and retains a visible focus ring.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.
