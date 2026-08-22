@@ -1,5 +1,5 @@
-/usr                       User Docs
-  /users-guide/md            Users Guide
+/keyboard-shortcuts/md     Keyboard Shortcuts
+/users-guide/md            Users Guide
 /reference/md              Reference
 /graph-noun/md             The positioned-graph noun
 /release-notes/md          Release Notes

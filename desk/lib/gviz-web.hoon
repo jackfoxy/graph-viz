@@ -459,6 +459,66 @@
           ;div#docs-help-content.docs-help-content(hidden "")
             ;nav#docs-help-nav.docs-help-nav
               =aria-label  "Graph Viz documentation"
+              ;details.docs-help-group(open "")
+                ;summary.docs-help-summary
+                  ;a.docs-help-link
+                    =href           "/docs/d/graph-viz/keyboard-shortcuts"
+                    =data-doc-path  "keyboard-shortcuts"
+                    Keyboard Shortcuts
+                  ==
+                ==
+                ;ul.docs-help-subnav
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#line-operations"
+                      =data-doc-path  "keyboard-shortcuts#line-operations"
+                      Line Operations
+                    ==
+                  ==
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#selection"
+                      =data-doc-path  "keyboard-shortcuts#selection"
+                      Selection
+                    ==
+                  ==
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#multicursor"
+                      =data-doc-path  "keyboard-shortcuts#multicursor"
+                      Multicursor
+                    ==
+                  ==
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#go-to"
+                      =data-doc-path  "keyboard-shortcuts#go-to"
+                      Go to
+                    ==
+                  ==
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#find-replace"
+                      =data-doc-path  "keyboard-shortcuts#find-replace"
+                      Find/Replace
+                    ==
+                  ==
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#folding"
+                      =data-doc-path  "keyboard-shortcuts#folding"
+                      Folding
+                    ==
+                  ==
+                  ;li
+                    ;a.docs-help-link
+                      =href           "/docs/d/graph-viz/keyboard-shortcuts#other"
+                      =data-doc-path  "keyboard-shortcuts#other"
+                      Other
+                    ==
+                  ==
+                ==
+              ==
               ;a.docs-help-link
                 =href           "/docs/d/graph-viz/usr/users-guide"
                 =data-doc-path  "usr/users-guide"
@@ -1277,6 +1337,44 @@
   }
 
   .docs-help-link[aria-current="page"] { font-weight: 600; }
+
+  .docs-help-summary {
+    align-items: center;
+    border-radius: 0.35rem;
+    cursor: pointer;
+    display: flex;
+    list-style: none;
+    padding: 0.5rem;
+  }
+
+  .docs-help-summary::-webkit-details-marker { display: none; }
+
+  .docs-help-summary:hover { background: var(--background); }
+
+  .docs-help-summary .docs-help-link { padding: 0; }
+
+  .docs-help-summary::before {
+    color: var(--muted);
+    content: '\25b8';
+    font-size: 0.7rem;
+    margin-right: 0.5rem;
+  }
+
+  .docs-help-group[open] > .docs-help-summary::before { content: '\25be'; }
+
+  .docs-help-subnav {
+    display: grid;
+    gap: 0;
+    list-style: none;
+    margin: 0.15rem 0 0;
+    padding-left: 2rem;
+  }
+
+  .docs-help-subnav .docs-help-link {
+    display: block;
+    font-size: 0.9rem;
+    padding: 0.125rem 0.5rem;
+  }
 
   .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
 
