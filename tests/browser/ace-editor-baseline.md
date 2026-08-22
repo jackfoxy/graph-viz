@@ -197,6 +197,29 @@ alias. The pinned `Alt-0` command is `foldOther`, which supplies the documented
 Fold all behavior. Beautify is loaded and registered before the editor binds
 and tests `Ctrl-Shift-B`.
 
+## Work unit 11 undo and redo behavior
+
+Real-browser history coverage now executes `Ctrl-Z`, `Ctrl-Y`, and
+`Ctrl-Shift-Z` across character insertion, coalesced typing, forward and
+backward deletion, newline insertion, multiline paste, selection replacement,
+indentation, every line-operation edit, case conversion, number modification,
+comments, and multi-cursor insertion. Each history cycle asserts the complete
+source plus Ace anchor, lead, and all selection ranges.
+
+Add node, Draw edge, Delete selection, and Apply attributes each remain one
+visual undo unit. Keyboard and visual edits retain independent ordering, a new
+edit invalidates both redo bindings, template replacement remains one undoable
+whole-document change, and reset replacement clears both history stacks. The
+pinned Ace build selects a changed range on some redo operations; tests preserve
+that exact native behavior instead of forcing a collapsed cursor.
+
+An 80-entry isolated-edit history is completely unwound and replayed, followed
+by five repeated top-entry cycles. Render success and failure, theme changes,
+resizing, explorer and Help navigation, and SVG-only loads preserve source,
+selection, and history revision. Auto-render receives one exact source per
+edit, undo, or redo; session persistence records each changed source once even
+when later view-state updates rewrite the same session.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

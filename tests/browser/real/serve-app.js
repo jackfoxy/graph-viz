@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
+const vm = require('node:vm');
 const {spawn} = require('node:child_process');
 
 const root = path.resolve(__dirname, '../../..');
@@ -103,7 +104,7 @@ function evaluate(source) {
   });
 }
 
-async function compileAssets() {
+async function compileAssetsOnce() {
   const source = [
     '=+  ^=  gg',
     read('desk/sur/graph.hoon'),
@@ -114,6 +115,23 @@ async function compileAssets() {
     '[page:web javascript:web]'
   ].join('\n');
   return parseCords(await evaluate(source));
+}
+
+async function compileAssets() {
+  let problem;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const assets = await compileAssetsOnce();
+      if (!assets[0].includes('</html>')) {
+        throw new Error('vere eval returned truncated page HTML');
+      }
+      new vm.Script(assets[1], {filename: 'graph-viz-app.js'});
+      return assets;
+    } catch (cause) {
+      problem = cause;
+    }
+  }
+  throw problem;
 }
 
 async function main() {
