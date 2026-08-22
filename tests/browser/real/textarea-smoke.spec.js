@@ -8,6 +8,14 @@ test.beforeEach(async ({context, page}) => {
       acePlatform: 'win',
       keyboardLayout: 'en-US'
     };
+    window.__GVIZ_SESSION_WRITE_COUNT__ = 0;
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItemWithCount(key, value) {
+      if (key === 'graph-viz.session.v1') {
+        window.__GVIZ_SESSION_WRITE_COUNT__ += 1;
+      }
+      return setItem.call(this, key, value);
+    };
   });
   await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
     await route.fulfill({
@@ -29,39 +37,78 @@ test.beforeEach(async ({context, page}) => {
   await page.goto('/apps/graph-viz/');
 });
 
-test('current textarea accepts real keyboard input and exposes state', async ({page}) => {
-  const editor = page.getByRole('textbox', {name: 'DOT source'});
-  await expect(editor).toHaveJSProperty('localName', 'textarea');
-  await editor.click();
+test('Ace accepts real keyboard input and updates the application once', async ({page}) => {
+  const host = page.locator('#dot');
+  const renderRequests = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/apps/graph-viz/render')) {
+      renderRequests.push(request);
+    }
+  });
+  await expect(host).toHaveClass(/ace_editor/);
+  await page.evaluate(() => {
+    document.querySelector('#auto-render').checked = false;
+    window.__GVIZ_SESSION_WRITE_COUNT__ = 0;
+  });
+  await host.click();
   await page.keyboard.press('Control+A');
   await page.keyboard.type('digraph smoke ');
   await page.keyboard.type('{');
   await page.keyboard.type('Alpha -> Beta');
   await page.keyboard.type('}');
 
-  await expect(editor).toHaveValue(smokeSource);
+  await expect.poll(() => page.evaluate(() => {
+    return window.__GVIZ_EDITOR_TEST__.getSource();
+  })).toBe(smokeSource);
   await expect.poll(async () => page.evaluate(() => {
     const saved = JSON.parse(localStorage.getItem('graph-viz.session.v1'));
     return saved?.source;
   })).toBe(smokeSource);
+  await expect.poll(() => page.evaluate(() => {
+    return window.__GVIZ_SESSION_WRITE_COUNT__;
+  })).toBe(1);
+  expect(renderRequests).toHaveLength(0);
 
-  const state = await editor.evaluate((element) => ({
-    active: document.activeElement === element,
-    selectionStart: element.selectionStart,
-    selectionEnd: element.selectionEnd,
+  await page.evaluate(() => {
+    document.querySelector('#auto-render').checked = true;
+  });
+  await page.keyboard.type(' ');
+  await expect.poll(() => renderRequests.length).toBe(1);
+  const finalSource = `${smokeSource} `;
+
+  const state = await page.evaluate(() => ({
+    active: document.activeElement.classList.contains('ace_text-input'),
+    selection: window.__GVIZ_EDITOR_TEST__.getSelection(),
     sourceStatus: document.querySelector('#source-status').textContent,
-    testPlatform: window.__GVIZ_BROWSER_TEST__
+    testPlatform: window.__GVIZ_BROWSER_TEST__,
+    platform: window.ace.edit(document.querySelector('#dot')).commands.platform,
+    mode: window.ace.edit(document.querySelector('#dot')).session.getMode().$id,
+    worker: window.ace.edit(document.querySelector('#dot')).session
+      .getUseWorker(),
+    options: {
+      printMargin: window.ace.edit(document.querySelector('#dot'))
+        .getShowPrintMargin(),
+      softTabs: window.ace.edit(document.querySelector('#dot')).session
+        .getUseSoftTabs(),
+      tabSize: window.ace.edit(document.querySelector('#dot')).session
+        .getTabSize(),
+      wrap: window.ace.edit(document.querySelector('#dot')).session
+        .getUseWrapMode()
+    }
   }));
   expect(state).toEqual({
     active: true,
-    selectionStart: smokeSource.length,
-    selectionEnd: smokeSource.length,
-    sourceStatus: expect.stringMatching(/^(Waiting|Ready)$/),
-    testPlatform: {acePlatform: 'win', keyboardLayout: 'en-US'}
+    selection: {start: finalSource.length, end: finalSource.length},
+    sourceStatus: expect.stringMatching(/^(Rendering|Waiting|Ready)$/),
+    testPlatform: {acePlatform: 'win', keyboardLayout: 'en-US'},
+    platform: 'win',
+    mode: 'ace/mode/dot',
+    worker: false,
+    options: {printMargin: false, softTabs: true, tabSize: 2, wrap: true}
   });
 });
 
-test('textarea editor adapter satisfies the source and range contract', async ({page}) => {
+test('Ace adapter preserves Unicode and multiline absolute offsets', async ({page}) => {
   const result = await page.evaluate(() => {
     const adapter = window.__GVIZ_EDITOR_TEST__;
     if (!adapter) throw new Error('editor adapter test hook is missing');
@@ -83,12 +130,10 @@ test('textarea editor adapter satisfies the source and range contract', async ({
     const afterRange = {
       source: adapter.getSource(),
       selection: adapter.getSelection(),
-      changes,
-      gutterLines: document.querySelector('#line-numbers').children.length
+      changes
     };
-    const textarea = document.querySelector('#dot');
-    textarea.value += 'λ';
-    textarea.dispatchEvent(new Event('input', {bubbles: true}));
+    const aceEditor = window.ace.edit(document.querySelector('#dot'));
+    aceEditor.session.insert({row: 2, column: 4}, 'λ');
     const nativeChanges = changes;
     adapter.setSource('digraph {\n  α -> β\n}', {
       selection: {start: 12, end: 18}
@@ -97,7 +142,7 @@ test('textarea editor adapter satisfies the source and range contract', async ({
     const afterDocument = {
       source: adapter.getSource(),
       selection: adapter.getSelection(),
-      focused: document.activeElement === document.querySelector('#dot'),
+      focused: document.activeElement.classList.contains('ace_text-input'),
       changes
     };
     unsubscribe();
@@ -123,8 +168,7 @@ test('textarea editor adapter satisfies the source and range contract', async ({
     afterRange: {
       source: 'A🙂\nγ\nδeta',
       selection: {start: 4, end: 7},
-      changes: 1,
-      gutterLines: 3
+      changes: 1
     },
     nativeChanges: 2,
     afterDocument: {
@@ -136,4 +180,23 @@ test('textarea editor adapter satisfies the source and range contract', async ({
     changes: 3,
     finalSelection: {start: 16, end: 16}
   });
+});
+
+test('Ace accepts clipboard paste and exposes exact multiline source', async ({
+  context,
+  page
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const pasted = 'digraph pasted {\n  α -> β\n  β -> γ\n}';
+  await page.evaluate(async (source) => {
+    const adapter = window.__GVIZ_EDITOR_TEST__;
+    document.querySelector('#auto-render').checked = false;
+    adapter.setSource('', {notify: false});
+    adapter.focus();
+    await navigator.clipboard.writeText(source);
+  }, pasted);
+  await page.keyboard.press('Control+V');
+  await expect.poll(() => page.evaluate(() => {
+    return window.__GVIZ_EDITOR_TEST__.getSource();
+  })).toBe(pasted);
 });

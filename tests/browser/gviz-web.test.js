@@ -4,6 +4,8 @@ const vm = require('node:vm');
 
 const application = process.argv[2];
 if (!application) throw new Error('usage: node gviz-web.test.js APP_JS');
+const applicationSource = fs.readFileSync(application === '-' ? 0 : application,
+  'utf8');
 
 class Element {
   constructor(localName = 'div') {
@@ -35,6 +37,9 @@ class Element {
   }
 
   addEventListener(name, callback) { this.listeners[name] = callback; }
+  removeEventListener(name, callback) {
+    if (this.listeners[name] === callback) delete this.listeners[name];
+  }
   getAttribute(name) { return this[name] ?? null; }
   setAttribute(name, value) { this[name] = value; }
   removeAttribute(name) { delete this[name]; }
@@ -186,7 +191,7 @@ function svgDocument(source) {
 }
 
 const selectors = [
-  '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
+  '#dot', '#editor-load-error', '#template', '#render', '#error', '#preview',
   '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',
   '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
@@ -234,6 +239,7 @@ elements['#help-panel'].hidden = true;
 elements['#docs-help-content'].hidden = true;
 elements['#file-context-menu'].hidden = true;
 elements['#clay-error-modal'].hidden = true;
+elements['#editor-load-error'].hidden = true;
 
 for (const [name, view, panel] of [
   ['#dot-files-tab', 'dot-files', '#dot-files-panel'],
@@ -353,6 +359,90 @@ global.localStorage = {
   getItem: (key) => saved.get(key) ?? null,
   setItem: (key, value) => saved.set(key, value)
 };
+
+class FakeAceRange {
+  constructor(startRow, startColumn, endRow, endColumn) {
+    this.start = {row: startRow, column: startColumn};
+    this.end = {row: endRow, column: endColumn};
+  }
+}
+
+function fakePositionToIndex(source, position) {
+  const lines = source.split('\n');
+  const row = Math.max(0, Math.min(lines.length - 1, position.row));
+  const column = Math.max(0, Math.min(lines[row].length, position.column));
+  return lines.slice(0, row).reduce((total, line) => {
+    return total + line.length + 1;
+  }, column);
+}
+
+function fakeIndexToPosition(source, offset) {
+  const next = Math.max(0, Math.min(source.length, offset));
+  const before = source.slice(0, next);
+  const lines = before.split('\n');
+  return {row: lines.length - 1, column: lines.at(-1).length};
+}
+
+function createFakeAceEditor(host) {
+  const changeListeners = [];
+  const session = {
+    doc: {
+      indexToPosition(offset) {
+        return fakeIndexToPosition(host.value, offset);
+      },
+      positionToIndex(position) {
+        return fakePositionToIndex(host.value, position);
+      }
+    },
+    setValue(source) {
+      host.value = source;
+      for (const listener of changeListeners) listener({action: 'setValue'});
+    },
+    replace(range, replacement) {
+      const start = fakePositionToIndex(host.value, range.start);
+      const end = fakePositionToIndex(host.value, range.end);
+      host.value = host.value.slice(0, start) + replacement
+        + host.value.slice(end);
+      for (const listener of changeListeners) listener({action: 'replace'});
+    },
+    on(name, listener) {
+      if (name === 'change') changeListeners.push(listener);
+    },
+    setMode(mode) { this.mode = mode; },
+    setUseWorker(worker) { this.worker = worker; },
+    addGutterDecoration(row, name) { this.decoration = {row, name}; },
+    removeGutterDecoration() { this.decoration = undefined; }
+  };
+  const selection = {
+    getRange() {
+      const start = fakeIndexToPosition(host.value, host.selectionStart);
+      const end = fakeIndexToPosition(host.value, host.selectionEnd);
+      return new FakeAceRange(start.row, start.column, end.row, end.column);
+    },
+    setSelectionRange(range) {
+      host.setSelectionRange(
+        fakePositionToIndex(host.value, range.start),
+        fakePositionToIndex(host.value, range.end)
+      );
+    }
+  };
+  host.listeners.input = () => {
+    for (const listener of changeListeners) listener({action: 'input'});
+  };
+  return {
+    session,
+    selection,
+    commands: {platform: 'win'},
+    textInput: {getElement: () => host},
+    getValue: () => host.value,
+    setOptions(options) { this.options = options; },
+    setTheme(theme) { this.theme = theme; },
+    focus: () => host.focus(),
+    scrollToLine(line) { host.scrollLine = line; },
+    resize() { host.resizeCount = (host.resizeCount || 0) + 1; }
+  };
+}
+
 global.window = {
   innerWidth: 1_024,
   innerHeight: 768,
@@ -366,6 +456,19 @@ global.window = {
     confirmations.push(message);
     return confirmationAnswers.shift();
   }
+};
+global.window.ace = {
+  edit: (host) => createFakeAceEditor(host),
+  require: (name) => {
+    assert.equal(name, 'ace/range');
+    return {Range: FakeAceRange};
+  }
+};
+global.window.graphVizAceAssets = {
+  mode: 'ace/mode/dot',
+  lightTheme: 'ace/theme/github',
+  darkTheme: 'ace/theme/monokai',
+  useWorker: false
 };
 global.fetch = (url, options) => new Promise((resolve, reject) => {
   requests.push({url, options, resolve, reject});
@@ -403,7 +506,7 @@ function descendants(element) {
     return [child, ...descendants(child)];
   });
 }
-vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application});
+vm.runInThisContext(applicationSource, {filename: application});
 
 (async () => {
   assert.equal(elements['#dot'].value, 'digraph saved { Alpha -> Beta }');

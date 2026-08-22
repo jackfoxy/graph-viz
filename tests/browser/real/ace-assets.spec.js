@@ -57,8 +57,6 @@ test('serves and initializes the pinned Ace modules without external requests', 
   expect((await request.get(`${aceRoot}/not-shipped.js`)).status()).toBe(404);
 
   await page.goto('/apps/graph-viz/');
-  await page.addScriptTag({url: `${aceRoot}/ace.js`});
-  await page.addScriptTag({url: `${aceRoot}/graph-viz-config.js`});
   const state = await page.evaluate(async () => {
     const load = (name) => new Promise((resolve, reject) => {
       window.ace.config.loadModule(name, (module) => {

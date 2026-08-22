@@ -80,6 +80,20 @@ Whole-document startup replacement suppresses notification. File loads,
 templates, visual edits, range edits, and native textarea input each notify
 exactly once.
 
+## Work unit 4 Ace implementation
+
+The production editor is now Ace 1.44.0. The adapter retains zero-based UTF-16
+absolute offsets while translating through the Ace document for selections and
+range edits. Programmatic document and range changes suppress Ace's native
+change event and emit one adapter notification; direct Ace edits use the
+session change event.
+
+Ace supplies its gutter, scrolling, soft-tab indentation, bracket pairing, and
+active-line display. The editor uses DOT mode, two-space soft tabs, wrapping,
+no worker, and no print margin. The initial document replacement remains
+silent. A failed runtime or configuration load hides the unusable host and
+shows an actionable alert.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

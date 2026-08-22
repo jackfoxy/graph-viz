@@ -180,12 +180,17 @@
               ;span: Draw edge
             ==
           ==
-          ;label.sr-only(for "dot"): DOT source
           ;div.editor-body
-            ;pre#line-numbers.line-numbers(aria-hidden "true");
-            ;textarea#dot
-              =spellcheck  "false"
-              =aria-label  "DOT source"
+            ;div#editor-load-error.editor-load-error
+              =hidden  ""
+              =role    "alert"
+              ;strong: DOT editor unavailable
+              ;span: Reload the page.
+              ;span: If the problem continues, verify the Ace assets are installed.
+            ==
+            ;div#dot.ace-editor-host
+              =role        "region"
+              =aria-label  "DOT source editor"
               ;+  ;/  (trip 'digraph { a -> b }')
             ==
           ==
@@ -502,6 +507,10 @@
           ;pre#clay-error-message.clay-error-message;
         ==
       ==
+      ;script(src "/apps/graph-viz/ace/ace.js");
+      ;script(src "/apps/graph-viz/ace/graph-viz-config.js");
+      ;script(src "/apps/graph-viz/ace/mode-dot.js");
+      ;script(src "/apps/graph-viz/ace/theme-github.js");
       ;script(src "/apps/graph-viz/app.js");
     ==
   ==
@@ -895,58 +904,43 @@
   }
 
   .editor-body {
-    display: flex;
     flex: 1;
     min-height: 0;
     overflow: hidden;
-  }
-
-  .line-numbers {
-    background: var(--surface-alt);
-    border-right: 1px solid var(--border);
-    color: var(--muted);
-    flex: 0 0 auto;
-    font: 0.9rem/1.55 ui-monospace, monospace;
-    margin: 0;
-    min-width: 3.5rem;
-    overflow: hidden;
-    padding: 1rem 0.65rem;
-    text-align: right;
-    user-select: none;
-  }
-
-  .line-numbers span { display: block; }
-
-  .line-numbers .error-line {
-    background: var(--editor-error);
-    color: var(--danger);
-    font-weight: 700;
+    position: relative;
   }
 
   #dot {
     background: var(--surface);
     border: 0;
-    color: inherit;
-    flex: 1;
     font: 0.9rem/1.55 ui-monospace, monospace;
+    height: 100%;
     min-height: 12rem;
     outline: none;
-    padding: 1rem;
-    resize: none;
-    tab-size: 2;
     width: 100%;
   }
 
-  #dot:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+  #dot.ace_focus { box-shadow: inset 0 0 0 2px var(--accent); }
 
-  #dot.has-error-line {
-    background-image: linear-gradient(
-      var(--danger-background), var(--danger-background)
-    );
-    background-position: 0 var(--error-line-top);
-    background-repeat: no-repeat;
-    background-size: 100% 1.4rem;
+  #dot .ace_gutter-cell.ace-error-line {
+    background: var(--editor-error);
+    color: var(--danger);
+    font-weight: 700;
   }
+
+  .editor-load-error {
+    background: var(--danger-background);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    display: grid;
+    gap: 0.5rem;
+    inset: 1rem;
+    padding: 1rem;
+    position: absolute;
+    z-index: 1;
+  }
+
+  .editor-load-error[hidden] { display: none; }
 
   .splitter {
     background: var(--border);
@@ -1431,7 +1425,7 @@
   };
   const starter = templates.flowchart;
   const dot = document.querySelector('#dot');
-  const lineNumbers = document.querySelector('#line-numbers');
+  const editorLoadError = document.querySelector('#editor-load-error');
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
   const error = document.querySelector('#error');
@@ -1589,12 +1583,37 @@
   let selectedItems = [];
   let inheritNewNodeShape = false;
 
-  function createTextareaEditorAdapter(textarea, gutter) {
+  function createAceEditorAdapter(host) {
+    if (!window.ace || !window.graphVizAceAssets) {
+      throw new Error('Ace runtime or configuration did not load');
+    }
+    const assets = window.graphVizAceAssets;
+    const AceRange = window.ace.require('ace/range').Range;
+    const aceEditor = window.ace.edit(host);
+    const session = aceEditor.session;
     const changeListeners = new Set();
     let errorLine = 0;
+    let suppressChanges = 0;
+
+    aceEditor.setOptions({
+      displayIndentGuides: true,
+      fontSize: '0.9rem',
+      highlightActiveLine: true,
+      showPrintMargin: false,
+      tabSize: 2,
+      useSoftTabs: true,
+      wrap: true
+    });
+    aceEditor.setTheme(assets.lightTheme);
+    session.setMode(assets.mode);
+    session.setUseWorker(assets.useWorker);
+    if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
+      aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
+    }
+    aceEditor.textInput.getElement().setAttribute('aria-label', 'DOT source');
 
     function getSource() {
-      return textarea.value;
+      return aceEditor.getValue();
     }
 
     function clampOffset(offset) {
@@ -1603,30 +1622,33 @@
     }
 
     function getSelection() {
+      const range = aceEditor.selection.getRange();
       return {
-        start: clampOffset(textarea.selectionStart),
-        end: clampOffset(textarea.selectionEnd)
+        start: positionToOffset(range.start),
+        end: positionToOffset(range.end)
       };
     }
 
     function setSelection(start, end = start) {
       const nextStart = clampOffset(start);
       const nextEnd = Math.max(nextStart, clampOffset(end));
-      textarea.setSelectionRange(nextStart, nextEnd);
+      const first = offsetToPosition(nextStart);
+      const last = offsetToPosition(nextEnd);
+      aceEditor.selection.setSelectionRange(new AceRange(
+        first.row,
+        first.column,
+        last.row,
+        last.column
+      ));
     }
 
     function offsetToPosition(offset) {
-      const source = getSource();
-      const nextOffset = clampOffset(offset);
-      const lineStart = source.lastIndexOf('\n', nextOffset - 1) + 1;
-      return {
-        row: source.slice(0, nextOffset).split('\n').length - 1,
-        column: nextOffset - lineStart
-      };
+      return session.doc.indexToPosition(clampOffset(offset), 0);
     }
 
     function positionToOffset(position) {
-      const lines = getSource().split('\n');
+      const source = getSource();
+      const lines = source.split('\n');
       const requestedRow = Number.isFinite(position?.row)
         ? Math.trunc(position.row)
         : 0;
@@ -1635,102 +1657,81 @@
         ? Math.trunc(position.column)
         : 0;
       const column = Math.max(0, Math.min(lines[row].length, requestedColumn));
-      let offset = column;
-      for (let index = 0; index < row; index += 1) {
-        offset += lines[index].length + 1;
-      }
-      return offset;
-    }
-
-    function syncScroll() {
-      gutter.scrollTop = textarea.scrollTop;
-      if (!errorLine) return;
-      const style = getComputedStyle(textarea);
-      const lineHeight = parseFloat(style.lineHeight);
-      const paddingTop = parseFloat(style.paddingTop);
-      const top = paddingTop + (errorLine - 1) * lineHeight
-        - textarea.scrollTop;
-      textarea.style.setProperty('--error-line-top', `${top}px`);
-    }
-
-    function refresh() {
-      const count = getSource().split('\n').length;
-      const numbers = document.createDocumentFragment();
-      for (let number = 1; number <= count; number += 1) {
-        const item = document.createElement('span');
-        item.textContent = String(number);
-        if (number === errorLine) item.className = 'error-line';
-        numbers.append(item);
-      }
-      gutter.replaceChildren(numbers);
-      syncScroll();
+      return session.doc.positionToIndex({row, column}, 0);
     }
 
     function notifyChange() {
-      refresh();
       for (const listener of changeListeners) listener();
     }
 
-    function setSource(source, options = {}) {
-      textarea.value = source;
-      const selection = options.selection || {
-        start: source.length,
-        end: source.length
-      };
-      setSelection(selection.start, selection.end);
-      if (options.notify === false) {
-        refresh();
-      } else {
-        notifyChange();
+    function mutate(change, notify) {
+      suppressChanges += 1;
+      try {
+        change();
+      } finally {
+        suppressChanges -= 1;
       }
+      if (notify !== false) notifyChange();
+    }
+
+    function setSource(source, options = {}) {
+      mutate(() => {
+        session.setValue(source);
+        const selection = options.selection || {
+          start: source.length,
+          end: source.length
+        };
+        setSelection(selection.start, selection.end);
+      }, options.notify);
     }
 
     function replaceRange(start, end, replacement, options = {}) {
       const rangeStart = clampOffset(start);
       const rangeEnd = Math.max(rangeStart, clampOffset(end));
-      textarea.setRangeText(
-        replacement,
-        rangeStart,
-        rangeEnd,
-        'preserve'
-      );
-      const replacementEnd = rangeStart + replacement.length;
-      if (options.selection && typeof options.selection === 'object') {
-        setSelection(options.selection.start, options.selection.end);
-      } else if (options.selection === 'select') {
-        setSelection(rangeStart, replacementEnd);
-      } else if (options.selection === 'start') {
-        setSelection(rangeStart);
-      } else {
-        setSelection(replacementEnd);
-      }
-      if (options.notify === false) {
-        refresh();
-      } else {
-        notifyChange();
-      }
+      const first = offsetToPosition(rangeStart);
+      const last = offsetToPosition(rangeEnd);
+      mutate(() => {
+        session.replace(new AceRange(
+          first.row,
+          first.column,
+          last.row,
+          last.column
+        ), replacement);
+        const replacementEnd = rangeStart + replacement.length;
+        if (options.selection && typeof options.selection === 'object') {
+          setSelection(options.selection.start, options.selection.end);
+        } else if (options.selection === 'select') {
+          setSelection(rangeStart, replacementEnd);
+        } else if (options.selection === 'start') {
+          setSelection(rangeStart);
+        } else {
+          setSelection(replacementEnd);
+        }
+      }, options.notify);
     }
 
     function selectRange(start, end, options = {}) {
       setSelection(start, end);
-      if (options.focus) textarea.focus();
+      if (options.focus) aceEditor.focus();
       if (options.reveal) {
         const position = offsetToPosition(start);
-        const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
-        textarea.scrollTop = Math.max(0, (position.row - 1) * lineHeight);
-        syncScroll();
+        aceEditor.scrollToLine(position.row + 1, true, true);
       }
     }
 
     function setErrorLine(line) {
-      errorLine = Number.isFinite(line) && line > 0 ? line : 0;
-      textarea.classList.toggle('has-error-line', errorLine > 0);
-      refresh();
+      if (errorLine > 0) {
+        session.removeGutterDecoration(errorLine - 1, 'ace-error-line');
+      }
+      errorLine = Number.isFinite(line) && line > 0 ? Math.trunc(line) : 0;
+      if (errorLine > 0) {
+        session.addGutterDecoration(errorLine - 1, 'ace-error-line');
+      }
     }
 
-    textarea.addEventListener('input', notifyChange);
-    textarea.addEventListener('scroll', syncScroll);
-    refresh();
+    session.on('change', () => {
+      if (!suppressChanges) notifyChange();
+    });
 
     return {
       getSource,
@@ -1741,23 +1742,32 @@
       selectRange,
       offsetToPosition,
       positionToOffset,
-      focus: () => textarea.focus(),
+      focus: () => aceEditor.focus(),
       onChange(listener) {
         changeListeners.add(listener);
         return () => changeListeners.delete(listener);
       },
       onKeydown(listener) {
-        textarea.addEventListener('keydown', listener);
+        host.addEventListener('keydown', listener);
+        return () => host.removeEventListener('keydown', listener);
       },
       containsTarget(target) {
-        return target === textarea || textarea.contains(target);
+        return target === host || host.contains(target);
       },
       setErrorLine,
-      refresh
+      refresh: () => aceEditor.resize(true)
     };
   }
 
-  const editor = createTextareaEditorAdapter(dot, lineNumbers);
+  let editor;
+  try {
+    editor = createAceEditorAdapter(dot);
+  } catch (cause) {
+    dot.hidden = true;
+    editorLoadError.hidden = false;
+    editorLoadError.title = String(cause);
+    throw cause;
+  }
   if (window.__GVIZ_BROWSER_TEST__) {
     window.__GVIZ_EDITOR_TEST__ = editor;
   }
@@ -2612,6 +2622,7 @@
       maxExplorerWidth()
     );
     workbench.style.setProperty('--explorer-width', `${nextWidth}px`);
+    if (editor) requestAnimationFrame(() => editor.refresh());
   }
 
   function saveSession() {
@@ -3950,69 +3961,6 @@
     }
   }
 
-  function handleTab(event) {
-    event.preventDefault();
-    const indent = '  ';
-    const source = editor.getSource();
-    const {start, end} = editor.getSelection();
-    if (start === end && !event.shiftKey) {
-      editor.replaceRange(start, end, indent);
-      return;
-    }
-    const lineStart = source.lastIndexOf('\n', start - 1) + 1;
-    if (start === end) {
-      const match = source.slice(lineStart, lineStart + 2).match(/^ {1,2}/);
-      if (!match) return;
-      const cursor = Math.max(lineStart, start - match[0].length);
-      editor.replaceRange(
-        lineStart,
-        lineStart + match[0].length,
-        '',
-        {selection: {start: cursor, end: cursor}}
-      );
-      return;
-    }
-    const block = source.slice(lineStart, end);
-    const replacement = block.split('\n').map((line) => {
-      return event.shiftKey ? line.replace(/^ {1,2}/, '') : indent + line;
-    }).join('\n');
-    editor.replaceRange(
-      lineStart,
-      end,
-      replacement,
-      {selection: 'select'}
-    );
-  }
-
-  function handleEditorKeydown(event) {
-    if (event.key === 'Tab') {
-      handleTab(event);
-      return;
-    }
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    const pairs = {'{': '}', '[': ']', '(': ')', '"': '"'};
-    const closers = Object.values(pairs);
-    const source = editor.getSource();
-    const {start, end} = editor.getSelection();
-    if (start === end && closers.includes(event.key)
-      && source[start] === event.key) {
-      event.preventDefault();
-      editor.setSelection(start + 1);
-      return;
-    }
-    const closing = pairs[event.key];
-    const escapedQuote = event.key === '"' && source[start - 1] === '\\';
-    if (!closing || escapedQuote) return;
-    event.preventDefault();
-    const selected = source.slice(start, end);
-    editor.replaceRange(
-      start,
-      end,
-      event.key + selected + closing,
-      {selection: {start: start + 1, end: end + 1}}
-    );
-  }
-
   function insertTemplate() {
     const source = templates[template.value];
     if (!source) return;
@@ -4188,7 +4136,6 @@
     themeMedia.addListener(systemThemeChanged);
   }
   editor.onChange(editorChanged);
-  editor.onKeydown(handleEditorKeydown);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fullscreenZoomOut.addEventListener(
@@ -4320,6 +4267,7 @@
     const percent = ((event.clientX - bounds.left) / bounds.width) * 100;
     const width = Math.max(25, Math.min(70, percent));
     workspace.style.setProperty('--editor-width', `${width}%`);
+    editor.refresh();
     queueSaveSession();
   });
 
@@ -4331,6 +4279,7 @@
     const change = event.key === 'ArrowLeft' ? -2 : 2;
     const width = Math.max(25, Math.min(70, current + change));
     workspace.style.setProperty('--editor-width', `${width}%`);
+    editor.refresh();
     queueSaveSession();
   });
 
@@ -4344,7 +4293,10 @@
   });
   document.addEventListener('fullscreenchange', updateFullscreenControl);
   window.addEventListener('beforeunload', saveSession);
-  window.addEventListener('resize', () => closeFileContext());
+  window.addEventListener('resize', () => {
+    closeFileContext();
+    editor.refresh();
+  });
   const savedSession = loadSession();
   applyTheme(savedSession?.theme || 'system', false);
   let initialProblem = '';

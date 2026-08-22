@@ -168,7 +168,11 @@ async function main() {
   server.listen(4173, '127.0.0.1');
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+module.exports = {compileAssets};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
