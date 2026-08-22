@@ -512,6 +512,7 @@
       ;script(src "/apps/graph-viz/ace/graph-viz-config.js");
       ;script(src "/apps/graph-viz/ace/mode-dot.js");
       ;script(src "/apps/graph-viz/ace/theme-github.js");
+      ;script(src "/apps/graph-viz/ace/ext-beautify.js");
       ;script(src "/apps/graph-viz/app.js");
     ==
   ==
@@ -1595,6 +1596,10 @@
     }
     const assets = window.graphVizAceAssets;
     const AceRange = window.ace.require('ace/range').Range;
+    const beautify = window.ace.require('ace/ext/beautify');
+    if (!Array.isArray(beautify?.commands)) {
+      throw new Error('Ace Beautify extension did not load');
+    }
     const aceEditor = window.ace.edit(host);
     const session = aceEditor.session;
     const changeListeners = new Set();
@@ -1621,6 +1626,8 @@
     if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
       aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
     }
+    aceEditor.commands.addCommands(beautify.commands);
+    aceEditor.commands.bindKey('Ctrl-T', 'transposeletters');
     textInput.setAttribute('aria-label', 'DOT source editor');
     textInput.setAttribute('aria-labelledby', 'dot-source-heading');
     textInput.setAttribute('aria-describedby', 'error editor-load-error');

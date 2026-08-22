@@ -177,6 +177,26 @@ includes every alternate and separately executes the duplicated `Ctrl-P` and
 and Scroll page up—are recorded as Windows/Linux exclusions and are not sent
 as keyboard events.
 
+## Work unit 10 remaining shortcuts and final accounting
+
+Every Windows/Linux binding in Multicursor, Find/Replace, Folding, and Other
+is exercised with real Chromium keyboard events and an observable editor or UI
+result. This tranche covers 49 source rows and 50 binding executions. Fold all
+comments and Center selection are the two `---` exclusions. Undo, redo, macro
+recording, and macro replay receive basic smoke coverage here; their full
+history and sequence matrices remain assigned to work units 11 and 12.
+
+Across work units 9 and 10, all 100 source rows and 102 binding executions are
+accounted for: 97 unique bindings, five exclusions, and five duplicate keys.
+The duplicate keys are `Ctrl-Shift-P`, `Ctrl-P`, `Ctrl-Shift-L`, `Ctrl-U`, and
+`Ctrl-Shift-U`. `Ctrl-Enter` remains the single application override.
+
+The pinned Ace bundle binds `transposeletters` to `Alt-Shift-X`, although the
+source table specifies `Ctrl-T`; Graph Viz registers `Ctrl-T` as a compatibility
+alias. The pinned `Alt-0` command is `foldOther`, which supplies the documented
+Fold all behavior. Beautify is loaded and registered before the editor binds
+and tests `Ctrl-Shift-B`.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

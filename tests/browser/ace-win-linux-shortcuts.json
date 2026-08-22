@@ -8,7 +8,7 @@
     "acePlatform": "win",
     "hostPlatform": "linux",
     "keyboardLayout": "en-US",
-    "status": "conflicts-finalized"
+    "status": "default-shortcuts-complete"
   },
   "ownership": {
     "application": [
@@ -40,6 +40,43 @@
       "duplicates": [
         {"binding":"Ctrl-Shift-P","rows":["Selection: Select to matching bracket","Selection: Select to matching"]},
         {"binding":"Ctrl-P","rows":["Selection: Jump to matching","Go to: Go to matching bracket"]}
+      ]
+    },
+    "workUnit10": {
+      "status": "real-browser",
+      "groups": ["Multicursor", "Find/Replace", "Folding", "Other"],
+      "sourceRows": 49,
+      "bindingExecutions": 50,
+      "exclusions": ["Folding: Fold all comments", "Other: Center selection"],
+      "basicSmoke": ["Other: Undo", "Other: Redo", "Other: Macros replay", "Other: Macros recording"]
+    },
+    "global": {
+      "status": "complete",
+      "sourceRows": 100,
+      "bindingExecutions": 102,
+      "uniqueBindings": 97,
+      "exclusions": [
+        "Line Operations: Split line",
+        "Go to: Scroll page down",
+        "Go to: Scroll page up",
+        "Folding: Fold all comments",
+        "Other: Center selection"
+      ],
+      "duplicates": [
+        {"binding":"Ctrl-Shift-P","rows":["Selection: Select to matching bracket","Selection: Select to matching"]},
+        {"binding":"Ctrl-P","rows":["Selection: Jump to matching","Go to: Go to matching bracket"]},
+        {"binding":"Ctrl-Shift-L","rows":["Selection: Expand to line","Multicursor: Select all from multi-selection"]},
+        {"binding":"Ctrl-Shift-U","rows":["Other: Change to lower case","Other: To lowercase"]},
+        {"binding":"Ctrl-U","rows":["Other: Change to upper case","Other: To uppercase"]}
+      ],
+      "overrides": [
+        {"binding":"Ctrl-Enter","owner":"Graph Viz","action":"Render now","aceAction":"Enter full screen"}
+      ],
+      "compatibilityAliases": [
+        {"binding":"Ctrl-T","command":"transposeletters","pinnedAceBinding":"Alt-Shift-X"}
+      ],
+      "pinnedMappings": [
+        {"binding":"Alt-0","command":"foldOther","wikiAction":"Fold all"}
       ]
     }
   },

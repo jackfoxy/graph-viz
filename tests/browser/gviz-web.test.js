@@ -451,7 +451,11 @@ function createFakeAceEditor(host) {
   return {
     session,
     selection,
-    commands: {platform: 'win'},
+    commands: {
+      platform: 'win',
+      addCommands(commands) { this.addedCommands = commands; },
+      bindKey(key, command) { this.boundKey = {key, command}; }
+    },
     textInput: {getElement: () => host},
     getValue: () => host.value,
     setOptions(options) { this.options = options; },
@@ -482,8 +486,9 @@ global.window = {
 global.window.ace = {
   edit: (host) => createFakeAceEditor(host),
   require: (name) => {
-    assert.equal(name, 'ace/range');
-    return {Range: FakeAceRange};
+    if (name === 'ace/range') return {Range: FakeAceRange};
+    assert.equal(name, 'ace/ext/beautify');
+    return {commands: [{name: 'beautify'}]};
   }
 };
 global.window.graphVizAceAssets = {

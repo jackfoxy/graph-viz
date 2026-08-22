@@ -13,7 +13,7 @@ test('manifest pins the Windows/Linux test environment', () => {
   assert.equal(manifest.scope.acePlatform, 'win');
   assert.equal(manifest.scope.hostPlatform, 'linux');
   assert.equal(manifest.scope.keyboardLayout, 'en-US');
-  assert.equal(manifest.scope.status, 'conflicts-finalized');
+  assert.equal(manifest.scope.status, 'default-shortcuts-complete');
   assert.match(manifest.source.revision, /^[0-9a-f]{40}$/);
 });
 
@@ -84,6 +84,65 @@ test('manifest records complete work unit 9 shortcut coverage', () => {
       ]
     }]
   });
+});
+
+test('manifest records complete work unit 10 shortcut coverage', () => {
+  assert.deepEqual(manifest.coverage.workUnit10, {
+    status: 'real-browser',
+    groups: ['Multicursor', 'Find/Replace', 'Folding', 'Other'],
+    sourceRows: 49,
+    bindingExecutions: 50,
+    exclusions: [
+      'Folding: Fold all comments',
+      'Other: Center selection'
+    ],
+    basicSmoke: [
+      'Other: Undo',
+      'Other: Redo',
+      'Other: Macros replay',
+      'Other: Macros recording'
+    ]
+  });
+});
+
+test('manifest records final global shortcut accounting', () => {
+  const rowsByBinding = new Map();
+  for (const row of manifest.rows) {
+    for (const binding of row.bindings) {
+      if (!rowsByBinding.has(binding)) rowsByBinding.set(binding, []);
+      rowsByBinding.get(binding).push(`${row.group}: ${row.action}`);
+    }
+  }
+  const duplicates = Array.from(rowsByBinding.entries())
+    .filter(([, rows]) => rows.length > 1)
+    .map(([binding, rows]) => ({binding, rows}));
+  const global = manifest.coverage.global;
+  assert.equal(global.status, 'complete');
+  assert.equal(global.sourceRows, manifest.rows.length);
+  assert.equal(global.bindingExecutions, manifest.rows.reduce((count, row) => {
+    return count + row.bindings.length;
+  }, 0));
+  assert.equal(global.uniqueBindings, rowsByBinding.size);
+  assert.deepEqual(global.exclusions, manifest.rows
+    .filter((row) => !row.bindings.length)
+    .map((row) => `${row.group}: ${row.action}`));
+  assert.deepEqual(global.duplicates, duplicates);
+  assert.deepEqual(global.overrides, [{
+    binding: 'Ctrl-Enter',
+    owner: 'Graph Viz',
+    action: 'Render now',
+    aceAction: 'Enter full screen'
+  }]);
+  assert.deepEqual(global.compatibilityAliases, [{
+    binding: 'Ctrl-T',
+    command: 'transposeletters',
+    pinnedAceBinding: 'Alt-Shift-X'
+  }]);
+  assert.deepEqual(global.pinnedMappings, [{
+    binding: 'Alt-0',
+    command: 'foldOther',
+    wikiAction: 'Fold all'
+  }]);
 });
 
 test('manifest accounts for every official source row', () => {
