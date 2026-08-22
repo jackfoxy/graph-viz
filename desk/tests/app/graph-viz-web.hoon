@@ -106,6 +106,17 @@
     (expect !>(?=(^ (find "Graph Viz" (trip (response-body -.out))))))
   ==
 ::
+++  test-web-page-query
+  =/  out
+    (poke-http (request %'GET' '/apps/graph-viz/?dot=ZGlncmFwaCB7fQ' ~))
+  ;:  weld
+    (expect-eq !>(200) !>((response-status -.out)))
+    %+  expect-eq
+      !>(~[['content-type' 'text/html; charset=utf-8']])
+    !>((response-headers -.out))
+    (expect !>(?=(^ (find "Graph Viz" (trip (response-body -.out))))))
+  ==
+::
 ++  test-web-javascript
   =/  out  (poke-http (request %'GET' '/apps/graph-viz/app.js' ~))
   ;:  weld

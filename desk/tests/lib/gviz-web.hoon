@@ -14,6 +14,7 @@
     (expect !>(?=(^ (find "/apps/graph-viz/ace/mode-dot.js" (trip html)))))
     (expect !>(?=(^ (find "/apps/graph-viz/ace/theme-github.js" (trip html)))))
     (expect !>(?=(^ (find "/apps/graph-viz/ace/ext-beautify.js" (trip html)))))
+    (expect !>(?=(~ (find "<script src=\"http" (trip html)))))
     (expect !>(?=(^ (find "id=\"workspace\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"splitter\"" (trip html)))))
     (expect !>(?=(~ (find "id=\"download\"" (trip html)))))

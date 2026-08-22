@@ -67,7 +67,9 @@
 ++  handle-http
   |=  [eyre-id=@ta req=inbound-request:eyre]
   ^-  (quip card _this)
-  =/  url=tape  (trip url.request.req)
+  =/  raw-url=tape  (trip url.request.req)
+  =/  query=(unit @ud)  (find "?" raw-url)
+  =/  url=tape  ?~(query raw-url (scag u.query raw-url))
   =/  method  method.request.req
   ?:  ?&  =(%'GET' method)  =("/apps/graph-viz" url)  ==
     :_  this

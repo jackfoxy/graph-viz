@@ -32,6 +32,14 @@ unchanged.
 Clay-backed DOT and SVG files are stored below `/data/graph-viz`. Browser
 path prompts and file trees keep this storage root hidden.
 
+The DOT source surface is Ace 1.44.0 with its Windows/Linux key map, DOT mode,
+two-space soft tabs, wrapping, and matching light/dark themes. Ace and every
+runtime extension are vendored below `desk/web/ace` and served from the app's
+same-origin `/apps/graph-viz/ace/` routes; installed desks do not need a CDN or
+frontend package registry. Application code accesses source, selections,
+history boundaries, diagnostics, focus, themes, and resize notifications only
+through the editor adapter in `desk/lib/gviz-web.hoon`.
+
 ![Graph Viz editor rendering the flowchart template](docs/screenshots/editor.png)
 
 ![Responsive Graph Viz editor](docs/screenshots/mobile.png)
@@ -89,6 +97,15 @@ The Ace Windows/Linux shortcut inventory is checked independently with:
 
 ```bash
 npm run test:shortcuts
+```
+
+Compile the current Hoon-generated page and run the complete pinned Chromium
+suite, including all shortcut, undo/redo, and macro cases, with:
+
+```bash
+npm ci
+npx playwright install chromium
+VERE=~/piers/urbit npm run test:browser:real
 ```
 
 The suite covers rendering, out-of-order response suppression, structured

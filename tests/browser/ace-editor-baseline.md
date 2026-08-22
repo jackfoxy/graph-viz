@@ -270,3 +270,26 @@ GVIZ_URL=http://localhost:8080 tests/browser/run-real.sh
 ```
 
 The test itself makes no external network requests.
+
+## Work unit 13 release state
+
+The pre-Ace inventory above remains as migration history; it no longer
+describes the production editor. Production source access is exclusively
+through `createAceEditorAdapter()`. The old textarea editor, custom gutter,
+scroll synchronization, input handler, and indentation handler are absent.
+The remaining temporary textarea is only a clipboard fallback and never holds
+the DOT document.
+
+The synthetic browser harness now drives the same adapter contract and keeps
+its fake Ace document state outside the host element. Real-browser smoke,
+surface, lifecycle, visual-editing, failure, shortcut, undo/redo, and macro
+tests run against the vendored Ace runtime. The Windows/Linux shortcut report
+accounts for 100 source rows, 102 executions, 97 unique bindings, five
+documented exclusions, five duplicate keys, and the single `Ctrl-Enter`
+application override.
+
+Known limitations are deliberate: only the Windows/Linux key map and `en-US`
+layout are certified; the five manifest rows with no Windows/Linux keystroke
+are inventory-only; Ace's unavailable full-screen command remains replaced by
+Graph Viz render on `Ctrl-Enter`; DOT mode has no worker; and browser clipboard
+permissions can force the local fallback path.

@@ -630,8 +630,9 @@
 
   button, select { cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--accent); }
-  button:focus-visible, select:focus-visible, input:focus-visible,
-  textarea:focus-visible { outline: 3px solid var(--focus); }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 3px solid var(--focus);
+  }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
 
   .primary {

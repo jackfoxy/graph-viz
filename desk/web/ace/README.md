@@ -31,6 +31,13 @@ No worker is shipped because the DOT mode has no language worker and the
 integration sets `useWorker` to false. No source maps, snippets, alternate
 keybindings, or unused modes/themes/extensions are shipped.
 
+`graph-viz-config.js` fixes Ace's base, mode, theme, and worker paths to the
+same-origin `/apps/graph-viz/ace` route. The Gall agent imports each file with
+an explicit `%js` or `%txt` Ford import and serves an explicit route, avoiding
+Clay path inference and runtime network fallback. `tests/browser/real/
+ace-assets.spec.js` verifies every route, content type, Clay-safe line length,
+module load, pinned version, and the absence of cross-origin requests.
+
 Trailing whitespace is stripped from the upstream JavaScript so desk diff
 checks remain clean. The checked-in SHA-256 hashes are:
 
