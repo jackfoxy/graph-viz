@@ -56,8 +56,8 @@ remaining Ace command path.
 | `Ctrl-0` | Fit preview. | No exact default (`Alt-0` folds all). | Graph Viz owns it. |
 | `Ctrl-1` | Reset preview. | No default in the official table. | Graph Viz owns it. |
 
-The checked-in manifest is an inventory only. It deliberately makes no claim
-that Ace commands have been implemented or tested in this textarea baseline.
+At this baseline the checked-in manifest was inventory only. Work unit 8
+finalizes its ownership and exception records after Ace integration.
 
 ## Editor adapter contract
 
@@ -143,6 +143,25 @@ window events request a coalesced resize. This covers restored dimensions,
 divider extremes, responsive layout changes, and Help/document tab changes.
 The Ace input is labelled by the visible DOT source heading, described by both
 error regions, exposes invalid parse state, and retains a visible focus ring.
+
+## Work unit 8 shortcut boundaries
+
+Graph Viz owns exact `Ctrl-Enter`, `Ctrl-S`, `Ctrl-Shift-S`, `Ctrl-0`, and
+`Ctrl-1` chords at document capture phase, so each application command fires
+once even while Ace is focused. Extra modifiers are not ignored: notably,
+Ace retains `Ctrl-Alt-S` for Sort Lines.
+
+Delete and Escape actions on the rendered graph are limited to focused preview
+content. Help Escape is limited to the focused explorer, while open Clay-error
+and file-context overlays retain first priority and restore focus when closed.
+Ace focus is detected through its host, active internal text input, and editor
+focus state, so Delete, Backspace, Escape, Tab, and Shift-Tab remain editor
+commands while DOT editing.
+
+The official table calls `Ctrl-Enter` “Enter full screen,” but the pinned
+standalone Ace bundle exposes no corresponding command to invoke directly.
+The finalized manifest records that exception; Graph Viz preview fullscreen
+remains available through its button.
 
 ## Real-browser test environment
 

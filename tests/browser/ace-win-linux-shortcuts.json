@@ -8,7 +8,27 @@
     "acePlatform": "win",
     "hostPlatform": "linux",
     "keyboardLayout": "en-US",
-    "status": "inventory-only"
+    "status": "conflicts-finalized"
+  },
+  "ownership": {
+    "application": [
+      {"binding":"Ctrl-Enter","action":"Render now","aceAction":"Enter full screen","resolution":"Graph Viz capture-phase override"},
+      {"binding":"Ctrl-S","action":"Save DOT","aceAction":null,"resolution":"Graph Viz capture-phase command"},
+      {"binding":"Ctrl-Shift-S","action":"Save SVG","aceAction":null,"resolution":"Graph Viz capture-phase command"},
+      {"binding":"Ctrl-0","action":"Fit preview","aceAction":null,"resolution":"Graph Viz capture-phase command"},
+      {"binding":"Ctrl-1","action":"Reset preview","aceAction":null,"resolution":"Graph Viz capture-phase command"}
+    ],
+    "contextual": [
+      {"binding":"Delete","applicationContext":"focused SVG preview with one selection","aceContext":"focused DOT editor","aceAction":"Delete"},
+      {"binding":"Backspace","applicationContext":null,"aceContext":"focused DOT editor","aceAction":"Backspace"},
+      {"binding":"Escape","applicationContext":"open modal or context menu; focused Help tab or SVG preview","aceContext":"focused DOT editor when no application overlay is open","aceAction":"editor transient dismissal"},
+      {"binding":"Tab","applicationContext":"browser focus traversal outside the editor","aceContext":"focused DOT editor","aceAction":"Indent"},
+      {"binding":"Shift-Tab","applicationContext":"browser focus traversal outside the editor","aceContext":"focused DOT editor","aceAction":"Outdent"},
+      {"binding":"Ctrl-Alt-S","applicationContext":null,"aceContext":"focused DOT editor","aceAction":"Sort lines"}
+    ],
+    "exceptions": [
+      {"binding":"Ctrl-Enter","aceAction":"Enter full screen","directCommandTest":"not-applicable","reason":"The pinned standalone Ace bundle exposes no fullscreen command; Graph Viz preview fullscreen remains button-driven."}
+    ]
   },
   "rows": [
     {"group":"Line Operations","windowsLinux":"Ctrl-D","bindings":["Ctrl-D"],"action":"Remove line"},

@@ -1538,6 +1538,7 @@
   let contextFileKind;
   let contextFilePath;
   let contextFileSource;
+  let clayErrorReturnFocus;
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1821,6 +1822,12 @@
       },
       containsTarget(target) {
         return target === host || host.contains(target);
+      },
+      isFocused(target) {
+        const active = document.activeElement;
+        return target === host || host.contains(target)
+          || active === host || host.contains(active)
+          || Boolean(aceEditor.isFocused?.());
       },
       setDiagnostic,
       setTheme(effective) {
@@ -2328,6 +2335,9 @@
   }
 
   function showClayError(cause) {
+    if (!clayErrorModal.contains(document.activeElement)) {
+      clayErrorReturnFocus = document.activeElement;
+    }
     clayErrorMessage.textContent = String(cause);
     clayErrorModal.hidden = false;
     closeClayError.focus();
@@ -2335,6 +2345,8 @@
 
   function hideClayError() {
     clayErrorModal.hidden = true;
+    clayErrorReturnFocus?.focus?.();
+    clayErrorReturnFocus = undefined;
   }
 
   function closeFileContext(restoreFocus = false) {
@@ -4084,52 +4096,64 @@
   }
 
   function handleShortcut(event) {
-    if (event.key === 'Escape' && !clayErrorModal.hidden) {
+    const consume = () => {
       event.preventDefault();
+      event.stopPropagation?.();
+    };
+    if (event.key === 'Escape' && !clayErrorModal.hidden) {
+      consume();
       hideClayError();
       return;
     }
     if (event.key === 'Escape' && !fileContextMenu.hidden) {
-      event.preventDefault();
+      consume();
       closeFileContext(true);
       return;
     }
-    if (event.key === 'Escape' && explorerView === helpExplorerView) {
-      event.preventDefault();
+    const primary = (event.ctrlKey || event.metaKey) && !event.altKey;
+    const key = event.key.toLowerCase();
+    if (primary && !event.shiftKey && event.key === 'Enter') {
+      consume();
+      renderNow();
+      return;
+    }
+    if (primary && key === 's') {
+      consume();
+      if (event.shiftKey) saveCurrentSvg();
+      else saveCurrentDot();
+      return;
+    }
+    if (primary && !event.shiftKey && event.key === '0') {
+      consume();
+      fitToWindow();
+      return;
+    }
+    if (primary && !event.shiftKey && event.key === '1') {
+      consume();
+      resetGraphView();
+      return;
+    }
+    if (editor.isFocused(event.target)) return;
+    const focus = event.target || document.activeElement;
+    const inExplorer = focus === explorerPane || explorerPane.contains(focus);
+    if (event.key === 'Escape' && explorerView === helpExplorerView
+      && inExplorer) {
+      consume();
       closeHelpTab();
       help.focus();
       return;
     }
-    if (event.key === 'Escape' && selectedItems.length) {
-      event.preventDefault();
+    const inPreview = focus === preview || preview.contains(focus);
+    if (event.key === 'Escape' && selectedItems.length && inPreview) {
+      consume();
       clearVisualSelection();
       preview.focus();
       return;
     }
     if (event.key === 'Delete' && selectedItems.length === 1
-      && !editor.containsTarget(event.target)
-      && !event.target?.matches?.('input, textarea, select')) {
-      event.preventDefault();
+      && inPreview) {
+      consume();
       deleteSelectedItem();
-      return;
-    }
-    if (!event.ctrlKey && !event.metaKey) return;
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      renderNow();
-    } else if (event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      if (event.shiftKey) {
-        saveCurrentSvg();
-      } else {
-        saveCurrentDot();
-      }
-    } else if (event.key === '0') {
-      event.preventDefault();
-      fitToWindow();
-    } else if (event.key === '1') {
-      event.preventDefault();
-      resetGraphView();
     }
   }
 
@@ -4402,7 +4426,7 @@
     queueSaveSession();
   });
 
-  document.addEventListener('keydown', handleShortcut);
+  document.addEventListener('keydown', handleShortcut, {capture: true});
   document.addEventListener('click', (event) => {
     if (fileContextMenu.hidden || fileContextMenu.contains(event.target)) {
       return;

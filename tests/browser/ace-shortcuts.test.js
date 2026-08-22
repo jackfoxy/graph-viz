@@ -13,8 +13,50 @@ test('manifest pins the Windows/Linux test environment', () => {
   assert.equal(manifest.scope.acePlatform, 'win');
   assert.equal(manifest.scope.hostPlatform, 'linux');
   assert.equal(manifest.scope.keyboardLayout, 'en-US');
-  assert.equal(manifest.scope.status, 'inventory-only');
+  assert.equal(manifest.scope.status, 'conflicts-finalized');
   assert.match(manifest.source.revision, /^[0-9a-f]{40}$/);
+});
+
+test('manifest finalizes Graph Viz and Ace shortcut ownership', () => {
+  assert.deepEqual(
+    manifest.ownership.application.map((entry) => entry.binding),
+    ['Ctrl-Enter', 'Ctrl-S', 'Ctrl-Shift-S', 'Ctrl-0', 'Ctrl-1']
+  );
+  for (const entry of manifest.ownership.application) {
+    assert.ok(entry.action);
+    assert.ok(entry.resolution);
+  }
+  assert.deepEqual(
+    manifest.ownership.contextual.map((entry) => entry.binding),
+    ['Delete', 'Backspace', 'Escape', 'Tab', 'Shift-Tab', 'Ctrl-Alt-S']
+  );
+  for (const entry of manifest.ownership.contextual) {
+    assert.ok(entry.applicationContext || entry.aceContext);
+    assert.ok(entry.aceAction);
+  }
+  assert.deepEqual(manifest.ownership.exceptions, [{
+    binding: 'Ctrl-Enter',
+    aceAction: 'Enter full screen',
+    directCommandTest: 'not-applicable',
+    reason: 'The pinned standalone Ace bundle exposes no fullscreen command; '
+      + 'Graph Viz preview fullscreen remains button-driven.'
+  }]);
+});
+
+test('manifest accounts for each resolved official conflict', () => {
+  const official = new Map();
+  for (const row of manifest.rows) {
+    for (const binding of row.bindings) official.set(binding, row.action);
+  }
+  assert.equal(official.get('Ctrl-Enter'), 'Enter full screen');
+  assert.equal(official.get('Delete'), 'Delete');
+  assert.equal(official.get('Tab'), 'Indent');
+  assert.equal(official.get('Shift-Tab'), 'Outdent');
+  assert.equal(official.get('Ctrl-Alt-S'), 'Sort lines');
+  assert.equal(official.has('Ctrl-S'), false);
+  assert.equal(official.has('Ctrl-Shift-S'), false);
+  assert.equal(official.has('Ctrl-0'), false);
+  assert.equal(official.has('Ctrl-1'), false);
 });
 
 test('manifest accounts for every official source row', () => {
