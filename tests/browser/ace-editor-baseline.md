@@ -220,6 +220,27 @@ selection, and history revision. Auto-render receives one exact source per
 edit, undo, or redo; session persistence records each changed source once even
 when later view-state updates rewrite the same session.
 
+## Work unit 12 macro recording and playback
+
+Windows/Linux macro coverage drives `Ctrl-Alt-E` and `Ctrl-Shift-E` through
+real keyboard events. Recorded sequences include text, navigation, selection,
+deletion, indentation, multiline insertion, Unicode, DOT punctuation, undo,
+redo, selection replacement, and multi-cursor edits. Playback is verified at
+multiple positions, across repeated runs, and through exact source, anchor,
+lead, selection-range, undo, and redo states.
+
+The pinned Ace behavior is retained: replay before any recording is a no-op;
+an empty recording restores the prior macro; a nonempty recording replaces it;
+and replayed macro edits form one undoable operation. Recording controls and
+replay controls do not add themselves recursively. A recording containing Undo
+then Redo preserves that command sequence, and a later recording still replaces
+it normally.
+
+Graph Viz render, fit, and reset shortcuts remain outside Ace recording. Visual
+widget mutations change DOT history without changing the stored macro. Macro
+playback with several recorded insert commands produces one debounced render
+and one persisted source transition per resulting document.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.
