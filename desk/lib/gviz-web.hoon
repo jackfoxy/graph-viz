@@ -25,49 +25,6 @@
           ;h1: Graph Viz
         ==
         ;nav.toolbar(aria-label "Graph controls")
-          ;select#template
-            =title       "Insert starter template"
-            =aria-label  "Starter template"
-            ;option(value "", disabled "", hidden ""): Select template…
-            ;option(value "flowchart"): Flowchart
-            ;option(value "strict-digraph"): Strict digraph
-            ;option(value "state-machine"): State machine
-            ;option(value "dependencies"): Dependencies
-            ;option(value "clusters"): Clusters
-          ==
-          ;button#render.primary
-            =type   "button"
-            =title  "Render (Ctrl+Enter)"
-            ;span: Render
-          ==
-          ;div.zoom-controls(aria-label "Zoom controls")
-            ;button#zoom-in.icon-button
-              =type        "button"
-              =disabled    ""
-              =title       "Zoom in"
-              =aria-label  "Zoom in"
-              ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
-            ==
-            ;button#zoom-out.icon-button
-              =type        "button"
-              =disabled    ""
-              =title       "Zoom out"
-              =aria-label  "Zoom out"
-              ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
-            ==
-          ==
-          ;button#fit
-            =type      "button"
-            =disabled  ""
-            =title     "Fit graph (Ctrl+0)"
-            ;span: Fit
-          ==
-          ;button#reset-view
-            =type      "button"
-            =disabled  ""
-            =title     "Reset view (Ctrl+1)"
-            ;span: Reset
-          ==
           ;label.theme-control
             ;span: Theme
             ;select#theme(aria-label "Theme")
@@ -141,7 +98,18 @@
         ;section#editor-pane.pane.editor-pane
           ;div.pane-header
             ;h2#dot-source-heading: DOT source
+            ;span#source-status.status: Ready
             ;div.file-actions(aria-label "DOT file controls")
+              ;select#template
+                =title       "Insert starter template"
+                =aria-label  "Starter template"
+                ;option(value "", disabled "", hidden ""): Select template…
+                ;option(value "flowchart"): Flowchart
+                ;option(value "strict-digraph"): Strict digraph
+                ;option(value "state-machine"): State machine
+                ;option(value "dependencies"): Dependencies
+                ;option(value "clusters"): Clusters
+              ==
               ;button#browse-dot(type "button"): Browse
               ;button#load-dot(type "button"): Load DOT
               ;button#save-dot(type "button"): Save DOT
@@ -150,7 +118,6 @@
               ;input#auto-render(type "checkbox", checked "");
               ;span: Auto-render
             ==
-            ;span#source-status.status: Ready
           ==
           ;div.visual-tools(aria-label "Visual editing tools")
             ;label.control
@@ -206,7 +173,41 @@
         ;section#preview-pane.pane.preview-pane
           ;div.pane-header
             ;h2: Preview
+            ;span#render-status.status: Empty
             ;div.file-actions(aria-label "SVG file controls")
+              ;button#render.primary
+                =type   "button"
+                =title  "Render (Ctrl+Enter)"
+                ;span: Render
+              ==
+              ;div.zoom-controls(aria-label "Zoom controls")
+                ;button#zoom-in.icon-button
+                  =type        "button"
+                  =disabled    ""
+                  =title       "Zoom in"
+                  =aria-label  "Zoom in"
+                  ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+                ==
+                ;button#zoom-out.icon-button
+                  =type        "button"
+                  =disabled    ""
+                  =title       "Zoom out"
+                  =aria-label  "Zoom out"
+                  ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+                ==
+              ==
+              ;button#fit
+                =type      "button"
+                =disabled  ""
+                =title     "Fit graph (Ctrl+0)"
+                ;span: Fit
+              ==
+              ;button#reset-view
+                =type      "button"
+                =disabled  ""
+                =title     "Reset view (Ctrl+1)"
+                ;span: Reset
+              ==
               ;button#browse-svg(type "button"): Browse
               ;button#load-svg(type "button"): Load SVG
               ;button#save-svg(type "button", disabled ""): Save SVG
@@ -217,7 +218,6 @@
                 ;span: View source
               ==
             ==
-            ;span#render-status.status: Empty
           ==
           ;pre#error.error(hidden "", role "alert");
           ;div#inspector.inspector(hidden "", aria-live "polite")
