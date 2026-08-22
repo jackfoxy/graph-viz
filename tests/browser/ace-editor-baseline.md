@@ -163,6 +163,20 @@ standalone Ace bundle exposes no corresponding command to invoke directly.
 The finalized manifest records that exception; Graph Viz preview fullscreen
 remains available through its button.
 
+## Work unit 9 editing, selection, and navigation shortcuts
+
+Every Windows/Linux binding in the manifest's Line Operations, Selection, and
+Go to groups is exercised with real Chromium keyboard events against Ace's
+`win` key map. Each event's source, cursor, selection, or scroll result is
+compared with the exact result of its named Ace command from the same reset
+fixture. Go-to-line and diagnostic navigation use explicit observable results.
+
+This tranche covers 51 source rows and 52 binding executions. The count
+includes every alternate and separately executes the duplicated `Ctrl-P` and
+`Ctrl-Shift-P` source rows. The three `---` rows—Split line, Scroll page down,
+and Scroll page up—are recorded as Windows/Linux exclusions and are not sent
+as keyboard events.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

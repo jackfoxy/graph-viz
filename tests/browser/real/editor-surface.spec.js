@@ -83,8 +83,6 @@ test('parse diagnostics use exact Ace annotations and markers', async ({
         type: marker.type
       },
       cursor: aceEditor.getCursorPosition(),
-      firstVisible: aceEditor.renderer.getFirstVisibleRow(),
-      lastVisible: aceEditor.renderer.getLastVisibleRow(),
       invalid: aceEditor.textInput.getElement()
         .getAttribute('aria-invalid')
     };
@@ -104,8 +102,11 @@ test('parse diagnostics use exact Ace annotations and markers', async ({
     cursor: {row: 34, column: 6},
     invalid: 'true'
   });
-  expect(diagnostic.firstVisible).toBeLessThanOrEqual(34);
-  expect(diagnostic.lastVisible).toBeGreaterThanOrEqual(34);
+  await expect.poll(() => page.evaluate(() => {
+    const aceEditor = window.ace.edit(document.querySelector('#dot'));
+    return aceEditor.renderer.getFirstVisibleRow() <= 34
+      && aceEditor.renderer.getLastVisibleRow() >= 34;
+  })).toBe(true);
 
   await page.evaluate(() => {
     const adapter = window.__GVIZ_EDITOR_TEST__;

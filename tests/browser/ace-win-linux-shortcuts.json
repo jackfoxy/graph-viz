@@ -30,6 +30,19 @@
       {"binding":"Ctrl-Enter","aceAction":"Enter full screen","directCommandTest":"not-applicable","reason":"The pinned standalone Ace bundle exposes no fullscreen command; Graph Viz preview fullscreen remains button-driven."}
     ]
   },
+  "coverage": {
+    "workUnit9": {
+      "status": "real-browser",
+      "groups": ["Line Operations", "Selection", "Go to"],
+      "sourceRows": 51,
+      "bindingExecutions": 52,
+      "exclusions": ["Line Operations: Split line", "Go to: Scroll page down", "Go to: Scroll page up"],
+      "duplicates": [
+        {"binding":"Ctrl-Shift-P","rows":["Selection: Select to matching bracket","Selection: Select to matching"]},
+        {"binding":"Ctrl-P","rows":["Selection: Jump to matching","Go to: Go to matching bracket"]}
+      ]
+    }
+  },
   "rows": [
     {"group":"Line Operations","windowsLinux":"Ctrl-D","bindings":["Ctrl-D"],"action":"Remove line"},
     {"group":"Line Operations","windowsLinux":"Alt-Shift-Down","bindings":["Alt-Shift-Down"],"action":"Copy lines down"},

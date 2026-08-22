@@ -59,6 +59,33 @@ test('manifest accounts for each resolved official conflict', () => {
   assert.equal(official.has('Ctrl-1'), false);
 });
 
+test('manifest records complete work unit 9 shortcut coverage', () => {
+  assert.deepEqual(manifest.coverage.workUnit9, {
+    status: 'real-browser',
+    groups: ['Line Operations', 'Selection', 'Go to'],
+    sourceRows: 51,
+    bindingExecutions: 52,
+    exclusions: [
+      'Line Operations: Split line',
+      'Go to: Scroll page down',
+      'Go to: Scroll page up'
+    ],
+    duplicates: [{
+      binding: 'Ctrl-Shift-P',
+      rows: [
+        'Selection: Select to matching bracket',
+        'Selection: Select to matching'
+      ]
+    }, {
+      binding: 'Ctrl-P',
+      rows: [
+        'Selection: Jump to matching',
+        'Go to: Go to matching bracket'
+      ]
+    }]
+  });
+});
+
 test('manifest accounts for every official source row', () => {
   const expectedGroups = new Map([
     ['Line Operations', 10],
