@@ -46,6 +46,8 @@ test('Ace accepts real keyboard input and updates the application once', async (
     }
   });
   await expect(host).toHaveClass(/ace_editor/);
+  await expect(page.locator('#preview svg')).toBeVisible();
+  await page.waitForTimeout(200);
   await page.evaluate(() => {
     document.querySelector('#auto-render').checked = false;
     window.__GVIZ_SESSION_WRITE_COUNT__ = 0;

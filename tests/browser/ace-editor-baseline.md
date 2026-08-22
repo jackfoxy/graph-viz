@@ -113,6 +113,19 @@ Auto-render remains driven only by adapter change notifications and retains its
 cancels a queued render and invalidates an in-flight response. Re-enabling it
 queues one render of the source read when that render action executes.
 
+## Work unit 6 visual editing boundaries
+
+SVG source selection continues to use absolute UTF-16 offsets at the adapter
+boundary; the adapter converts them to an Ace range and reveals the range's
+zero-based start row without changing source or history.
+
+Add node, Draw edge, Delete, and attribute-form actions now calculate the
+smallest single replacement between the prior and resulting DOT documents.
+The adapter isolates that Ace document replacement from adjacent keyboard
+groups, emits one application change, and therefore gives every visual action
+one undo/redo entry. Edge-chain splitting is calculated without an intermediate
+editor mutation, so an attribute edit remains one logical action.
+
 ## Real-browser test environment
 
 - Runner: `@playwright/test` 1.62.1, exact version in `package-lock.json`.

@@ -724,8 +724,7 @@
     border-bottom: 1px solid var(--border);
     display: grid;
     gap: 0.5rem;
-    grid-template-columns:
-      minmax(8rem, 1fr) minmax(8rem, auto) minmax(8rem, auto) auto auto;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
     padding: 0.5rem 0.75rem;
   }
 
@@ -1674,6 +1673,16 @@
       if (notify !== false) notifyChange();
     }
 
+    function isolateUndo(change) {
+      const undoManager = session.getUndoManager();
+      undoManager.startNewGroup();
+      try {
+        change();
+      } finally {
+        undoManager.startNewGroup();
+      }
+    }
+
     function setSource(source, options = {}) {
       mutate(() => {
         const history = options.history || 'undoable';
@@ -1681,16 +1690,15 @@
           session.setValue(source);
           session.getUndoManager().reset();
         } else if (history === 'undoable') {
-          const undoManager = session.getUndoManager();
           const last = offsetToPosition(getSource().length);
-          undoManager.startNewGroup();
-          session.replace(new AceRange(
-            0,
-            0,
-            last.row,
-            last.column
-          ), source);
-          undoManager.startNewGroup();
+          isolateUndo(() => {
+            session.replace(new AceRange(
+              0,
+              0,
+              last.row,
+              last.column
+            ), source);
+          });
         } else {
           throw new Error(`Unsupported editor history mode: ${history}`);
         }
@@ -1708,12 +1716,14 @@
       const first = offsetToPosition(rangeStart);
       const last = offsetToPosition(rangeEnd);
       mutate(() => {
-        session.replace(new AceRange(
-          first.row,
-          first.column,
-          last.row,
-          last.column
-        ), replacement);
+        isolateUndo(() => {
+          session.replace(new AceRange(
+            first.row,
+            first.column,
+            last.row,
+            last.column
+          ), replacement);
+        });
         const replacementEnd = rangeStart + replacement.length;
         if (options.selection && typeof options.selection === 'object') {
           setSelection(options.selection.start, options.selection.end);
@@ -1732,7 +1742,7 @@
       if (options.focus) aceEditor.focus();
       if (options.reveal) {
         const position = offsetToPosition(start);
-        aceEditor.scrollToLine(position.row + 1, true, true);
+        aceEditor.scrollToLine(position.row, true, true);
       }
     }
 
@@ -3088,9 +3098,29 @@
     return before + newline + `  ${statement}\n` + source.slice(body.close);
   }
 
-  function applyVisualMutation(source) {
-    validateSource(source);
-    editor.setSource(source);
+  function sourceDifference(before, after) {
+    let start = 0;
+    while (start < before.length && start < after.length
+      && before[start] === after[start]) start += 1;
+    let beforeEnd = before.length;
+    let afterEnd = after.length;
+    while (beforeEnd > start && afterEnd > start
+      && before[beforeEnd - 1] === after[afterEnd - 1]) {
+      beforeEnd -= 1;
+      afterEnd -= 1;
+    }
+    return {
+      start,
+      end: beforeEnd,
+      replacement: after.slice(start, afterEnd)
+    };
+  }
+
+  function applyVisualMutation(before, after) {
+    validateSource(after);
+    if (before === after) return;
+    const edit = sourceDifference(before, after);
+    editor.replaceRange(edit.start, edit.end, edit.replacement);
     renderNow();
   }
 
@@ -3116,7 +3146,7 @@
         shape ? `${id} [shape=${shape}]` : id
       );
       newNodeName.value = '';
-      applyVisualMutation(source);
+      applyVisualMutation(currentSource, source);
     } catch (cause) {
       mutationProblem(cause);
     }
@@ -3137,7 +3167,7 @@
       });
       if (exists) throw new Error('That edge already exists');
       const edge = `${dotIdSource(tail)} ${body.operator} ${dotIdSource(head)}`;
-      applyVisualMutation(insertRootStatement(source, edge));
+      applyVisualMutation(source, insertRootStatement(source, edge));
     } catch (cause) {
       mutationProblem(cause);
     }
@@ -3205,14 +3235,14 @@
         }
       }
       if (!removals.length) throw new Error('Source statement not found');
-      applyVisualMutation(removeStatementRanges(source, removals));
+      applyVisualMutation(source, removeStatementRanges(source, removals));
     } catch (cause) {
       mutationProblem(cause);
     }
   }
 
-  function editableStatement(kind, identity) {
-    const statements = dotStatements(editor.getSource());
+  function editableStatement(kind, identity, source = editor.getSource()) {
+    const statements = dotStatements(source);
     if (kind === 'edge') {
       return statements.find((candidate) => {
         return candidate.edges.includes(identity);
@@ -3226,12 +3256,11 @@
     return matches.at(-1);
   }
 
-  function splitEdgeStatement(statement) {
+  function splitEdgeStatement(source, statement) {
     if (statement.edges.length < 2 || !statement.simpleEdges) {
-      return statement;
+      return source;
     }
-    const parsed = readStatementAttributes(statement);
-    const source = editor.getSource();
+    const parsed = readStatementAttributes(statement, source);
     const lineStart = source.lastIndexOf('\n', statement.start - 1) + 1;
     const indent = source.slice(lineStart, statement.start)
       .match(/^\s*/)?.[0] || '';
@@ -3241,18 +3270,13 @@
       return writeStatementAttributes({...parsed, base});
     });
     const replacement = statements.join('\n' + indent);
-    editor.replaceRange(
-      statement.start,
-      statement.end,
-      replacement,
-      {notify: false}
-    );
-    return undefined;
+    return source.slice(0, statement.start) + replacement
+      + source.slice(statement.end);
   }
 
-  function readStatementAttributes(statement) {
+  function readStatementAttributes(statement, source = editor.getSource()) {
     if (!statement) return {base: '', semicolon: false, attributes: new Map()};
-    const segment = editor.getSource().slice(statement.start, statement.end);
+    const segment = source.slice(statement.start, statement.end);
     const tokens = dotTokens(segment);
     const firstOpen = tokens.findIndex((token) => token.value === '[');
     const semicolon = tokens.at(-1)?.value === ';';
@@ -3513,7 +3537,7 @@
     let result = source;
     for (const statement of unique) {
       const parsed = applyFormAttributes(
-        readStatementAttributes(statement),
+        readStatementAttributes(statement, result),
         kind
       );
       result = result.slice(0, statement.start)
@@ -3576,19 +3600,23 @@
         throw new Error('Select one node or edge to edit');
       }
       const selected = selectedItems[0];
-      let source = editor.getSource();
+      const originalSource = editor.getSource();
+      let source = originalSource;
       if (attrChangeAll.checked) {
         source = changeAllAttributes(source, selected.kind);
       } else {
         let statement = editableStatement(selected.kind, selected.identity);
         if (selected.kind === 'edge' && statement?.edges.length > 1) {
-          splitEdgeStatement(statement);
-          source = editor.getSource();
-          statement = editableStatement(selected.kind, selected.identity);
+          source = splitEdgeStatement(source, statement);
+          statement = editableStatement(
+            selected.kind,
+            selected.identity,
+            source
+          );
         }
         const parsed = applyFormAttributes(
           statement
-            ? readStatementAttributes(statement)
+            ? readStatementAttributes(statement, source)
             : {
                 base: dotIdSource(selected.identity),
                 semicolon: false,
@@ -3606,7 +3634,7 @@
       if (attrUseDefault.checked) {
         source = addAttributeDefault(source, selected.kind);
       }
-      applyVisualMutation(source);
+      applyVisualMutation(originalSource, source);
     } catch (cause) {
       mutationProblem(cause);
     }
