@@ -643,29 +643,23 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(elements['#docs-help-content'].hidden, true);
   elements['#help'].listeners.click({});
   assert.equal(elements['#help-panel'].hidden, false);
-  let helpTab = document.querySelector('#help-tab');
-  assert(helpTab);
-  assert.equal(helpTab.textContent, 'Help');
-  assert.equal(helpTab['aria-selected'], 'true');
+  assert.equal(elements['#help']['aria-expanded'], 'true');
+  assert.equal(document.activeElement, elements['#close-help']);
   assert.deepEqual(
     descendants(elements['#explorer-tabs'])
       .filter((item) => item.role === 'tab')
       .map((item) => item.dataset.explorerView),
-    ['dot-files', 'svg-files', 'help']
+    ['dot-files', 'svg-files']
   );
+  elements['#close-help'].listeners.click({});
+  assert.equal(elements['#help-panel'].hidden, true);
+  assert.equal(elements['#help']['aria-expanded'], 'false');
+  assert.equal(document.activeElement, elements['#help']);
   elements['#help'].listeners.click({});
-  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
-    return item.id === 'help-tab';
-  }).length, 1);
-  helpTab.parentElement.children.find((item) => {
-    return item.className === 'docs-tab-close';
-  }).listeners.click({});
-  assert.equal(document.querySelector('#help-tab'), null);
-  assert.equal(elements['#svg-files-tab']['aria-selected'], 'true');
+  assert.equal(elements['#help-panel'].hidden, false);
+  elements['#help-panel'].listeners.click({target: elements['#help-panel']});
+  assert.equal(elements['#help-panel'].hidden, true);
   elements['#help'].listeners.click({});
-  helpTab = document.querySelector('#help-tab');
-  assert(helpTab);
-  assert.equal(helpTab['aria-selected'], 'true');
   requests[4].resolve(docsResponse());
   await tick();
   assert.equal(elements['#fallback-help-content'].hidden, true);
@@ -675,7 +669,6 @@ const getDotSelection = () => editor.getSelection();
   }).length, 0);
   docsHelpLinks[0].listeners.click({preventDefault() {}});
   assert.equal(elements['#help-panel'].hidden, true);
-  assert(document.querySelector('#help-tab'));
   let docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   });
@@ -684,7 +677,7 @@ const getDotSelection = () => editor.getSelection();
     descendants(elements['#explorer-tabs'])
       .filter((item) => item.role === 'tab')
       .map((item) => item.dataset.explorerView),
-    ['dot-files', 'svg-files', 'help', 'docs-1']
+    ['dot-files', 'svg-files', 'docs-1']
   );
   let docsPanels = descendants(elements['#explorer-pane']).filter((item) => {
     return item.className === 'explorer-panel docs-explorer-panel';

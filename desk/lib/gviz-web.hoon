@@ -396,18 +396,23 @@
         ==
         ==
       ==
-      ;aside#help-panel.explorer-panel.help-explorer-panel
-        =hidden            ""
-        =role              "tabpanel"
-        =aria-labelledby   "help-tab"
-        =aria-label        "Help"
+      ;aside#help-panel.help-panel
+        =hidden          ""
+        =role            "dialog"
+        =aria-modal      "true"
+        =aria-labelledby  "help-title"
         ;div#editor-help-card.help-card.editor-help-card
           ;div.pane-header
-            ;h2: Editor help
-            ;button#close-help(type "button", aria-label "Close help"): Close
+            ;h2#help-title: Help
+            ;button#close-help.icon-button.help-close
+              =type        "button"
+              =title       "Close"
+              =aria-label  "Close help"
+              ;span.close-icon(aria-hidden "true");
+            ==
           ==
           ;div#fallback-help-content
-            ;p
+            ;nav.help-links(aria-label "Graph Viz documentation")
               ;a
                 =href    "https://www.graphviz.org/doc/info/lang.html"
                 =target  "_blank"
@@ -428,94 +433,59 @@
               ;li: Shift-click: select two nodes for an edge
               ;li: Delete: remove the selected node or edge
             ==
-            ;h3: LLM skill files
-            ;ul
-              ;li
-                ;a
-                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-dot-syntax"
-                  =target  "_blank"
-                  =rel     "noopener noreferrer"
-                  DOT Syntax
-                ==
-              ==
-              ;li
-                ;a
-                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-gall-api"
-                  =target  "_blank"
-                  =rel     "noopener noreferrer"
-                  Gall API
-                ==
-              ==
-              ;li
-                ;a
-                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns"
-                  =target  "_blank"
-                  =rel     "noopener noreferrer"
-                  Common Patterns
-                ==
-              ==
-            ==
           ==
           ;div#docs-help-content.docs-help-content(hidden "")
             ;nav#docs-help-nav.docs-help-nav
               =aria-label  "Graph Viz documentation"
-              ;details.docs-help-group(open "")
-                ;summary.docs-help-summary
+              ;details.docs-help-group
+                ;summary.docs-help-summary: Keyboard Shortcuts
+                ;div.docs-help-subnav
                   ;a.docs-help-link
                     =href           "/docs/d/graph-viz/keyboard-shortcuts"
                     =data-doc-path  "keyboard-shortcuts"
-                    Keyboard Shortcuts
+                    Overview
                   ==
-                ==
-                ;ul.docs-help-subnav
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#line-operations"
-                      =data-doc-path  "keyboard-shortcuts#line-operations"
-                      Line Operations
-                    ==
+                  ;a.docs-help-link
+                    =href
+                      "/docs/d/graph-viz/keyboard-shortcuts#line-operations"
+                    =data-doc-path
+                      "keyboard-shortcuts#line-operations"
+                    Line Operations
                   ==
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#selection"
-                      =data-doc-path  "keyboard-shortcuts#selection"
-                      Selection
-                    ==
+                  ;a.docs-help-link
+                    =href
+                      "/docs/d/graph-viz/keyboard-shortcuts#selection"
+                    =data-doc-path  "keyboard-shortcuts#selection"
+                    Selection
                   ==
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#multicursor"
-                      =data-doc-path  "keyboard-shortcuts#multicursor"
-                      Multicursor
-                    ==
+                  ;a.docs-help-link
+                    =href
+                      "/docs/d/graph-viz/keyboard-shortcuts#multicursor"
+                    =data-doc-path  "keyboard-shortcuts#multicursor"
+                    Multicursor
                   ==
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#go-to"
-                      =data-doc-path  "keyboard-shortcuts#go-to"
-                      Go to
-                    ==
+                  ;a.docs-help-link
+                    =href  "/docs/d/graph-viz/keyboard-shortcuts#go-to"
+                    =data-doc-path  "keyboard-shortcuts#go-to"
+                    Go to
                   ==
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#find-replace"
-                      =data-doc-path  "keyboard-shortcuts#find-replace"
-                      Find/Replace
-                    ==
+                  ;a.docs-help-link
+                    =href
+                      "/docs/d/graph-viz/keyboard-shortcuts#find-replace"
+                    =data-doc-path
+                      "keyboard-shortcuts#find-replace"
+                    Find/Replace
                   ==
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#folding"
-                      =data-doc-path  "keyboard-shortcuts#folding"
-                      Folding
-                    ==
+                  ;a.docs-help-link
+                    =href
+                      "/docs/d/graph-viz/keyboard-shortcuts#folding"
+                    =data-doc-path  "keyboard-shortcuts#folding"
+                    Folding
                   ==
-                  ;li
-                    ;a.docs-help-link
-                      =href           "/docs/d/graph-viz/keyboard-shortcuts#other"
-                      =data-doc-path  "keyboard-shortcuts#other"
-                      Other
-                    ==
+                  ;a.docs-help-link
+                    =href  "/docs/d/graph-viz/keyboard-shortcuts#other"
+                    =data-doc-path  "keyboard-shortcuts#other"
+                    Other
                   ==
                 ==
               ==
@@ -539,6 +509,33 @@
                 =data-doc-path  "release-notes"
                 Release notes
               ==
+            ==
+          ==
+          ;nav.help-links.help-skill-links
+            =aria-label  "Graph Viz LLM skill files"
+            ;a
+              =href
+                "https://github.com/jackfoxy/foxy-skills/tree/master/".
+                "gviz-dot-syntax"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              DOT Syntax LLM Skill
+            ==
+            ;a
+              =href
+                "https://github.com/jackfoxy/foxy-skills/tree/master/".
+                "gviz-gall-api"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              Gall API LLM Skill
+            ==
+            ;a
+              =href
+                "https://github.com/jackfoxy/foxy-skills/tree/master/".
+                "gviz-patterns"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              Common Patterns LLM Skill
             ==
           ==
         ==
@@ -690,7 +687,8 @@
 
   button, select { cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--accent); }
-  button:focus-visible, select:focus-visible, input:focus-visible {
+  button:focus-visible, select:focus-visible, input:focus-visible,
+  .help-card a:focus-visible {
     outline: 3px solid var(--focus);
   }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -903,19 +901,6 @@
     border: 0;
     height: 100%;
     width: 100%;
-  }
-
-  .help-explorer-panel {
-    overflow: auto;
-    padding: 0.75rem;
-  }
-
-  .help-explorer-panel .help-card {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    max-width: none;
-    min-height: 100%;
   }
 
   .explorer-resizer {
@@ -1276,7 +1261,7 @@
     padding: 1rem;
     place-items: center;
     position: fixed;
-    z-index: 10;
+    z-index: 70;
   }
 
   .help-panel[hidden] { display: none; }
@@ -1311,47 +1296,94 @@
     width: 100%;
   }
 
+  .help-close {
+    height: 2rem;
+    padding: 0;
+    width: 2rem;
+  }
+
+  .close-icon {
+    height: 0.9rem;
+    position: relative;
+    width: 0.9rem;
+  }
+
+  .close-icon::before, .close-icon::after {
+    background: currentcolor;
+    content: '';
+    height: 1px;
+    left: 0;
+    position: absolute;
+    top: 0.42rem;
+    width: 0.9rem;
+  }
+
+  .close-icon::before { transform: rotate(45deg); }
+  .close-icon::after { transform: rotate(-45deg); }
+
+  .help-links {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .help-links a {
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.65rem 0.75rem;
+    text-decoration: none;
+  }
+
+  .help-card a { color: inherit; }
+  .help-card a p { margin: 0; }
+
+  .help-skill-links {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1rem;
+  }
+
+  .help-skill-links a { text-align: center; }
+
   #fallback-help-content[hidden], .docs-help-content[hidden] {
     display: none;
   }
 
   .docs-help-content {
-    padding-top: 0.75rem;
+    display: grid;
+    gap: 0.8rem;
   }
 
   .docs-help-nav {
     align-content: start;
     display: grid;
-    gap: 0.25rem;
+    gap: 0.4rem;
+    max-height: min(32rem, calc(100vh - 15rem));
+    overflow: auto;
   }
 
   .docs-help-link {
-    border-radius: 0.35rem;
-    color: var(--accent);
-    padding: 0.5rem;
+    border-radius: 0.3rem;
+    padding: 0.45rem 0.65rem;
     text-decoration: none;
   }
 
   .docs-help-link:hover, .docs-help-link[aria-current="page"] {
-    background: var(--background);
+    background: var(--surface-alt);
   }
 
   .docs-help-link[aria-current="page"] { font-weight: 600; }
 
   .docs-help-summary {
     align-items: center;
-    border-radius: 0.35rem;
     cursor: pointer;
     display: flex;
+    font-weight: 600;
     list-style: none;
-    padding: 0.5rem;
+    padding: 0.6rem 0.7rem;
   }
 
   .docs-help-summary::-webkit-details-marker { display: none; }
 
-  .docs-help-summary:hover { background: var(--background); }
-
-  .docs-help-summary .docs-help-link { padding: 0; }
+  .docs-help-summary:hover { background: var(--surface-alt); }
 
   .docs-help-summary::before {
     color: var(--muted);
@@ -1362,18 +1394,22 @@
 
   .docs-help-group[open] > .docs-help-summary::before { content: '\25be'; }
 
+  .docs-help-group {
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+  }
+
   .docs-help-subnav {
+    border-top: 1px solid var(--border);
     display: grid;
     gap: 0;
-    list-style: none;
-    margin: 0.15rem 0 0;
-    padding-left: 2rem;
+    padding: 0.3rem 0.3rem 0.3rem 1.5rem;
   }
 
   .docs-help-subnav .docs-help-link {
     display: block;
     font-size: 0.9rem;
-    padding: 0.125rem 0.5rem;
+    padding: 0.3rem 0.65rem;
   }
 
   .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
@@ -1462,12 +1498,7 @@
     .splitter { display: none; }
     .preview-pane { border-top: 1px solid var(--border); }
 
-    .docs-help-nav {
-      display: flex;
-      overflow-x: auto;
-    }
-
-    .docs-help-link { flex: 0 0 auto; }
+    .help-skill-links { grid-template-columns: minmax(0, 1fr); }
   }
   '''
 ::
@@ -1628,7 +1659,6 @@
   const themes = ['system', 'light', 'dark'];
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
   const docsRoot = '/docs/d/graph-viz/';
-  const helpExplorerView = 'help';
   const permanentExplorerViews = ['dot-files', 'svg-files'];
   let docsAvailable = null;
   let docsCheckPending = false;
@@ -2152,8 +2182,6 @@
 
   function validExplorerView(viewName) {
     return permanentExplorerViews.includes(viewName) ||
-      (viewName === helpExplorerView &&
-        Boolean(document.querySelector('#help-tab'))) ||
       Boolean(docsTabById(viewName));
   }
 
@@ -2170,10 +2198,6 @@
       if (panel) panel.hidden = !active;
     }
     const selectedDocs = docsTabById(explorerView);
-    help.setAttribute(
-      'aria-expanded',
-      String(explorerView === helpExplorerView)
-    );
     if (selectedDocs && docsAvailable === true) {
       const frame = document.querySelector(
         `#${selectedDocs.id}-panel iframe`
@@ -2206,59 +2230,6 @@
       next = (current + 1) % tabs.length;
     }
     setExplorerView(tabs[next].dataset.explorerView, true);
-  }
-
-  function createHelpTab() {
-    const existing = document.querySelector('#help-tab');
-    if (existing) return existing;
-    const wrapper = document.createElement('div');
-    wrapper.id = 'help-tab-control';
-    wrapper.className = 'explorer-tab-control help-tab-control';
-    wrapper.setAttribute('role', 'presentation');
-    const control = document.createElement('button');
-    control.type = 'button';
-    control.id = 'help-tab';
-    control.className = 'explorer-tab';
-    control.dataset.explorerView = helpExplorerView;
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', 'false');
-    control.setAttribute('aria-controls', 'help-panel');
-    control.tabIndex = -1;
-    control.textContent = 'Help';
-    control.addEventListener(
-      'click',
-      () => setExplorerView(helpExplorerView)
-    );
-    control.addEventListener('keydown', explorerTabKeydown);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'docs-tab-close';
-    close.setAttribute('aria-label', 'Close Help');
-    close.textContent = '×';
-    close.addEventListener('click', closeHelpTab);
-    wrapper.append(control, close);
-    const svgControl = svgFilesTab.parentElement;
-    if (svgControl) svgControl.after(wrapper);
-    else explorerTabs.append(wrapper);
-    explorerPane.append(helpPanel);
-    return control;
-  }
-
-  function openHelp() {
-    createHelpTab();
-    setHelpVariant(docsAvailable === true);
-    refreshHelpVariant();
-    setExplorerView(helpExplorerView, true);
-  }
-
-  function closeHelpTab() {
-    const control = document.querySelector('#help-tab');
-    if (!control) return;
-    const wasActive = explorerView === helpExplorerView;
-    control.parentElement?.remove();
-    helpPanel.hidden = true;
-    if (wasActive) setExplorerView('svg-files', true);
-    else queueSaveSession();
   }
 
   function docsTabLabel(documentTitle) {
@@ -2374,12 +2345,14 @@
     if (docsAvailable !== true) return;
     const existing = docsTabs.find((tab) => tab.path === path);
     if (existing) {
+      setHelpOpen(false);
       setExplorerView(existing.id, true);
       return;
     }
     const tab = {id: `docs-${nextDocs++}`, title, path};
     docsTabs.push(tab);
     createDocsTab(tab);
+    setHelpOpen(false);
     setExplorerView(tab.id, true);
   }
 
@@ -2413,6 +2386,17 @@
     if (useDocs && docsTabById(explorerView)) {
       setExplorerView(explorerView);
     }
+  }
+
+  function setHelpOpen(open, restoreFocus = false) {
+    helpPanel.hidden = !open;
+    help.setAttribute('aria-expanded', String(open));
+    if (open) {
+      setHelpVariant(docsAvailable === true);
+      refreshHelpVariant();
+      closeHelp.focus();
+    }
+    if (!open && restoreFocus) help.focus();
   }
 
   async function refreshHelpVariant() {
@@ -4206,6 +4190,11 @@
       event.preventDefault();
       event.stopPropagation?.();
     };
+    if (event.key === 'Escape' && !helpPanel.hidden) {
+      consume();
+      setHelpOpen(false, true);
+      return;
+    }
     if (event.key === 'Escape' && !clayErrorModal.hidden) {
       consume();
       hideClayError();
@@ -4241,14 +4230,6 @@
     }
     if (editor.isFocused(event.target)) return;
     const focus = event.target || document.activeElement;
-    const inExplorer = focus === explorerPane || explorerPane.contains(focus);
-    if (event.key === 'Escape' && explorerView === helpExplorerView
-      && inExplorer) {
-      consume();
-      closeHelpTab();
-      help.focus();
-      return;
-    }
     const inPreview = focus === preview || preview.contains(focus);
     if (event.key === 'Escape' && selectedItems.length && inPreview) {
       consume();
@@ -4394,8 +4375,11 @@
   fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
-  help.addEventListener('click', openHelp);
-  closeHelp.addEventListener('click', closeHelpTab);
+  help.addEventListener('click', () => setHelpOpen(true));
+  closeHelp.addEventListener('click', () => setHelpOpen(false, true));
+  helpPanel.addEventListener('click', (event) => {
+    if (event.target === helpPanel) setHelpOpen(false, true);
+  });
   docsHelpLinks.forEach((link) => {
     link.addEventListener('click', (event) => {
       event.preventDefault();

@@ -257,20 +257,37 @@ test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
   await expect(page.locator('#svg-files-tab')).toBeFocused();
 
   await page.locator('#help').click();
-  await expect(page.locator('#help-tab')).toBeFocused();
-  await page.keyboard.press('Escape');
+  await expect(page.locator('#close-help')).toBeFocused();
+  await expect(page.locator('#help-panel')).toHaveAttribute('role', 'dialog');
   await expect(page.locator('#help-tab')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#help-panel')).toBeHidden();
   await expect(page.locator('#help')).toBeFocused();
 
   await page.locator('#help').click();
   await expect(page.locator('#docs-help-content')).toBeVisible();
+  for (const [name, path] of [
+    ['DOT Syntax LLM Skill', 'gviz-dot-syntax'],
+    ['Gall API LLM Skill', 'gviz-gall-api'],
+    ['Common Patterns LLM Skill', 'gviz-patterns']
+  ]) {
+    const link = page.getByRole('link', {name, exact: true});
+    await expect(link).toHaveAttribute('href', new RegExp(`${path}$`));
+    await expect(link).toHaveAttribute('target', '_blank');
+  }
+  const keyboardShortcuts = page.locator('.docs-help-group');
+  await expect(keyboardShortcuts).toHaveJSProperty('open', false);
+  await keyboardShortcuts.locator('summary').click();
+  await expect(keyboardShortcuts).toHaveJSProperty('open', true);
+  await keyboardShortcuts.locator('summary').click();
+  await expect(keyboardShortcuts).toHaveJSProperty('open', false);
   await page.getByRole('link', {name: 'Users Guide'}).click();
   const docsTab = page.locator('.docs-tab').filter({hasText: 'Users Guide'});
   await expect(docsTab).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(docsTab).toBeFocused();
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('#help-tab')).toBeFocused();
+  await expect(page.locator('#svg-files-tab')).toBeFocused();
 
   await page.locator('#preview .node').filter({hasText: 'Alpha'}).click();
   await page.locator('#new-node-name').fill('Draft');

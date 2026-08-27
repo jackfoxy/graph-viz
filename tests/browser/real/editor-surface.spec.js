@@ -240,9 +240,9 @@ test('resize cycles preserve Ace geometry at divider extremes', async ({
   await page.locator('#help').click();
   await expect(page.locator('#help-panel')).toBeVisible();
   await page.locator('#close-help').click();
-  await expect.poll(() => page.evaluate(() => {
+  expect(await page.evaluate(() => {
     return window.__GVIZ_WU7_RESIZES__;
-  })).toBeGreaterThan(0);
+  })).toBe(0);
 
   for (let index = 0; index < 12; index += 1) {
     await page.locator('#splitter').press('ArrowRight');

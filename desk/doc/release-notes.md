@@ -1,3 +1,7 @@
+# v1.0.2
+
+  - use Ace editor
+
 # v1.0.1
 
 UI help and editing enhancements
