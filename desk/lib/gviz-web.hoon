@@ -119,6 +119,11 @@
               ;span: Auto-render
             ==
           ==
+          ;div#dot-document-tabs.document-tabs
+            =role        "tablist"
+            =aria-label  "Open DOT documents"
+            ;span(hidden "");
+          ==
           ;div.visual-tools(aria-label "Visual editing tools")
             ;label.control
               ;span: Node name
@@ -218,6 +223,11 @@
                 ;span: View source
               ==
             ==
+          ==
+          ;div#svg-document-tabs.document-tabs
+            =role        "tablist"
+            =aria-label  "Open SVG documents"
+            ;span(hidden "");
           ==
           ;pre#error.error(hidden "", role "alert");
           ;div#inspector.inspector(hidden "", aria-live "polite")
@@ -414,7 +424,7 @@
           ;div#fallback-help-content
             ;nav.help-links(aria-label "Graph Viz documentation")
               ;a
-                =href    "https://www.graphviz.org/doc/info/lang.html"
+                =href    "../doc/dot-language.md"
                 =target  "_blank"
                 =rel     "noopener noreferrer"
                 DOT Language Reference
@@ -441,71 +451,71 @@
                 ;summary.docs-help-summary: Keyboard Shortcuts
                 ;div.docs-help-subnav
                   ;a.docs-help-link
-                    =href           "/docs/d/graph-viz/keyboard-shortcuts"
+                    =href           "../doc/dot-language/keyboard-shortcuts"
                     =data-doc-path  "keyboard-shortcuts"
                     Overview
                   ==
                   ;a.docs-help-link
                     =href
-                      "/docs/d/graph-viz/keyboard-shortcuts#line-operations"
+                      "../doc/dot-language/keyboard-shortcuts#line-operations"
                     =data-doc-path
                       "keyboard-shortcuts#line-operations"
                     Line Operations
                   ==
                   ;a.docs-help-link
                     =href
-                      "/docs/d/graph-viz/keyboard-shortcuts#selection"
+                      "../doc/dot-language/keyboard-shortcuts#selection"
                     =data-doc-path  "keyboard-shortcuts#selection"
                     Selection
                   ==
                   ;a.docs-help-link
                     =href
-                      "/docs/d/graph-viz/keyboard-shortcuts#multicursor"
+                      "../doc/dot-language/keyboard-shortcuts#multicursor"
                     =data-doc-path  "keyboard-shortcuts#multicursor"
                     Multicursor
                   ==
                   ;a.docs-help-link
-                    =href  "/docs/d/graph-viz/keyboard-shortcuts#go-to"
+                    =href  "../doc/dot-language/keyboard-shortcuts#go-to"
                     =data-doc-path  "keyboard-shortcuts#go-to"
                     Go to
                   ==
                   ;a.docs-help-link
                     =href
-                      "/docs/d/graph-viz/keyboard-shortcuts#find-replace"
+                      "../doc/dot-language/keyboard-shortcuts#find-replace"
                     =data-doc-path
                       "keyboard-shortcuts#find-replace"
                     Find/Replace
                   ==
                   ;a.docs-help-link
                     =href
-                      "/docs/d/graph-viz/keyboard-shortcuts#folding"
+                      "../doc/dot-language/keyboard-shortcuts#folding"
                     =data-doc-path  "keyboard-shortcuts#folding"
                     Folding
                   ==
                   ;a.docs-help-link
-                    =href  "/docs/d/graph-viz/keyboard-shortcuts#other"
+                    =href  "../doc/dot-language/keyboard-shortcuts#other"
                     =data-doc-path  "keyboard-shortcuts#other"
                     Other
                   ==
                 ==
               ==
               ;a.docs-help-link
-                =href           "/docs/d/graph-viz/usr/users-guide"
-                =data-doc-path  "usr/users-guide"
+                =href           "../doc/users-guide"
+                =data-doc-path  "users-guide"
                 Users Guide
               ==
               ;a.docs-help-link
-                =href           "/docs/d/graph-viz/reference"
+                =href           "../doc/reference"
                 =data-doc-path  "reference"
                 Reference
               ==
               ;a.docs-help-link
-                =href           "/docs/d/graph-viz/graph-noun"
+                =href           "../doc/graph-noun"
                 =data-doc-path  "graph-noun"
                 Positioned graph
               ==
               ;a.docs-help-link
-                =href           "/docs/d/graph-viz/release-notes"
+                =href           "../doc/release-notes"
                 =data-doc-path  "release-notes"
                 Release notes
               ==
@@ -832,13 +842,16 @@
     overflow: hidden;
   }
 
-  .explorer-header { border-bottom: 1px solid var(--border); }
-
   .explorer-tabs {
+    border-bottom: 1px solid var(--border);
     display: flex;
+    height: 2.3125rem;
+    max-height: 2.3125rem;
+    min-height: 2.25rem;
     min-width: 0;
     overflow-x: auto;
-    scrollbar-width: thin;
+    overflow-y: hidden;
+    scrollbar-width: none;
   }
 
   .explorer-tab-control, .docs-tab-control {
@@ -848,20 +861,35 @@
     flex: 0 0 auto;
   }
 
+  .docs-tab-control { position: relative; }
+
   .explorer-tab, .docs-tab, .docs-tab-close {
     background: transparent;
     border: 0;
     border-radius: 0;
     color: var(--muted);
     font-size: 0.75rem;
-    min-height: 2.5rem;
+    min-height: 2.25rem;
   }
 
   .explorer-tab, .docs-tab {
-    max-width: 12rem;
+    max-width: 14rem;
     overflow: hidden;
+    text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .explorer-tab {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .docs-tab {
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
   }
 
   .explorer-tab-control.active, .docs-tab-control.active {
@@ -875,8 +903,14 @@
   }
 
   .docs-tab-close {
-    font-size: 1rem;
-    padding: 0.25rem 0.45rem;
+    bottom: 0;
+    font: 700 0.75rem/1 ui-monospace, monospace;
+    position: absolute;
+    padding: 0.25rem 0.55rem;
+    right: 0;
+    top: 0;
+    width: 1.75rem;
+    z-index: 1;
   }
 
   .explorer-panel {
@@ -948,6 +982,80 @@
     color: var(--muted);
     font-size: 0.75rem;
     margin-left: 0.5rem;
+  }
+
+  .document-tabs {
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    height: 2.3125rem;
+    max-height: 2.3125rem;
+    min-height: 2.25rem;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .explorer-tabs::-webkit-scrollbar,
+  .document-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .document-tab-control {
+    align-items: stretch;
+    border-right: 1px solid var(--border);
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .document-tab-control.active {
+    box-shadow: inset 0 -2px var(--accent);
+  }
+
+  .document-tab-control[draggable='true'] { cursor: grab; }
+  .document-tab-control.is-dragging { opacity: 0.45; }
+
+  .document-tab, .document-tab-close, .document-tab-add {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    min-height: 2.25rem;
+  }
+
+  .document-tab {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .document-tab[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  .document-tab-close {
+    font: 700 0.75rem/1 ui-monospace, monospace;
+    padding: 0.25rem 0.55rem;
+  }
+
+  .document-tab-add {
+    color: var(--ink);
+    font-size: 1rem;
+    min-width: 2.25rem;
+    padding: 0.25rem 0.65rem;
+  }
+
+  .explorer-tab-control[draggable='true'],
+  .docs-tab-control[draggable='true'] {
+    cursor: grab;
+  }
+
+  .explorer-tab-control.is-dragging,
+  .docs-tab-control.is-dragging {
+    opacity: 0.45;
   }
 
   .editor-body {
@@ -1561,6 +1669,8 @@
   };
   const starter = templates.flowchart;
   const dot = document.querySelector('#dot');
+  const dotDocumentTabs = document.querySelector('#dot-document-tabs');
+  const svgDocumentTabs = document.querySelector('#svg-document-tabs');
   const editorLoadError = document.querySelector('#editor-load-error');
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
@@ -1658,17 +1768,27 @@
   const storageKey = 'graph-viz.session.v1';
   const themes = ['system', 'light', 'dark'];
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
-  const docsRoot = '/docs/d/graph-viz/';
+  const docsRoot = '/doc/';
   const permanentExplorerViews = ['dot-files', 'svg-files'];
   let docsAvailable = null;
   let docsCheckPending = false;
   let docsTabs = [];
   let nextDocs = 1;
   let explorerView = 'dot-files';
+  let explorerOrder = [...permanentExplorerViews];
+  let dotTabs = [];
+  let activeDotTabId;
+  let nextDotTab = 1;
+  let svgTabs = [];
+  let activeSvgTabId;
+  let nextSvgTab = 1;
+  let draggedTab;
   let contextFileKind;
   let contextFilePath;
   let contextFileSource;
   let clayErrorReturnFocus;
+  dotFilesTab.parentElement.dataset.explorerTabId = 'dot-files';
+  svgFilesTab.parentElement.dataset.explorerTabId = 'svg-files';
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1998,6 +2118,348 @@
     });
   }
 
+  function tabLabel(path, kind) {
+    if (!path) return kind === 'dot' ? 'Untitled' : 'Preview';
+    const parts = path.split('/');
+    const leaf = parts.at(-1);
+    if (kind === 'dot' && leaf === 'txt' && parts.length > 1) {
+      return `${parts.at(-2)}.dot`;
+    }
+    if (kind === 'svg' && leaf === 'svg' && parts.length > 1) {
+      return `${parts.at(-2)}.svg`;
+    }
+    return leaf;
+  }
+
+  function activeDotTab() {
+    return dotTabs.find((tab) => tab.id === activeDotTabId);
+  }
+
+  function activeSvgTab() {
+    return svgTabs.find((tab) => tab.id === activeSvgTabId);
+  }
+
+  function dotTabDirty(tab) {
+    return tab.source !== tab.cleanSource;
+  }
+
+  function svgTabDirty(tab) {
+    return tab.source !== tab.cleanSource;
+  }
+
+  function captureActiveDotTab() {
+    const tab = activeDotTab();
+    if (!tab || !editor) return;
+    tab.source = editor.getSource();
+    tab.selection = editor.getSelection();
+  }
+
+  function captureActiveSvgTab() {
+    const tab = activeSvgTab();
+    if (!tab || !tab.source || !currentSvg) return;
+    tab.source = lastSvgSource;
+    tab.view = {...view};
+    tab.showingSource = showingSvgSource;
+  }
+
+  function createDotTab(source = starter, options = {}) {
+    const tab = {
+      id: `dot-${nextDotTab++}`,
+      label: options.label || tabLabel(options.path, 'dot'),
+      path: options.path,
+      source,
+      cleanSource: options.cleanSource ?? source,
+      selection: options.selection || {start: 0, end: 0}
+    };
+    dotTabs.push(tab);
+    return tab;
+  }
+
+  function addEmptyDotTab() {
+    const tab = createDotTab('', {label: 'Untitled'});
+    selectDotTab(tab.id, true);
+  }
+
+  function createSvgTab(source = '', options = {}) {
+    const tab = {
+      id: `svg-${nextSvgTab++}`,
+      label: options.label || tabLabel(options.path, 'svg'),
+      path: options.path,
+      source,
+      cleanSource: options.cleanSource ?? source,
+      view: options.view,
+      showingSource: options.showingSource === true,
+      sourceDotId: options.sourceDotId
+    };
+    svgTabs.push(tab);
+    return tab;
+  }
+
+  function documentTabs(kind) {
+    return kind === 'dot' ? dotTabs : svgTabs;
+  }
+
+  function activeDocumentTabId(kind) {
+    return kind === 'dot' ? activeDotTabId : activeSvgTabId;
+  }
+
+  function documentTabContainer(kind) {
+    return kind === 'dot' ? dotDocumentTabs : svgDocumentTabs;
+  }
+
+  function documentTabKeydown(event, kind) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
+      .includes(event.key)) return;
+    event.preventDefault();
+    const tabs = documentTabs(kind);
+    const current = tabs.findIndex((tab) => {
+      return tab.id === event.currentTarget.dataset.documentTab;
+    });
+    let next = current;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else if (event.key === 'ArrowLeft') {
+      next = (current - 1 + tabs.length) % tabs.length;
+    } else {
+      next = (current + 1) % tabs.length;
+    }
+    if (kind === 'dot') selectDotTab(tabs[next].id, true);
+    else selectSvgTab(tabs[next].id, true);
+  }
+
+  function moveTab(kind, sourceId, targetId, after) {
+    const order = kind === 'explorer'
+      ? explorerOrder
+      : documentTabs(kind).map((tab) => tab.id);
+    const source = order.indexOf(sourceId);
+    const target = order.indexOf(targetId);
+    if (source < 0 || target < 0 || source === target) return;
+    order.splice(source, 1);
+    let insertion = order.indexOf(targetId) + (after ? 1 : 0);
+    insertion = Math.max(0, Math.min(order.length, insertion));
+    order.splice(insertion, 0, sourceId);
+    if (kind === 'explorer') {
+      explorerOrder = order;
+      syncExplorerTabOrder();
+    } else {
+      const byId = new Map(documentTabs(kind).map((tab) => [tab.id, tab]));
+      const reordered = order.map((id) => byId.get(id));
+      if (kind === 'dot') dotTabs = reordered;
+      else svgTabs = reordered;
+      renderDocumentTabs(kind);
+    }
+    queueSaveSession();
+  }
+
+  function enableTabDrag(wrapper, kind, id) {
+    if (wrapper.dataset.dragEnabled) return;
+    wrapper.dataset.dragEnabled = 'true';
+    wrapper.draggable = true;
+    wrapper.addEventListener('dragstart', (event) => {
+      draggedTab = {kind, id};
+      wrapper.classList.add('is-dragging');
+      event.dataTransfer?.setData('text/plain', id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    });
+    wrapper.addEventListener('dragover', (event) => {
+      if (draggedTab?.kind !== kind) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    });
+    wrapper.addEventListener('drop', (event) => {
+      if (draggedTab?.kind !== kind) return;
+      event.preventDefault();
+      const bounds = wrapper.getBoundingClientRect();
+      const after = event.clientX > bounds.left + bounds.width / 2;
+      moveTab(kind, draggedTab.id, id, after);
+    });
+    wrapper.addEventListener('dragend', () => {
+      wrapper.classList.remove('is-dragging');
+      draggedTab = undefined;
+    });
+  }
+
+  function renderDocumentTabs(kind) {
+    const container = documentTabContainer(kind);
+    const activeId = activeDocumentTabId(kind);
+    container.replaceChildren();
+    for (const tab of documentTabs(kind)) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'document-tab-control';
+      wrapper.classList.toggle('active', tab.id === activeId);
+      const control = document.createElement('button');
+      control.type = 'button';
+      control.className = 'document-tab';
+      control.dataset.documentTab = tab.id;
+      control.setAttribute('role', 'tab');
+      control.setAttribute('aria-selected', String(tab.id === activeId));
+      control.tabIndex = tab.id === activeId ? 0 : -1;
+      control.textContent = tab.label;
+      control.title = tab.path || tab.label;
+      control.addEventListener('click', () => {
+        if (kind === 'dot') selectDotTab(tab.id);
+        else selectSvgTab(tab.id);
+      });
+      control.addEventListener('keydown', (event) => {
+        documentTabKeydown(event, kind);
+      });
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'document-tab-close';
+      const dirty = kind === 'dot' ? dotTabDirty(tab) : svgTabDirty(tab);
+      close.textContent = dirty ? 'O' : 'X';
+      close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
+      close.setAttribute('aria-label', `Close ${tab.label}`);
+      close.addEventListener('click', (event) => {
+        event.stopPropagation?.();
+        if (kind === 'dot') closeDotTab(tab.id);
+        else closeSvgTab(tab.id);
+      });
+      wrapper.append(control, close);
+      enableTabDrag(wrapper, kind, tab.id);
+      container.append(wrapper);
+    }
+    if (kind === 'dot') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'document-tab-control document-tab-add-control';
+      wrapper.setAttribute('role', 'presentation');
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'document-tab-add';
+      add.setAttribute('aria-label', 'Add empty DOT tab');
+      add.title = 'Add empty DOT tab';
+      add.textContent = '+';
+      add.addEventListener('click', addEmptyDotTab);
+      wrapper.append(add);
+      container.append(wrapper);
+    }
+  }
+
+  function clearSvgDocument() {
+    clearVisualSelection();
+    preview.replaceChildren();
+    svgSource.textContent = '';
+    currentSvg = undefined;
+    lastSvgSource = '';
+    showingSvgSource = false;
+    setPreviewControls(false);
+    setState('empty', 'Empty');
+  }
+
+  function displayActiveSvgTab() {
+    const tab = activeSvgTab();
+    if (!tab?.source) {
+      clearSvgDocument();
+      return;
+    }
+    pendingView = validView(tab.view);
+    installSvg(tab.source);
+    setSvgSourceVisible(tab.showingSource);
+    setPreviewControls(true);
+    setState('ready', tab.path ? 'Loaded' : 'Rendered');
+  }
+
+  function selectDotTab(id, focus = false, renderSelected = true) {
+    const tab = dotTabs.find((item) => item.id === id);
+    if (!tab) return;
+    if (id === activeDotTabId) {
+      if (focus) {
+        dotDocumentTabs.querySelector(
+          `[data-document-tab="${id}"]`
+        )?.focus();
+      }
+      return;
+    }
+    captureActiveDotTab();
+    invalidateRender();
+    clearTimeout(renderTimer);
+    activeDotTabId = id;
+    editor.setSource(tab.source, {
+      history: 'reset',
+      notify: false,
+      selection: tab.selection
+    });
+    clearVisualSelection();
+    error.hidden = true;
+    setEditorProblem();
+    sourceStatus.textContent = 'Ready';
+    renderDocumentTabs('dot');
+    queueSaveSession();
+    if (renderSelected && autoRender.checked) renderNow();
+    if (focus) {
+      dotDocumentTabs.querySelector(
+        `[data-document-tab="${id}"]`
+      )?.focus();
+    }
+  }
+
+  function selectSvgTab(id, focus = false, capture = true) {
+    const tab = svgTabs.find((item) => item.id === id);
+    if (!tab) return;
+    if (capture && id === activeSvgTabId) {
+      if (focus) {
+        svgDocumentTabs.querySelector(
+          `[data-document-tab="${id}"]`
+        )?.focus();
+      }
+      return;
+    }
+    if (capture) captureActiveSvgTab();
+    activeSvgTabId = id;
+    displayActiveSvgTab();
+    renderDocumentTabs('svg');
+    queueSaveSession();
+    if (focus) {
+      svgDocumentTabs.querySelector(
+        `[data-document-tab="${id}"]`
+      )?.focus();
+    }
+  }
+
+  function closeDotTab(id) {
+    captureActiveDotTab();
+    const index = dotTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const tab = dotTabs[index];
+    if (dotTabDirty(tab)
+      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
+      return;
+    }
+    const wasActive = id === activeDotTabId;
+    dotTabs.splice(index, 1);
+    if (!dotTabs.length) createDotTab();
+    if (wasActive) {
+      activeDotTabId = undefined;
+      const next = dotTabs[Math.min(index, dotTabs.length - 1)];
+      selectDotTab(next.id, true);
+    } else {
+      renderDocumentTabs('dot');
+      queueSaveSession();
+    }
+  }
+
+  function closeSvgTab(id) {
+    captureActiveSvgTab();
+    const index = svgTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const tab = svgTabs[index];
+    if (svgTabDirty(tab)
+      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
+      return;
+    }
+    const wasActive = id === activeSvgTabId;
+    svgTabs.splice(index, 1);
+    if (!svgTabs.length) createSvgTab();
+    if (wasActive) {
+      activeSvgTabId = undefined;
+      const next = svgTabs[Math.min(index, svgTabs.length - 1)];
+      selectSvgTab(next.id, true, false);
+    } else {
+      renderDocumentTabs('svg');
+      queueSaveSession();
+    }
+  }
+
   if (typeof ResizeObserver === 'function') {
     const editorResizeObserver = new ResizeObserver(refreshEditor);
     editorResizeObserver.observe(dot);
@@ -2108,6 +2570,8 @@
 
   function toggleSvgView() {
     setSvgSourceVisible(!showingSvgSource);
+    captureActiveSvgTab();
+    queueSaveSession();
   }
 
   async function writeClipboard(source) {
@@ -2186,7 +2650,9 @@
   }
 
   function setExplorerView(viewName, focus = false) {
-    explorerView = validExplorerView(viewName) ? viewName : 'dot-files';
+    explorerView = validExplorerView(viewName)
+      ? viewName
+      : 'dot-files';
     for (const tab of explorerTabButtons()) {
       const active = tab.dataset.explorerView === explorerView;
       tab.setAttribute('aria-selected', String(active));
@@ -2284,11 +2750,34 @@
     }
   }
 
+  function syncExplorerTabOrder() {
+    const available = [
+      ...permanentExplorerViews,
+      ...docsTabs.map((tab) => tab.id)
+    ];
+    explorerOrder = explorerOrder.filter((id) => available.includes(id));
+    for (const id of available) {
+      if (!explorerOrder.includes(id)) explorerOrder.push(id);
+    }
+    const wrappers = new Map(
+      Array.from(explorerTabs.children).map((wrapper) => {
+        return [wrapper.dataset.explorerTabId, wrapper];
+      })
+    );
+    for (const id of explorerOrder) {
+      const wrapper = wrappers.get(id);
+      if (!wrapper) continue;
+      enableTabDrag(wrapper, 'explorer', id);
+      explorerTabs.append(wrapper);
+    }
+  }
+
   function createDocsTab(tab) {
     const wrapper = document.createElement('div');
     wrapper.className = 'docs-tab-control';
     wrapper.setAttribute('role', 'presentation');
     wrapper.dataset.docsTab = tab.id;
+    wrapper.dataset.explorerTabId = tab.id;
     const control = document.createElement('button');
     control.type = 'button';
     control.className = 'docs-tab';
@@ -2307,7 +2796,7 @@
     close.type = 'button';
     close.className = 'docs-tab-close';
     close.setAttribute('aria-label', `Close ${tab.title}`);
-    close.textContent = '×';
+    close.textContent = 'X';
     close.addEventListener('click', () => closeDocsTab(tab.id));
     wrapper.append(control, close);
     explorerTabs.append(wrapper);
@@ -2327,6 +2816,7 @@
     frame.addEventListener('error', disableDocsExplorer);
     panel.append(frame);
     explorerPane.append(panel);
+    syncExplorerTabOrder();
   }
 
   function renderDocsTabs() {
@@ -2339,6 +2829,7 @@
       node.remove();
     }
     for (const tab of docsTabs) createDocsTab(tab);
+    syncExplorerTabOrder();
   }
 
   function openDocsTab(title, path) {
@@ -2351,6 +2842,7 @@
     }
     const tab = {id: `docs-${nextDocs++}`, title, path};
     docsTabs.push(tab);
+    explorerOrder.push(tab.id);
     createDocsTab(tab);
     setHelpOpen(false);
     setExplorerView(tab.id, true);
@@ -2360,12 +2852,16 @@
     const index = docsTabs.findIndex((tab) => tab.id === id);
     if (index < 0) return;
     const wasActive = explorerView === id;
+    const orderIndex = explorerOrder.indexOf(id);
     document.querySelector(`[data-docs-tab="${id}"]`)?.remove();
     document.querySelector(`#${id}-panel`)?.remove();
     docsTabs.splice(index, 1);
+    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
     if (wasActive) {
-      const neighbor = docsTabs[Math.min(index, docsTabs.length - 1)];
-      setExplorerView(neighbor?.id || 'dot-files', true);
+      const neighbor = explorerOrder[
+        Math.min(orderIndex, explorerOrder.length - 1)
+      ];
+      setExplorerView(neighbor || '', true);
     } else {
       queueSaveSession();
     }
@@ -2376,7 +2872,7 @@
     const wasDocs = Boolean(docsTabById(explorerView));
     docsTabs = [];
     renderDocsTabs();
-    if (wasDocs) setExplorerView('dot-files');
+    if (wasDocs) setExplorerView(explorerOrder[0] || '');
     setHelpVariant(false);
   }
 
@@ -2683,7 +3179,8 @@
   }
 
   function showFileExplorer(kind) {
-    setExplorerView(kind === 'dot' ? 'dot-files' : 'svg-files', true);
+    const viewName = kind === 'dot' ? 'dot-files' : 'svg-files';
+    setExplorerView(viewName, true);
     refreshFileTree(kind);
   }
 
@@ -2732,11 +3229,86 @@
     };
   }
 
+  function validTabPath(path) {
+    if (path === undefined) return undefined;
+    if (typeof path !== 'string' || path.length > 1_024) return undefined;
+    try {
+      return normalizeClayPath(path);
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  function validTabLabel(label, fallback) {
+    return typeof label === 'string' && label.trim()
+      && label.length <= 200
+      ? label.trim()
+      : fallback;
+  }
+
+  function validSavedSource(source) {
+    try {
+      return validateSource(source);
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  function validDotTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^dot-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    const source = validSavedSource(candidate.source);
+    if (source === undefined) return undefined;
+    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
+    const path = validTabPath(candidate.path);
+    const start = Number(candidate.selection?.start);
+    const end = Number(candidate.selection?.end);
+    const selection = {
+      start: Number.isFinite(start)
+        ? clamp(Math.trunc(start), 0, source.length)
+        : 0,
+      end: Number.isFinite(end)
+        ? clamp(Math.trunc(end), 0, source.length)
+        : 0
+    };
+    selection.end = Math.max(selection.start, selection.end);
+    return {
+      id: candidate.id,
+      label: validTabLabel(candidate.label, tabLabel(path, 'dot')),
+      path,
+      source,
+      cleanSource,
+      selection
+    };
+  }
+
+  function validSvgTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^svg-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    const source = validSavedSource(candidate.source);
+    if (source === undefined) return undefined;
+    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
+    const path = validTabPath(candidate.path);
+    const sourceDotId = /^dot-[1-9][0-9]*$/.test(candidate.sourceDotId)
+      ? candidate.sourceDotId
+      : undefined;
+    return {
+      id: candidate.id,
+      label: validTabLabel(candidate.label, tabLabel(path, 'svg')),
+      path,
+      source,
+      cleanSource,
+      view: validView(candidate.view),
+      showingSource: candidate.showingSource === true,
+      sourceDotId
+    };
+  }
+
   function loadSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey));
       if (!saved || saved.version !== 1) return undefined;
-      const source = validateSource(saved.source);
+      const source = validSavedSource(saved.source) ?? starter;
       const paneWidth = Number(saved.paneWidth);
       const explorerWidth = Number(saved.explorerWidth);
       const preferences = saved.preferences || {};
@@ -2761,6 +3333,53 @@
           || savedDocsTabs.some((tab) => tab.id === saved.explorerView))
         ? saved.explorerView
         : 'dot-files';
+      const dotIds = new Set();
+      const dotPaths = new Set();
+      const savedDotTabs = Array.isArray(saved.dotTabs)
+        ? saved.dotTabs.map(validDotTab).filter((tab) => {
+          if (!tab || dotIds.has(tab.id)
+            || (tab.path && dotPaths.has(tab.path))) return false;
+          dotIds.add(tab.id);
+          if (tab.path) dotPaths.add(tab.path);
+          return true;
+        })
+        : [];
+      const svgIds = new Set();
+      const svgPaths = new Set();
+      const savedSvgTabs = Array.isArray(saved.svgTabs)
+        ? saved.svgTabs.map(validSvgTab).filter((tab) => {
+          if (!tab || svgIds.has(tab.id)
+            || (tab.path && svgPaths.has(tab.path))) return false;
+          svgIds.add(tab.id);
+          if (tab.path) svgPaths.add(tab.path);
+          if (tab.sourceDotId && !dotIds.has(tab.sourceDotId)) {
+            tab.sourceDotId = undefined;
+          }
+          return true;
+        })
+        : [];
+      const highestDotId = savedDotTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(4)) + 1);
+      }, 1);
+      const highestSvgId = savedSvgTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(4)) + 1);
+      }, 1);
+      const savedNextDotTab = Number(saved.nextDotTab);
+      const savedNextSvgTab = Number(saved.nextSvgTab);
+      const availableExplorerTabs = [
+        ...permanentExplorerViews,
+        ...savedDocsTabs.map((tab) => tab.id)
+      ];
+      const savedExplorerOrder = Array.isArray(saved.explorerOrder)
+        ? saved.explorerOrder.filter((id, index, items) => {
+          return typeof id === 'string'
+            && availableExplorerTabs.includes(id)
+            && items.indexOf(id) === index;
+        })
+        : [];
+      for (const id of availableExplorerTabs) {
+        if (!savedExplorerOrder.includes(id)) savedExplorerOrder.push(id);
+      }
       return {
         source,
         paneWidth: Number.isFinite(paneWidth)
@@ -2770,10 +3389,25 @@
           ? Math.max(explorerWidth, minExplorerWidth)
           : 288,
         explorerView: savedExplorerView,
+        explorerOrder: savedExplorerOrder,
         docsTabs: savedDocsTabs,
         nextDocs: Number.isSafeInteger(savedNextDocs)
           ? Math.max(savedNextDocs, highestDocsId)
           : highestDocsId,
+        dotTabs: savedDotTabs,
+        activeDotTabId: dotIds.has(saved.activeDotTabId)
+          ? saved.activeDotTabId
+          : savedDotTabs[0]?.id,
+        nextDotTab: Number.isSafeInteger(savedNextDotTab)
+          ? Math.max(savedNextDotTab, highestDotId)
+          : highestDotId,
+        svgTabs: savedSvgTabs,
+        activeSvgTabId: svgIds.has(saved.activeSvgTabId)
+          ? saved.activeSvgTabId
+          : savedSvgTabs[0]?.id,
+        nextSvgTab: Number.isSafeInteger(savedNextSvgTab)
+          ? Math.max(savedNextSvgTab, highestSvgId)
+          : highestSvgId,
         view: validView(saved.view),
         autoRender: preferences.autoRender !== false,
         theme: validTheme(preferences.theme)
@@ -2820,6 +3454,8 @@
   function saveSession() {
     clearTimeout(saveTimer);
     try {
+      captureActiveDotTab();
+      captureActiveSvgTab();
       const source = editor.getSource();
       validateSource(source);
       localStorage.setItem(storageKey, JSON.stringify({
@@ -2828,8 +3464,15 @@
         paneWidth: currentPaneWidth(),
         explorerWidth: currentExplorerWidth(),
         explorerView,
+        explorerOrder,
         docsTabs,
         nextDocs,
+        dotTabs,
+        activeDotTabId,
+        nextDotTab,
+        svgTabs,
+        activeSvgTabId,
+        nextSvgTab,
         view,
         preferences: {
           autoRender: autoRender.checked,
@@ -3698,7 +4341,7 @@
 
   function replaceStatementAttributes(source, statements, kind) {
     const unique = [...new Map(statements.map((statement) => {
-      return [`${statement.start}:${statement.end}`, statement];
+      return [${statement.start}:${statement.end}`, statement];
     })).values()].sort((left, right) => right.start - left.start);
     let result = source;
     for (const statement of unique) {
@@ -3911,6 +4554,8 @@
   }
 
   function editorChanged() {
+    captureActiveDotTab();
+    renderDocumentTabs('dot');
     clearVisualSelection();
     error.hidden = true;
     setEditorProblem();
@@ -4105,11 +4750,29 @@
 
   async function loadCurrentDot(path) {
     try {
+      const requestedPath = path ?? requestClayPath('DOT');
+      if (requestedPath === undefined) return;
+      const existing = dotTabs.find((tab) => {
+        return tab.path === requestedPath;
+      });
+      if (existing) {
+        selectDotTab(existing.id, true);
+        return;
+      }
       sourceStatus.textContent = 'Loading';
-      const source = await clayFileRequest('dot', 'load', '', path);
+      const source = await clayFileRequest(
+        'dot',
+        'load',
+        '',
+        requestedPath
+      );
       if (source === undefined) return;
       validateSource(source);
-      editor.setSource(source, {history: 'reset'});
+      const tab = createDotTab(source, {
+        path: requestedPath,
+        label: tabLabel(requestedPath, 'dot')
+      });
+      selectDotTab(tab.id, true);
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -4120,12 +4783,30 @@
 
   async function saveCurrentDot() {
     try {
+      captureActiveDotTab();
+      const tab = activeDotTab();
+      if (!tab) return;
       const source = editor.getSource();
       validateSource(source);
+      const path = tab.path ?? requestClayPath('DOT');
+      if (path === undefined) return;
       sourceStatus.textContent = 'Saving';
-      const result = await clayFileRequest('dot', 'save', source);
+      const result = await clayFileRequest(
+        'dot',
+        'save',
+        source,
+        path,
+        Boolean(tab.path)
+      );
       sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
-      if (result !== undefined) await refreshFileTree('dot');
+      if (result !== undefined) {
+        tab.path = path;
+        tab.label = tabLabel(path, 'dot');
+        tab.cleanSource = source;
+        renderDocumentTabs('dot');
+        queueSaveSession();
+        await refreshFileTree('dot');
+      }
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -4135,17 +4816,32 @@
 
   async function loadCurrentSvg(path) {
     try {
+      const requestedPath = path ?? requestClayPath('SVG');
+      if (requestedPath === undefined) return;
+      const existing = svgTabs.find((tab) => {
+        return tab.path === requestedPath;
+      });
+      if (existing) {
+        selectSvgTab(existing.id, true);
+        return;
+      }
       setState('loading', 'Loading');
-      const source = await clayFileRequest('svg', 'load', '', path);
+      const source = await clayFileRequest(
+        'svg',
+        'load',
+        '',
+        requestedPath
+      );
       if (source === undefined) {
         const state = currentSvg ? 'ready' : 'empty';
         setState(state, currentSvg ? 'Rendered' : 'Empty');
         return;
       }
-      installSvg(source);
-      autoRender.checked = false;
-      invalidateRender();
-      clearTimeout(renderTimer);
+      const tab = createSvgTab(source, {
+        path: requestedPath,
+        label: tabLabel(requestedPath, 'svg')
+      });
+      selectSvgTab(tab.id, true);
       queueSaveSession();
       error.textContent = '';
       error.hidden = true;
@@ -4160,18 +4856,67 @@
   }
 
   async function saveCurrentSvg() {
-    if (!lastSvgSource) return;
+    captureActiveSvgTab();
+    const tab = activeSvgTab();
+    if (!tab?.source) return;
     try {
+      const path = tab.path ?? requestClayPath('SVG');
+      if (path === undefined) return;
       setState('loading', 'Saving');
-      const result = await clayFileRequest('svg', 'save', lastSvgSource);
+      const result = await clayFileRequest(
+        'svg',
+        'save',
+        tab.source,
+        path,
+        Boolean(tab.path)
+      );
       setState('ready', result === undefined ? 'Rendered' : 'Saved');
-      if (result !== undefined) await refreshFileTree('svg');
+      if (result !== undefined) {
+        tab.path = path;
+        tab.label = tabLabel(path, 'svg');
+        tab.cleanSource = tab.source;
+        renderDocumentTabs('svg');
+        queueSaveSession();
+        await refreshFileTree('svg');
+      }
     } catch (cause) {
       showClayError(cause);
       error.textContent = String(cause);
       error.hidden = false;
       setState('ready', 'Save failed');
     }
+  }
+
+  function renderedSvgLabel(dotTab) {
+    if (!dotTab || dotTab.label === 'Untitled') return 'Preview';
+    if (dotTab.label.endsWith('.dot')) {
+      return `${dotTab.label.slice(0, -4)}.svg`;
+    }
+    return `${dotTab.label}.svg`;
+  }
+
+  function installRenderedSvg(source, dotTabId) {
+    captureActiveSvgTab();
+    let tab = svgTabs.find((item) => item.sourceDotId === dotTabId);
+    if (!tab) {
+      tab = svgTabs.find((item) => {
+        return !item.source && !item.path && !item.sourceDotId;
+      });
+    }
+    const dotTab = dotTabs.find((item) => item.id === dotTabId);
+    if (!tab) {
+      tab = createSvgTab('', {cleanSource: ''});
+    }
+    const restoredView = !tab.source && !tab.sourceDotId
+      ? pendingView
+      : undefined;
+    tab.label = renderedSvgLabel(dotTab);
+    tab.source = source;
+    tab.sourceDotId = dotTabId;
+    tab.view = restoredView;
+    tab.showingSource = false;
+    activeSvgTabId = undefined;
+    selectSvgTab(tab.id, false, false);
   }
 
   function insertTemplate() {
@@ -4246,6 +4991,8 @@
 
   async function render() {
     const uid = latestRequestUid = ++requestUid;
+    captureActiveDotTab();
+    const dotTabId = activeDotTabId;
     const source = editor.getSource();
     try {
       validateSource(source);
@@ -4256,9 +5003,7 @@
       return;
     }
     if (!source.trim()) {
-      preview.replaceChildren();
-      currentSvg = undefined;
-      lastSvgSource = '';
+      installRenderedSvg('', dotTabId);
       error.hidden = true;
       setEditorProblem();
       setPreviewControls(false);
@@ -4302,7 +5047,7 @@
         return;
       }
       try {
-        installSvg(body);
+        installRenderedSvg(body, dotTabId);
       } catch (_) {
         showProblem({kind: 'request', message: 'Invalid SVG response'});
         return;
@@ -4542,29 +5287,61 @@
     docsTabs = savedSession.docsTabs;
     nextDocs = savedSession.nextDocs;
     explorerView = savedSession.explorerView;
+    explorerOrder = savedSession.explorerOrder;
+    dotTabs = savedSession.dotTabs;
+    activeDotTabId = savedSession.activeDotTabId;
+    nextDotTab = savedSession.nextDotTab;
+    svgTabs = savedSession.svgTabs;
+    activeSvgTabId = savedSession.activeSvgTabId;
+    nextSvgTab = savedSession.nextSvgTab;
     autoRender.checked = savedSession.autoRender;
     pendingView = savedSession.view;
   }
   renderDocsTabs();
   setExplorerView(explorerView);
+  let sharedSource;
   try {
-    editor.setSource(
-      sourceFromUrl() ?? savedSession?.source ?? starter,
-      {history: 'reset', notify: false}
-    );
+    sharedSource = sourceFromUrl();
   } catch (cause) {
-    editor.setSource(
-      savedSession?.source ?? starter,
-      {history: 'reset', notify: false}
-    );
     initialProblem = String(cause);
+  }
+  if (sharedSource !== undefined) {
+    dotTabs = [];
+    activeDotTabId = undefined;
+    const shared = createDotTab(sharedSource, {label: 'Shared'});
+    activeDotTabId = shared.id;
+  }
+  if (!dotTabs.length) {
+    const first = createDotTab(savedSession?.source ?? starter);
+    activeDotTabId = first.id;
+  }
+  if (!activeDotTab()) activeDotTabId = dotTabs[0].id;
+  const initialDot = activeDotTab();
+  editor.setSource(initialDot.source, {
+    history: 'reset',
+    notify: false,
+    selection: initialDot.selection
+  });
+  renderDocumentTabs('dot');
+  if (!svgTabs.length) {
+    const first = createSvgTab();
+    activeSvgTabId = first.id;
+  }
+  if (!activeSvgTab()) activeSvgTabId = svgTabs[0].id;
+  try {
+    selectSvgTab(activeSvgTabId, false, false);
+  } catch (_) {
+    svgTabs = [];
+    const first = createSvgTab();
+    activeSvgTabId = first.id;
+    selectSvgTab(first.id, false, false);
   }
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
   populateAttributeShapes();
   refreshFileTree('dot');
   refreshFileTree('svg');
-  render();
+  if (autoRender.checked) render();
   refreshHelpVariant();
   if (initialProblem) showClientProblem(initialProblem);
   '''

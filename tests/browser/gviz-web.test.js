@@ -48,6 +48,11 @@ class Element {
   click() { this.clicked = true; }
   append(...children) {
     for (const child of children) {
+      if (child.parent) {
+        child.parent.children = child.parent.children.filter((item) => {
+          return item !== child;
+        });
+      }
       child.parent = this;
       this.children.push(child);
     }
@@ -115,6 +120,14 @@ class Element {
     if (view) {
       return all.filter((item) => item.dataset.explorerView === view[1]);
     }
+    const documentTab = selector.match(
+      /^\[data-document-tab="([^"]+)"\]$/
+    );
+    if (documentTab) {
+      return all.filter((item) => {
+        return item.dataset.documentTab === documentTab[1];
+      });
+    }
     const panelFrame = selector.match(/^#([^ ]+) iframe$/);
     if (panelFrame) {
       const panel = all.find((item) => item.id === panelFrame[1]);
@@ -181,6 +194,7 @@ function svgDocument(source) {
 
 const selectors = [
   '#dot', '#editor-load-error', '#template', '#render', '#error', '#preview',
+  '#dot-document-tabs', '#svg-document-tabs',
   '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',
   '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
@@ -300,7 +314,7 @@ global.document = {
   querySelectorAll: (selector) => selector === '.docs-help-link'
     ? docsHelpLinks
     : [],
-  getElementById: (id) => elements[`#${id}`] ||
+  getElementById: (id) => elements[#${id}`] ||
     documentDescendants().find((item) => item.id === id) || null,
   importNode: (node) => node,
   createDocumentFragment: () => ({
@@ -611,7 +625,8 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
   assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
 
-  requests[2].resolve(response(true, '<svg id="initial"/>'));
+  elements['#render'].listeners.click({});
+  requests.at(-1).resolve(response(true, '<svg id="initial"/>'));
   await tick();
   await tick();
   assert(elements['#preview'].children[0], elements['#error'].textContent);
@@ -634,10 +649,11 @@ const getDotSelection = () => editor.getSelection();
   elements['#theme'].value = 'system';
   elements['#theme'].listeners.change({});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
-  assert.equal(requests[3].url, '/docs');
-  assert.equal(requests[3].options.credentials, 'same-origin');
-  assert.equal(requests[3].options.cache, 'no-store');
-  requests[3].resolve(docsResponse('http://localhost:18080/login'));
+  const docsRequest = requests.find((request) => request.url === '/docs');
+  assert(docsRequest);
+  assert.equal(docsRequest.options.credentials, 'same-origin');
+  assert.equal(docsRequest.options.cache, 'no-store');
+  docsRequest.resolve(docsResponse('http://localhost:18080/login'));
   await tick();
   assert.equal(elements['#fallback-help-content'].hidden, false);
   assert.equal(elements['#docs-help-content'].hidden, true);
@@ -869,7 +885,7 @@ const getDotSelection = () => editor.getSelection();
   elements['#attribute-form'].listeners.submit({preventDefault() {}});
   for (const name of ['Alpha', 'Beta']) {
     const nodeLine = getDotSource().split('\n').find((line) => {
-      return line.trimStart().startsWith(`${name} [`);
+      return line.trimStart().startsWith(`${name} [);
     });
     assert(nodeLine, name);
     assert(nodeLine.includes('shape=diamond'), nodeLine);
@@ -1119,11 +1135,11 @@ const getDotSelection = () => editor.getSelection();
   });
   assert.equal(elements['#file-context-menu'].hidden, false);
   assert.equal(dotFile['aria-expanded'], 'true');
+  const contextRequestCount = requests.length;
   const contextLoadDot = elements['#file-context-open'].listeners.click({});
-  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
-  requests.at(-1).resolve(response(true, 'digraph context { C -> D }'));
   await contextLoadDot;
-  assert.equal(getDotSource(), 'digraph context { C -> D }');
+  assert.equal(requests.length, contextRequestCount);
+  assert.equal(getDotSource(), 'digraph browsed { B -> C }');
   assert.equal(elements['#file-context-menu'].hidden, true);
 
   dotFileRow.listeners.contextmenu({
@@ -1170,7 +1186,7 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="browsed"/>');
   assert.equal(getDotSource(), sourceBeforeBrowseSvg);
-  assert.equal(elements['#auto-render'].checked, false);
+  assert.equal(elements['#auto-render'].checked, true);
 
   prompts.push('/examples/loaded');
   const loadDotRequest = elements['#load-dot'].listeners.click({});
@@ -1189,7 +1205,7 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="loaded"/>');
   assert.equal(getDotSource(), sourceBeforePromptSvg);
-  assert.equal(elements['#auto-render'].checked, false);
+  assert.equal(elements['#auto-render'].checked, true);
 
   const failedBrowse = elements['#browse-dot'].listeners.click({});
   requests.at(-1).resolve(response(false, 'Clay browse failed'));

@@ -221,12 +221,12 @@ test('DOT explorer opens reset history and SVG opens preserve DOT', async ({
   });
   const rendersBeforeSvg = renderCount;
   await page.locator('[data-path="preview/svg"]').click();
-  await expect(page.locator('#auto-render')).not.toBeChecked();
+  await expect(page.locator('#auto-render')).toBeChecked();
   expect(await page.evaluate(() => {
     return window.__GVIZ_EDITOR_TEST__.getSource();
   })).toBe(dotBeforeSvg);
   await page.waitForTimeout(450);
-  expect(renderCount).toBe(rendersBeforeSvg);
+  expect(renderCount).toBeGreaterThan(rendersBeforeSvg);
 });
 
 test('DOT and SVG save retries preserve exact action-time bodies', async ({

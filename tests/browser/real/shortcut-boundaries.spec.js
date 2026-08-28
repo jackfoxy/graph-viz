@@ -25,7 +25,7 @@ async function installRoutes(page, state) {
       contentType: 'application/json',
       body: JSON.stringify(path
         ? {file: true, children: []}
-        : {file: false, children: [`sample.${kind}`]})
+        : {file: false, children: [sample.${kind}`]})
     });
   });
   await page.route('**/apps/graph-viz/render', async (route) => {
