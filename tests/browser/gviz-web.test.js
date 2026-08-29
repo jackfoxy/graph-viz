@@ -202,7 +202,7 @@ const selectors = [
   '#browse-svg', '#load-svg', '#save-svg', '#fit',
   '#auto-render', '#theme', '#help',
   '#help-panel', '#editor-help-card', '#close-help',
-  '#fallback-help-content', '#docs-help-content',
+  '#fallback-help-content', '#docs-help-content', '#docs-help-nav',
   '#workbench', '#explorer-pane', '#explorer-tabs', '#explorer-resizer',
   '#dot-files-tab', '#svg-files-tab',
   '#dot-files-panel', '#svg-files-panel',
@@ -225,18 +225,6 @@ const selectors = [
 const elements = Object.fromEntries(selectors.map((name) => {
   return [name, new Element()];
 }));
-const docsHelpLinks = [
-  ['usr/users-guide', '/docs/d/graph-viz/usr/users-guide'],
-  ['reference', '/docs/d/graph-viz/reference'],
-  ['graph-noun', '/docs/d/graph-viz/graph-noun'],
-  ['release-notes', '/docs/d/graph-viz/release-notes']
-].map(([path, href]) => {
-  const link = new Element();
-  link.dataset.docPath = path;
-  link.href = href;
-  link.textContent = path === 'usr/users-guide' ? 'Users Guide' : path;
-  return link;
-});
 elements['#auto-render'].checked = true;
 elements['#help-panel'].hidden = true;
 elements['#docs-help-content'].hidden = true;
@@ -311,10 +299,8 @@ global.document = {
     }
     return null;
   },
-  querySelectorAll: (selector) => selector === '.docs-help-link'
-    ? docsHelpLinks
-    : [],
-  getElementById: (id) => elements[#${id}`] ||
+  querySelectorAll: () => [],
+  getElementById: (id) => elements[`#${id}`] ||
     documentDescendants().find((item) => item.id === id) || null,
   importNode: (node) => node,
   createDocumentFragment: () => ({
@@ -537,6 +523,24 @@ function docsResponse(url = 'http://localhost:18080/docs') {
   };
 }
 
+function tocResponse() {
+  return {
+    ok: true,
+    status: 200,
+    headers: {get: () => 'text/plain; charset=utf-8'},
+    text: async () => [
+      '/keyboard-shortcuts/md  Keyboard Shortcuts',
+      '/users-guide/md         Users Guide',
+      '/dot-language/md        DOT Language',
+      '/dot-language           DOT Language Reference',
+      '  /attributes/md          Attributes',
+      '  /attributes             Attributes Reference',
+      '    /arrowhead/md            arrowhead',
+      '/reference/md           Reference'
+    ].join('\n')
+  };
+}
+
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function resolveBrowse(path, file, children) {
   const request = requests.at(-1);
@@ -676,14 +680,48 @@ const getDotSelection = () => editor.getSelection();
   elements['#help-panel'].listeners.click({target: elements['#help-panel']});
   assert.equal(elements['#help-panel'].hidden, true);
   elements['#help'].listeners.click({});
-  requests[4].resolve(docsResponse());
+  const retryDocsRequest = requests.filter((request) => {
+    return request.url === '/docs';
+  }).at(-1);
+  retryDocsRequest.resolve(docsResponse());
+  await tick();
+  const tocRequest = requests.find((request) => {
+    return request.url === '/apps/graph-viz/doc.toc';
+  });
+  assert(tocRequest);
+  assert.equal(tocRequest.options.credentials, 'same-origin');
+  assert.equal(tocRequest.options.cache, 'no-store');
+  tocRequest.resolve(tocResponse());
+  await tick();
   await tick();
   assert.equal(elements['#fallback-help-content'].hidden, true);
   assert.equal(elements['#docs-help-content'].hidden, false);
+  const docsGroups = descendants(elements['#docs-help-nav']).filter((item) => {
+    return item.className === 'docs-help-group';
+  });
+  assert.equal(docsGroups.length, 2);
+  assert.equal(docsGroups[0].open, undefined);
+  assert.equal(docsGroups[1].open, undefined);
+  const docsHelpLinks = descendants(elements['#docs-help-nav']).filter((item) => {
+    return item.className === 'docs-help-link';
+  });
+  const usersGuideLink = docsHelpLinks.find((item) => {
+    return item.dataset.docPath === 'users-guide';
+  });
+  const referenceLink = docsHelpLinks.find((item) => {
+    return item.dataset.docPath === 'reference';
+  });
+  const arrowheadLink = docsHelpLinks.find((item) => {
+    return item.dataset.docPath === 'dot-language/attributes/arrowhead';
+  });
+  assert(usersGuideLink);
+  assert(referenceLink);
+  assert.equal(arrowheadLink.href,
+    '/docs/d/graph-viz/dot-language/attributes/arrowhead');
   assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   }).length, 0);
-  docsHelpLinks[0].listeners.click({preventDefault() {}});
+  usersGuideLink.listeners.click({preventDefault() {}});
   assert.equal(elements['#help-panel'].hidden, true);
   let docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
@@ -702,21 +740,21 @@ const getDotSelection = () => editor.getSelection();
   let docsFrame = descendants(docsPanels[0]).find((item) => {
     return item.localName === 'iframe';
   });
-  assert.equal(docsFrame.src, '/docs/d/graph-viz/usr/users-guide');
+  assert.equal(docsFrame.src, '/docs/d/graph-viz/users-guide');
   docsFrame.contentDocument = {
     title: 'Docs / Graph Viz / Users Guide',
     querySelector: () => null
   };
   docsFrame.contentWindow = {
-    location: {pathname: '/docs/d/graph-viz/usr/users-guide'}
+    location: {pathname: '/docs/d/graph-viz/users-guide'}
   };
   docsFrame.listeners.load({});
   assert.equal(docsControls[0].children[0].textContent, 'Users Guide');
-  docsHelpLinks[0].listeners.click({preventDefault() {}});
+  usersGuideLink.listeners.click({preventDefault() {}});
   assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   }).length, 1);
-  docsHelpLinks[1].listeners.click({preventDefault() {}});
+  referenceLink.listeners.click({preventDefault() {}});
   docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   });
@@ -885,7 +923,7 @@ const getDotSelection = () => editor.getSelection();
   elements['#attribute-form'].listeners.submit({preventDefault() {}});
   for (const name of ['Alpha', 'Beta']) {
     const nodeLine = getDotSource().split('\n').find((line) => {
-      return line.trimStart().startsWith(`${name} [);
+      return line.trimStart().startsWith(`${name} [`);
     });
     assert(nodeLine, name);
     assert(nodeLine.includes('shape=diamond'), nodeLine);

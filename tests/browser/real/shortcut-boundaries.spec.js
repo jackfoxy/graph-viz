@@ -25,7 +25,7 @@ async function installRoutes(page, state) {
       contentType: 'application/json',
       body: JSON.stringify(path
         ? {file: true, children: []}
-        : {file: false, children: [sample.${kind}`]})
+        : {file: false, children: [`sample.${kind}`]})
     });
   });
   await page.route('**/apps/graph-viz/render', async (route) => {
@@ -275,12 +275,26 @@ test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
     await expect(link).toHaveAttribute('href', new RegExp(`${path}$`));
     await expect(link).toHaveAttribute('target', '_blank');
   }
-  const keyboardShortcuts = page.locator('.docs-help-group');
-  await expect(keyboardShortcuts).toHaveJSProperty('open', false);
-  await keyboardShortcuts.locator('summary').click();
-  await expect(keyboardShortcuts).toHaveJSProperty('open', true);
-  await keyboardShortcuts.locator('summary').click();
-  await expect(keyboardShortcuts).toHaveJSProperty('open', false);
+  const docsGroups = page.locator('.docs-help-group');
+  await expect(docsGroups).toHaveCount(3);
+  expect(await docsGroups.evaluateAll((groups) => {
+    return groups.every((group) => !group.open);
+  })).toBe(true);
+  const dotLanguage = page.locator('.docs-help-group').filter({
+    has: page.locator('summary').filter({hasText: /^DOT Language Reference$/})
+  });
+  await dotLanguage.locator('summary').first().click();
+  await expect(dotLanguage).toHaveJSProperty('open', true);
+  const attributes = dotLanguage.locator('.docs-help-group').filter({
+    has: page.locator('summary').filter({hasText: /^Attributes Reference$/})
+  });
+  await expect(attributes.locator('summary').first()).toBeVisible();
+  await attributes.locator('summary').first().click();
+  await expect(attributes).toHaveJSProperty('open', true);
+  await attributes.locator('summary').first().click();
+  await expect(attributes).toHaveJSProperty('open', false);
+  await dotLanguage.locator('summary').first().click();
+  await expect(dotLanguage).toHaveJSProperty('open', false);
   await page.getByRole('link', {name: 'Users Guide'}).click();
   const docsTab = page.locator('.docs-tab').filter({hasText: 'Users Guide'});
   await expect(docsTab).toBeFocused();

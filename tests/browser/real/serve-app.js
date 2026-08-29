@@ -172,6 +172,12 @@ async function main() {
       response.end(javascript);
       return;
     }
+    if (request.method === 'GET'
+      && requestPath === '/apps/graph-viz/doc.toc') {
+      response.writeHead(200, {'content-type': 'text/plain; charset=utf-8'});
+      response.end(fs.readFileSync(path.join(root, 'desk/doc.toc')));
+      return;
+    }
     if (request.method === 'GET' && aceAssets.has(requestPath)) {
       const filename = aceAssets.get(requestPath);
       const contentType = filename.endsWith('.js')

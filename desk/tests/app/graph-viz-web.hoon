@@ -128,6 +128,17 @@
     !>(?=(^ (find "async function render" (trip (response-body -.out)))))
   ==
 ::
+++  test-web-doc-toc
+  =/  out  (poke-http (request %'GET' '/apps/graph-viz/doc.toc' ~))
+  ;:  weld
+    (expect-eq !>(200) !>((response-status -.out)))
+    %+  expect-eq
+      !>(~[['content-type' 'text/plain; charset=utf-8']])
+    !>((response-headers -.out))
+    %-  expect
+    !>(?=(^ (find "/dot-language" (trip (response-body -.out)))))
+  ==
+::
 ++  test-web-ace-assets
   ;:  weld
     %^  check-asset

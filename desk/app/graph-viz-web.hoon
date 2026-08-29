@@ -12,6 +12,7 @@
 /*  ace-search   %js   /web/ace/ext-searchbox/js
 /*  ace-sets     %js   /web/ace/ext-settings-menu/js
 /*  ace-lic      %txt  /web/ace/license/txt
+/*  docs-toc     %toc  /doc/toc
 |%
 +$  versioned-state  $%(state-0)
 +$  state-0  [%0 ~]
@@ -80,6 +81,9 @@
   ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/app.js" url)  ==
     :_  this
     (respond eyre-id 200 'text/javascript; charset=utf-8' javascript:web)
+  ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/doc.toc" url)  ==
+    :_  this
+    (respond eyre-id 200 'text/plain; charset=utf-8' docs-toc)
   ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/ace/ace.js" url)  ==
     :_  this
     (respond eyre-id 200 'text/javascript; charset=utf-8' ace-core)

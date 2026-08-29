@@ -424,7 +424,7 @@
           ;div#fallback-help-content
             ;nav.help-links(aria-label "Graph Viz documentation")
               ;a
-                =href    "../doc/dot-language.md"
+                =href    "/docs/d/graph-viz/dot-language"
                 =target  "_blank"
                 =rel     "noopener noreferrer"
                 DOT Language Reference
@@ -447,78 +447,8 @@
           ;div#docs-help-content.docs-help-content(hidden "")
             ;nav#docs-help-nav.docs-help-nav
               =aria-label  "Graph Viz documentation"
-              ;details.docs-help-group
-                ;summary.docs-help-summary: Keyboard Shortcuts
-                ;div.docs-help-subnav
-                  ;a.docs-help-link
-                    =href           "../doc/dot-language/keyboard-shortcuts"
-                    =data-doc-path  "keyboard-shortcuts"
-                    Overview
-                  ==
-                  ;a.docs-help-link
-                    =href
-                      "../doc/dot-language/keyboard-shortcuts#line-operations"
-                    =data-doc-path
-                      "keyboard-shortcuts#line-operations"
-                    Line Operations
-                  ==
-                  ;a.docs-help-link
-                    =href
-                      "../doc/dot-language/keyboard-shortcuts#selection"
-                    =data-doc-path  "keyboard-shortcuts#selection"
-                    Selection
-                  ==
-                  ;a.docs-help-link
-                    =href
-                      "../doc/dot-language/keyboard-shortcuts#multicursor"
-                    =data-doc-path  "keyboard-shortcuts#multicursor"
-                    Multicursor
-                  ==
-                  ;a.docs-help-link
-                    =href  "../doc/dot-language/keyboard-shortcuts#go-to"
-                    =data-doc-path  "keyboard-shortcuts#go-to"
-                    Go to
-                  ==
-                  ;a.docs-help-link
-                    =href
-                      "../doc/dot-language/keyboard-shortcuts#find-replace"
-                    =data-doc-path
-                      "keyboard-shortcuts#find-replace"
-                    Find/Replace
-                  ==
-                  ;a.docs-help-link
-                    =href
-                      "../doc/dot-language/keyboard-shortcuts#folding"
-                    =data-doc-path  "keyboard-shortcuts#folding"
-                    Folding
-                  ==
-                  ;a.docs-help-link
-                    =href  "../doc/dot-language/keyboard-shortcuts#other"
-                    =data-doc-path  "keyboard-shortcuts#other"
-                    Other
-                  ==
-                ==
-              ==
-              ;a.docs-help-link
-                =href           "../doc/users-guide"
-                =data-doc-path  "users-guide"
-                Users Guide
-              ==
-              ;a.docs-help-link
-                =href           "../doc/reference"
-                =data-doc-path  "reference"
-                Reference
-              ==
-              ;a.docs-help-link
-                =href           "../doc/graph-noun"
-                =data-doc-path  "graph-noun"
-                Positioned graph
-              ==
-              ;a.docs-help-link
-                =href           "../doc/release-notes"
-                =data-doc-path  "release-notes"
-                Release notes
-              ==
+              =aria-busy  "true"
+              ;p.docs-help-loading: Loading documentation…
             ==
           ==
           ;nav.help-links.help-skill-links
@@ -971,6 +901,8 @@
     align-items: center;
     border-bottom: 1px solid var(--border);
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     justify-content: space-between;
     min-height: 2.75rem;
     padding: 0.5rem 0.75rem;
@@ -1520,6 +1452,17 @@
     padding: 0.3rem 0.65rem;
   }
 
+  .docs-help-subnav .docs-help-group {
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+  }
+
+  .docs-help-loading {
+    color: var(--muted);
+    margin: 0;
+    padding: 0.65rem;
+  }
+
   .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
 
   .file-tree-list {
@@ -1735,9 +1678,7 @@
     '#fallback-help-content'
   );
   const docsHelpContent = document.querySelector('#docs-help-content');
-  const docsHelpLinks = Array.from(
-    document.querySelectorAll('.docs-help-link')
-  );
+  const docsHelpNav = document.querySelector('#docs-help-nav');
   const workbench = document.querySelector('#workbench');
   const explorerPane = document.querySelector('#explorer-pane');
   const explorerTabs = document.querySelector('#explorer-tabs');
@@ -1768,10 +1709,11 @@
   const storageKey = 'graph-viz.session.v1';
   const themes = ['system', 'light', 'dark'];
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
-  const docsRoot = '/doc/';
+  const docsRoot = '/docs/d/graph-viz/';
   const permanentExplorerViews = ['dot-files', 'svg-files'];
   let docsAvailable = null;
   let docsCheckPending = false;
+  let docsTreeLoaded = false;
   let docsTabs = [];
   let nextDocs = 1;
   let explorerView = 'dot-files';
@@ -2867,6 +2809,93 @@
     }
   }
 
+  function parseDocsToc(source) {
+    const root = [];
+    const folders = [];
+    for (const line of source.split(/\r?\n/)) {
+      const match = line.match(
+        /^(\s*)(\/[^\s]+)(?:\s+(.*\S))?\s*$/
+      );
+      if (!match) continue;
+      const indentation = match[1].replace(/\t/g, '  ').length;
+      if (indentation % 2 !== 0) continue;
+      const level = indentation / 2;
+      const parts = match[2].slice(1).split('/').filter(Boolean);
+      if (parts.length < 1 || parts.length > 2 ||
+        !parts.every((part) => /^[A-Za-z0-9._~-]+$/.test(part))) {
+        continue;
+      }
+      const children = level === 0
+        ? root
+        : folders[level - 1]?.children;
+      if (!children) continue;
+      const folder = parts.length === 1;
+      const entry = {
+        children: folder ? [] : undefined,
+        folder,
+        slug: parts[0],
+        title: match[3] || parts[0]
+      };
+      children.push(entry);
+      folders.length = level;
+      if (folder) folders[level] = entry;
+    }
+    return root;
+  }
+
+  function appendDocsEntries(container, entries, parentPath = []) {
+    for (const entry of entries) {
+      const path = [...parentPath, entry.slug];
+      if (entry.folder) {
+        const group = document.createElement('details');
+        group.className = 'docs-help-group';
+        const summary = document.createElement('summary');
+        summary.className = 'docs-help-summary';
+        summary.textContent = entry.title;
+        const subnav = document.createElement('div');
+        subnav.className = 'docs-help-subnav';
+        appendDocsEntries(subnav, entry.children, path);
+        group.append(summary, subnav);
+        container.append(group);
+        continue;
+      }
+      const docPath = path.join('/');
+      const link = document.createElement('a');
+      link.className = 'docs-help-link';
+      link.href = `${docsRoot}${docPath}`;
+      link.dataset.docPath = docPath;
+      link.textContent = entry.title;
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        openDocsTab(entry.title, docPath);
+      });
+      container.append(link);
+    }
+  }
+
+  async function loadDocsTree() {
+    if (docsTreeLoaded) return true;
+    try {
+      const response = await fetch('/apps/graph-viz/doc.toc', {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok || !contentType.includes('text/plain')) return false;
+      const entries = parseDocsToc(await response.text());
+      if (!entries.length) return false;
+      const tree = document.createDocumentFragment();
+      appendDocsEntries(tree, entries);
+      docsHelpNav.replaceChildren(tree);
+      docsHelpNav.setAttribute('aria-busy', 'false');
+      docsTreeLoaded = true;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function disableDocsExplorer() {
     docsAvailable = false;
     const wasDocs = Boolean(docsTabById(explorerView));
@@ -2911,6 +2940,7 @@
       docsAvailable = response.ok &&
         responseUrl.origin === window.location.origin && docsPath &&
         contentType.includes('text/html');
+      if (docsAvailable) docsAvailable = await loadDocsTree();
     } catch (_) {
       docsAvailable = false;
     } finally {
@@ -4341,7 +4371,7 @@
 
   function replaceStatementAttributes(source, statements, kind) {
     const unique = [...new Map(statements.map((statement) => {
-      return [${statement.start}:${statement.end}`, statement];
+      return [`${statement.start}:${statement.end}`, statement];
     })).values()].sort((left, right) => right.start - left.start);
     let result = source;
     for (const statement of unique) {
@@ -5124,12 +5154,6 @@
   closeHelp.addEventListener('click', () => setHelpOpen(false, true));
   helpPanel.addEventListener('click', (event) => {
     if (event.target === helpPanel) setHelpOpen(false, true);
-  });
-  docsHelpLinks.forEach((link) => {
-    link.addEventListener('click', (event) => {
-      event.preventDefault();
-      openDocsTab(link.textContent.trim(), link.dataset.docPath);
-    });
   });
   for (const tab of [dotFilesTab, svgFilesTab]) {
     tab.addEventListener('click', () => {
