@@ -110,8 +110,16 @@ class Element {
     if (selector === '[data-docs-tab]') {
       return all.filter((item) => item.dataset.docsTab);
     }
+    if (selector === '[data-ref-tab]') {
+      return all.filter((item) => item.dataset.refTab);
+    }
     if (selector === '.docs-explorer-panel') {
       return all.filter((item) => item.className === 'explorer-panel docs-explorer-panel');
+    }
+    if (selector === '.ref-explorer-panel') {
+      return all.filter((item) => {
+        return item.className === 'explorer-panel ref-explorer-panel';
+      });
     }
     if (selector === 'svg') {
       return all.filter((item) => item.localName === 'svg');
@@ -198,8 +206,8 @@ const selectors = [
   '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',
   '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
-  '#browse-dot', '#load-dot', '#save-dot',
-  '#browse-svg', '#load-svg', '#save-svg', '#fit',
+  '#add-dot-ref', '#browse-dot', '#load-dot', '#save-dot',
+  '#add-svg-ref', '#browse-svg', '#load-svg', '#save-svg', '#fit',
   '#auto-render', '#theme', '#help',
   '#help-panel', '#editor-help-card', '#close-help',
   '#fallback-help-content', '#docs-help-content', '#docs-help-nav',
@@ -296,6 +304,12 @@ global.document = {
     if (docs) {
       return documentDescendants().find((item) => {
         return item.dataset?.docsTab === docs[1];
+      });
+    }
+    const ref = selector.match(/^\[data-ref-tab="([^"]+)"\]$/);
+    if (ref) {
+      return documentDescendants().find((item) => {
+        return item.dataset?.refTab === ref[1];
       });
     }
     return null;

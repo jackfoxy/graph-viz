@@ -239,6 +239,96 @@ test('tab strips show thin horizontal scrollbars only on overflow', async ({
   }
 });
 
+test('Add Ref creates persistent, synced, read-only DOT and SVG tabs', async ({
+  page
+}) => {
+  const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
+  await installRoutes(page, state);
+  await useStoredSession(page);
+  await page.goto('/apps/graph-viz/');
+
+  const addDotRef = page.locator('#add-dot-ref');
+  await expect(addDotRef).toBeEnabled();
+  await addDotRef.click();
+  await expect(addDotRef).toBeDisabled();
+  const dotRef = page.locator('#explorer-tabs .ref-tab').filter({
+    hasText: 'Untitled'
+  });
+  await expect(dotRef).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.ref-source'))
+    .toHaveText('digraph initial {}');
+
+  await page.evaluate(() => {
+    const editor = window.__GVIZ_EDITOR_TEST__;
+    editor.replaceRange(editor.getSource().length, editor.getSource().length,
+      '\n// synced reference');
+  });
+  await expect(page.locator('.ref-source'))
+    .toContainText('// synced reference');
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await tabControl(page, 'dot', 'Untitled')
+    .locator('.document-tab-close').click();
+  await expect(dotRef).toBeVisible();
+  await page.waitForTimeout(200);
+  await page.reload();
+  await expect(page.locator('.ref-source'))
+    .toContainText('// synced reference');
+
+  await page.locator('#render').click();
+  await expect.poll(() => state.renders.length).toBeGreaterThan(0);
+  const addSvgRef = page.locator('#add-svg-ref');
+  await expect(addSvgRef).toBeEnabled();
+  await addSvgRef.click();
+  await expect(addSvgRef).toBeDisabled();
+  await expect(page.locator('.ref-source').last())
+    .toContainText(`<title>Render ${state.renders.length}</title>`);
+
+  const before = state.renders.length;
+  await page.locator('#render').click();
+  await expect.poll(() => state.renders.length).toBe(before + 1);
+  await expect(page.locator('.ref-source').last())
+    .toContainText(`<title>Render ${before + 1}</title>`);
+  await page.locator('.ref-tab-close').last().click();
+  await expect(addSvgRef).toBeEnabled();
+});
+
+test('document tabs drag to explorer only when Ref is available', async ({
+  page
+}) => {
+  const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
+  await installRoutes(page, state);
+  await useStoredSession(page);
+  await page.goto('/apps/graph-viz/');
+
+  const dotTab = tabControl(page, 'dot', 'Untitled');
+  await expect.poll(() => dotTab.evaluate((node) => node.draggable))
+    .toBe(true);
+  await dotTab.dragTo(page.locator('#explorer-tabs'));
+  await expect(page.locator('#explorer-tabs .ref-tab')).toHaveText('Untitled');
+  await expect(page.locator('#add-dot-ref')).toBeDisabled();
+  await expect.poll(() => dotTab.evaluate((node) => node.draggable))
+    .toBe(false);
+
+  await page.getByRole('button', {name: 'Add empty DOT tab'}).click();
+  const emptyTab = tabControl(page, 'dot', 'Untitled').last();
+  await expect(page.locator('#add-dot-ref')).toBeDisabled();
+  await expect.poll(() => emptyTab.evaluate((node) => node.draggable))
+    .toBe(false);
+
+  await dotTab.first().locator('.document-tab').click();
+  await expect(page.locator('#add-svg-ref')).toBeDisabled();
+  await page.locator('#render').click();
+  await expect.poll(() => state.renders.length).toBe(1);
+  const svgTab = tabControl(page, 'svg', 'Preview');
+  await expect.poll(() => svgTab.evaluate((node) => node.draggable))
+    .toBe(true);
+  await svgTab.dragTo(page.locator('#explorer-pane'));
+  await expect(page.locator('#explorer-tabs .ref-tab'))
+    .toHaveCount(2);
+  await expect(page.locator('#add-svg-ref')).toBeDisabled();
+});
+
 test('DOT, SVG, and explorer tab order and content persist', async ({page}) => {
   const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
   await installRoutes(page, state);
@@ -320,8 +410,9 @@ test('DOT, SVG, and explorer tab order and content persist', async ({page}) => {
     };
   });
   expect(tabHeights.explorerOverflow).toBe(true);
-  expect(tabHeights.explorer).toBeGreaterThan(tabHeights.documents);
-  expect(tabHeights.explorer - tabHeights.documents).toBeLessThanOrEqual(20);
+  expect(Math.abs(
+    tabHeights.explorer - tabHeights.documents
+  )).toBeLessThanOrEqual(1);
   expect(Math.abs(
     tabHeights.reference - tabHeights.editor
   )).toBeLessThanOrEqual(1);

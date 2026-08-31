@@ -116,6 +116,7 @@
                 ;option(value "dependencies"): Dependencies
                 ;option(value "clusters"): Clusters
               ==
+              ;button#add-dot-ref(type "button", disabled ""): Add Ref
               ;button#browse-dot(type "button"): Browse
               ;button#load-dot(type "button"): Load DOT
               ;button#save-dot(type "button"): Save DOT
@@ -219,6 +220,7 @@
                 =title     "Reset view (Ctrl+1)"
                 ;span: Reset
               ==
+              ;button#add-svg-ref(type "button", disabled ""): Add Ref
               ;button#browse-svg(type "button"): Browse
               ;button#load-svg(type "button"): Load SVG
               ;button#save-svg(type "button", disabled ""): Save SVG
@@ -817,7 +819,9 @@
     align-items: flex-start;
     border-bottom: 1px solid var(--border);
     display: flex;
-    min-height: 2.25rem;
+    flex: 0 0 2.55rem;
+    height: 2.55rem;
+    min-height: 2.55rem;
     min-width: 0;
     overscroll-behavior-inline: contain;
     overflow-x: auto;
@@ -825,10 +829,11 @@
   }
 
   .explorer-tab-control, .docs-tab-control {
-    align-items: stretch;
+    align-items: center;
     border-right: 1px solid var(--border);
     display: inline-flex;
     flex: 0 0 auto;
+    height: 2.25rem;
   }
 
   .docs-tab-control { position: relative; }
@@ -839,7 +844,9 @@
     border-radius: 0;
     color: var(--muted);
     font-size: 0.75rem;
+    height: 2.25rem;
     min-height: 2.25rem;
+    padding-block: 0;
   }
 
   .explorer-tab, .docs-tab {
@@ -907,6 +914,18 @@
     width: 100%;
   }
 
+  .ref-explorer-panel {
+    overflow: auto;
+    padding: 1rem;
+  }
+
+  .ref-source {
+    font: 0.8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+    margin: 0;
+    min-width: max-content;
+    white-space: pre;
+  }
+
   .explorer-resizer {
     background: var(--border);
     border: 0;
@@ -951,7 +970,14 @@
   }
 
   .pane-header h2 { font-size: 0.9rem; margin: 0; }
-  .file-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+  .file-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-left: auto;
+    min-width: 0;
+  }
   .status {
     color: var(--muted);
     font-size: 0.75rem;
@@ -962,7 +988,9 @@
     align-items: flex-start;
     border-bottom: 1px solid var(--border);
     display: flex;
-    min-height: 2.25rem;
+    flex: 0 0 2.55rem;
+    height: 2.55rem;
+    min-height: 2.55rem;
     min-width: 0;
     overscroll-behavior-inline: contain;
     overflow-x: auto;
@@ -997,6 +1025,7 @@
     border-right: 1px solid var(--border);
     display: inline-flex;
     flex: 0 0 auto;
+    height: 2.25rem;
   }
 
   .document-tab-control.active {
@@ -1012,7 +1041,9 @@
     border-radius: 0;
     color: var(--muted);
     font-size: 0.75rem;
+    height: 2.25rem;
     min-height: 2.25rem;
+    padding-block: 0;
   }
 
   .document-tab {
@@ -1040,12 +1071,14 @@
   }
 
   .explorer-tab-control[draggable='true'],
-  .docs-tab-control[draggable='true'] {
+  .docs-tab-control[draggable='true'],
+  .ref-tab-control[draggable='true'] {
     cursor: grab;
   }
 
   .explorer-tab-control.is-dragging,
-  .docs-tab-control.is-dragging {
+  .docs-tab-control.is-dragging,
+  .ref-tab-control.is-dragging {
     opacity: 0.45;
   }
 
@@ -1725,9 +1758,11 @@
   const fullscreenZoomOut = document.querySelector('#fullscreen-zoom-out');
   const fullscreenZoomIn = document.querySelector('#fullscreen-zoom-in');
   const resetView = document.querySelector('#reset-view');
+  const addDotRef = document.querySelector('#add-dot-ref');
   const browseDot = document.querySelector('#browse-dot');
   const loadDot = document.querySelector('#load-dot');
   const saveDot = document.querySelector('#save-dot');
+  const addSvgRef = document.querySelector('#add-svg-ref');
   const browseSvg = document.querySelector('#browse-svg');
   const loadSvg = document.querySelector('#load-svg');
   const saveSvg = document.querySelector('#save-svg');
@@ -1782,6 +1817,8 @@
   let explorerOpen = true;
   let docsTabs = [];
   let nextDocs = 1;
+  let refTabs = [];
+  let nextRef = 1;
   let explorerView = 'dot-files';
   let explorerOrder = [...permanentExplorerViews];
   let dotTabs = [];
@@ -2160,6 +2197,7 @@
     if (!tab || !editor) return;
     tab.source = editor.getSource();
     tab.selection = editor.getSelection();
+    syncRefFromParent('dot', tab.id);
   }
 
   function captureActiveSvgTab() {
@@ -2168,6 +2206,7 @@
     tab.source = lastSvgSource;
     tab.view = {...view};
     tab.showingSource = showingSvgSource;
+    syncRefFromParent('svg', tab.id);
   }
 
   function createDotTab(source = starter, options = {}) {
@@ -2215,6 +2254,26 @@
     return kind === 'dot' ? dotDocumentTabs : svgDocumentTabs;
   }
 
+  function parentTab(kind, id) {
+    return documentTabs(kind).find((tab) => tab.id === id);
+  }
+
+  function refForParent(kind, parentId) {
+    return refTabs.find((tab) => {
+      return tab.kind === kind && tab.parentId === parentId;
+    });
+  }
+
+  function canAddRef(kind, id) {
+    const tab = parentTab(kind, id);
+    return Boolean(tab?.source.trim() && !refForParent(kind, id));
+  }
+
+  function updateRefActions() {
+    addDotRef.disabled = !canAddRef('dot', activeDotTabId);
+    addSvgRef.disabled = !canAddRef('svg', activeSvgTabId);
+  }
+
   function documentTabKeydown(event, kind) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
       .includes(event.key)) return;
@@ -2260,14 +2319,18 @@
   }
 
   function enableTabDrag(wrapper, kind, id) {
+    wrapper.draggable = kind === 'explorer' || canAddRef(kind, id);
     if (wrapper.dataset.dragEnabled) return;
     wrapper.dataset.dragEnabled = 'true';
-    wrapper.draggable = true;
     wrapper.addEventListener('dragstart', (event) => {
+      if (!wrapper.draggable) {
+        event.preventDefault();
+        return;
+      }
       draggedTab = {kind, id};
       wrapper.classList.add('is-dragging');
       event.dataTransfer?.setData('text/plain', id);
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copyMove';
     });
     wrapper.addEventListener('dragover', (event) => {
       if (draggedTab?.kind !== kind) return;
@@ -2341,6 +2404,7 @@
       wrapper.append(add);
       container.append(wrapper);
     }
+    updateRefActions();
   }
 
   function clearSvgDocument() {
@@ -2648,13 +2712,17 @@
     return docsTabs.find((tab) => tab.id === id);
   }
 
+  function refTabById(id) {
+    return refTabs.find((tab) => tab.id === id);
+  }
+
   function explorerTabButtons() {
     return Array.from(explorerTabs.querySelectorAll('[role="tab"]'));
   }
 
   function validExplorerView(viewName) {
     return permanentExplorerViews.includes(viewName) ||
-      Boolean(docsTabById(viewName));
+      Boolean(docsTabById(viewName)) || Boolean(refTabById(viewName));
   }
 
   function setExplorerView(viewName, focus = false) {
@@ -2761,7 +2829,8 @@
   function syncExplorerTabOrder() {
     const available = [
       ...permanentExplorerViews,
-      ...docsTabs.map((tab) => tab.id)
+      ...docsTabs.map((tab) => tab.id),
+      ...refTabs.map((tab) => tab.id)
     ];
     explorerOrder = explorerOrder.filter((id) => available.includes(id));
     for (const id of available) {
@@ -2838,6 +2907,140 @@
     }
     for (const tab of docsTabs) createDocsTab(tab);
     syncExplorerTabOrder();
+  }
+
+  function updateRefContent(tab) {
+    const panel = document.getElementById(`${tab.id}-panel`);
+    if (!panel) return;
+    const source = document.createElement('pre');
+    source.className = 'ref-source';
+    source.textContent = tab.source;
+    panel.replaceChildren(source);
+  }
+
+  function createRefTabControl(tab) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'docs-tab-control ref-tab-control';
+    wrapper.setAttribute('role', 'presentation');
+    wrapper.dataset.refTab = tab.id;
+    wrapper.dataset.explorerTabId = tab.id;
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.className = 'docs-tab ref-tab';
+    control.id = `${tab.id}-tab`;
+    control.dataset.explorerView = tab.id;
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', 'false');
+    control.setAttribute('aria-controls', `${tab.id}-panel`);
+    control.tabIndex = -1;
+    control.textContent = tab.label;
+    control.title = tab.label;
+    control.addEventListener('click', () => setExplorerView(tab.id));
+    control.addEventListener('keydown', explorerTabKeydown);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'docs-tab-close ref-tab-close';
+    close.setAttribute('aria-label', `Close ${tab.label} reference`);
+    close.textContent = 'X';
+    close.addEventListener('click', () => closeRefTab(tab.id));
+    wrapper.append(control, close);
+    explorerTabs.append(wrapper);
+    const panel = document.createElement('div');
+    panel.className = 'explorer-panel ref-explorer-panel';
+    panel.id = `${tab.id}-panel`;
+    panel.hidden = true;
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', control.id);
+    explorerPane.append(panel);
+    updateRefContent(tab);
+  }
+
+  function renderRefTabs() {
+    for (const node of explorerTabs.querySelectorAll('[data-ref-tab]')) {
+      node.remove();
+    }
+    for (const node of explorerPane.querySelectorAll(
+      '.ref-explorer-panel'
+    )) {
+      node.remove();
+    }
+    for (const tab of refTabs) createRefTabControl(tab);
+    syncExplorerTabOrder();
+    updateRefActions();
+  }
+
+  function syncRefFromParent(kind, parentId) {
+    const ref = refForParent(kind, parentId);
+    const parent = parentTab(kind, parentId);
+    if (!ref || !parent) return;
+    ref.label = parent.label;
+    ref.source = parent.source;
+    const control = explorerTabs.querySelector(
+      `[data-explorer-view="${ref.id}"]`
+    );
+    if (control) {
+      control.textContent = ref.label;
+      control.title = ref.label;
+      control.parentElement?.querySelector('.ref-tab-close')
+        ?.setAttribute('aria-label', `Close ${ref.label} reference`);
+    }
+    updateRefContent(ref);
+    updateRefActions();
+  }
+
+  function syncAllRefs() {
+    for (const ref of refTabs) {
+      syncRefFromParent(ref.kind, ref.parentId);
+    }
+  }
+
+  function addRef(kind, parentId) {
+    if (kind === 'dot' && parentId === activeDotTabId) {
+      captureActiveDotTab();
+    }
+    if (kind === 'svg' && parentId === activeSvgTabId) {
+      captureActiveSvgTab();
+    }
+    if (!canAddRef(kind, parentId)) return;
+    const parent = parentTab(kind, parentId);
+    const tab = {
+      id: `ref-${nextRef++}`,
+      kind,
+      parentId,
+      label: parent.label,
+      source: parent.source
+    };
+    refTabs.push(tab);
+    explorerOrder.push(tab.id);
+    createRefTabControl(tab);
+    syncExplorerTabOrder();
+    if (!explorerOpen) {
+      explorerOpen = true;
+      applyExplorerLayout();
+    }
+    setExplorerView(tab.id, true);
+    renderDocumentTabs(kind);
+    queueSaveSession();
+  }
+
+  function closeRefTab(id) {
+    const index = refTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const tab = refTabs[index];
+    const wasActive = explorerView === id;
+    const orderIndex = explorerOrder.indexOf(id);
+    document.querySelector(`[data-ref-tab="${id}"]`)?.remove();
+    document.querySelector(`#${id}-panel`)?.remove();
+    refTabs.splice(index, 1);
+    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
+    if (wasActive) {
+      const neighbor = explorerOrder[
+        Math.min(orderIndex, explorerOrder.length - 1)
+      ];
+      setExplorerView(neighbor || '', true);
+    }
+    renderDocumentTabs(tab.kind);
+    queueSaveSession();
   }
 
   function openDocsTab(title, path) {
@@ -3408,6 +3611,25 @@
     };
   }
 
+  function validRefTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^ref-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    if (!['dot', 'svg'].includes(candidate.kind)) return undefined;
+    const parentPattern = candidate.kind === 'dot'
+      ? /^dot-[1-9][0-9]*$/
+      : /^svg-[1-9][0-9]*$/;
+    if (!parentPattern.test(candidate.parentId)) return undefined;
+    const source = validSavedSource(candidate.source);
+    if (source === undefined) return undefined;
+    return {
+      id: candidate.id,
+      kind: candidate.kind,
+      parentId: candidate.parentId,
+      label: validTabLabel(candidate.label, 'Reference'),
+      source
+    };
+  }
+
   function loadSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey));
@@ -3432,11 +3654,6 @@
         return Math.max(highest, Number(tab.id.slice(5)) + 1);
       }, 1);
       const savedNextDocs = Number(saved.nextDocs);
-      const savedExplorerView = typeof saved.explorerView === 'string'
-        && (permanentExplorerViews.includes(saved.explorerView)
-          || savedDocsTabs.some((tab) => tab.id === saved.explorerView))
-        ? saved.explorerView
-        : 'dot-files';
       const dotIds = new Set();
       const dotPaths = new Set();
       const savedDotTabs = Array.isArray(saved.dotTabs)
@@ -3470,9 +3687,32 @@
       }, 1);
       const savedNextDotTab = Number(saved.nextDotTab);
       const savedNextSvgTab = Number(saved.nextSvgTab);
+      const refParents = new Set();
+      const refIds = new Set();
+      const savedRefTabs = Array.isArray(saved.refTabs)
+        ? saved.refTabs.map(validRefTab).filter((tab) => {
+          if (!tab || refIds.has(tab.id)) return false;
+          const parentKey = `${tab.kind}:${tab.parentId}`;
+          if (refParents.has(parentKey)) return false;
+          refIds.add(tab.id);
+          refParents.add(parentKey);
+          return true;
+        })
+        : [];
+      const highestRefId = savedRefTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(4)) + 1);
+      }, 1);
+      const savedNextRef = Number(saved.nextRef);
+      const savedExplorerView = typeof saved.explorerView === 'string'
+        && (permanentExplorerViews.includes(saved.explorerView)
+          || savedDocsTabs.some((tab) => tab.id === saved.explorerView)
+          || savedRefTabs.some((tab) => tab.id === saved.explorerView))
+        ? saved.explorerView
+        : 'dot-files';
       const availableExplorerTabs = [
         ...permanentExplorerViews,
-        ...savedDocsTabs.map((tab) => tab.id)
+        ...savedDocsTabs.map((tab) => tab.id),
+        ...savedRefTabs.map((tab) => tab.id)
       ];
       const savedExplorerOrder = Array.isArray(saved.explorerOrder)
         ? saved.explorerOrder.filter((id, index, items) => {
@@ -3499,6 +3739,10 @@
         nextDocs: Number.isSafeInteger(savedNextDocs)
           ? Math.max(savedNextDocs, highestDocsId)
           : highestDocsId,
+        refTabs: savedRefTabs,
+        nextRef: Number.isSafeInteger(savedNextRef)
+          ? Math.max(savedNextRef, highestRefId)
+          : highestRefId,
         dotTabs: savedDotTabs,
         activeDotTabId: dotIds.has(saved.activeDotTabId)
           ? saved.activeDotTabId
@@ -3587,6 +3831,8 @@
         explorerOrder,
         docsTabs,
         nextDocs,
+        refTabs,
+        nextRef,
         dotTabs,
         activeDotTabId,
         nextDotTab,
@@ -4923,6 +5169,7 @@
         tab.path = path;
         tab.label = tabLabel(path, 'dot');
         tab.cleanSource = source;
+        syncRefFromParent('dot', tab.id);
         renderDocumentTabs('dot');
         queueSaveSession();
         await refreshFileTree('dot');
@@ -4995,6 +5242,7 @@
         tab.path = path;
         tab.label = tabLabel(path, 'svg');
         tab.cleanSource = tab.source;
+        syncRefFromParent('svg', tab.id);
         renderDocumentTabs('svg');
         queueSaveSession();
         await refreshFileTree('svg');
@@ -5035,6 +5283,7 @@
     tab.sourceDotId = dotTabId;
     tab.view = restoredView;
     tab.showingSource = false;
+    syncRefFromParent('svg', tab.id);
     activeSvgTabId = undefined;
     selectSvgTab(tab.id, false, false);
   }
@@ -5189,6 +5438,12 @@
   }
 
   button.addEventListener('click', renderNow);
+  addDotRef.addEventListener('click', () => {
+    addRef('dot', activeDotTabId);
+  });
+  addSvgRef.addEventListener('click', () => {
+    addRef('svg', activeSvgTabId);
+  });
   addNode.addEventListener('click', addVisualNode);
   drawEdge.addEventListener('click', drawSelectedEdge);
   deleteSelection.addEventListener('click', deleteSelectedItem);
@@ -5249,6 +5504,19 @@
     explorerOpen = !explorerOpen;
     applyExplorerLayout();
     queueSaveSession();
+  });
+  explorerPane.addEventListener('dragover', (event) => {
+    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
+      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  });
+  explorerPane.addEventListener('drop', (event) => {
+    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
+      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
+    event.preventDefault();
+    event.stopPropagation?.();
+    addRef(draggedTab.kind, draggedTab.id);
   });
   for (const tab of [dotFilesTab, svgFilesTab]) {
     tab.addEventListener('click', () => {
@@ -5406,6 +5674,8 @@
     explorerOpen = savedSession.explorerOpen;
     docsTabs = savedSession.docsTabs;
     nextDocs = savedSession.nextDocs;
+    refTabs = savedSession.refTabs;
+    nextRef = savedSession.nextRef;
     explorerView = savedSession.explorerView;
     explorerOrder = savedSession.explorerOrder;
     dotTabs = savedSession.dotTabs;
@@ -5419,6 +5689,7 @@
   }
   applyExplorerLayout();
   renderDocsTabs();
+  renderRefTabs();
   setExplorerView(explorerView);
   let sharedSource;
   try {
@@ -5449,6 +5720,7 @@
     activeSvgTabId = first.id;
   }
   if (!activeSvgTab()) activeSvgTabId = svgTabs[0].id;
+  syncAllRefs();
   try {
     selectSvgTab(activeSvgTabId, false, false);
   } catch (_) {
