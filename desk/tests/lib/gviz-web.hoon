@@ -142,6 +142,8 @@
     (expect !>(?=(^ (find "bounds.width - explorerDividerWidth" script))))
     (expect !>(?=(^ (find "function applyExplorerLayout" script))))
     (expect !>(?=(^ (find "explorer-collapsed" (trip css:web)))))
+    (expect !>(?=(^ (find "scrollbar-width: thin" (trip css:web)))))
+    (expect !>(?=(^ (find "::-webkit-scrollbar-thumb" (trip css:web)))))
     (expect !>(?=(~ (find "Math.min(640" script))))
   ==
 ::

@@ -814,15 +814,14 @@
   }
 
   .explorer-tabs {
+    align-items: flex-start;
     border-bottom: 1px solid var(--border);
     display: flex;
-    height: 2.3125rem;
-    max-height: 2.3125rem;
     min-height: 2.25rem;
     min-width: 0;
+    overscroll-behavior-inline: contain;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: none;
   }
 
   .explorer-tab-control, .docs-tab-control {
@@ -960,20 +959,37 @@
   }
 
   .document-tabs {
+    align-items: flex-start;
     border-bottom: 1px solid var(--border);
     display: flex;
-    height: 2.3125rem;
-    max-height: 2.3125rem;
     min-height: 2.25rem;
     min-width: 0;
+    overscroll-behavior-inline: contain;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: none;
   }
 
   .explorer-tabs::-webkit-scrollbar,
   .document-tabs::-webkit-scrollbar {
-    display: none;
+    height: 0.3rem;
+  }
+
+  .explorer-tabs::-webkit-scrollbar-track,
+  .document-tabs::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .explorer-tabs::-webkit-scrollbar-thumb,
+  .document-tabs::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 999px;
+  }
+
+  @supports (-moz-appearance: none) {
+    .explorer-tabs, .document-tabs {
+      scrollbar-color: var(--muted) transparent;
+      scrollbar-width: thin;
+    }
   }
 
   .document-tab-control {

@@ -184,6 +184,61 @@ test('DOT tabs focus, render conditionally, save, and guard close', async ({
     .toHaveAttribute('aria-selected', 'true');
 });
 
+test('tab strips show thin horizontal scrollbars only on overflow', async ({
+  page
+}) => {
+  const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
+  await installRoutes(page, state);
+  await useStoredSession(page);
+  await page.goto('/apps/graph-viz/');
+  const metrics = await page.evaluate(() => {
+    const selectors = [
+      '#explorer-tabs',
+      '#dot-document-tabs',
+      '#svg-document-tabs'
+    ];
+    return selectors.map((selector) => {
+      const strip = document.querySelector(selector);
+      const initialOverflow = strip.scrollWidth > strip.clientWidth;
+      const source = strip.firstElementChild;
+      let copies = 0;
+      while (strip.scrollWidth <= strip.clientWidth && copies < 20) {
+        const clone = source.cloneNode(true);
+        clone.dataset.scrollTest = 'true';
+        clone.removeAttribute('id');
+        clone.querySelectorAll('[id]').forEach((node) => {
+          node.removeAttribute('id');
+        });
+        strip.append(clone);
+        copies += 1;
+      }
+      const overflow = strip.scrollWidth > strip.clientWidth;
+      const overflowX = getComputedStyle(strip).overflowX;
+      const scrollbarHeight = parseFloat(
+        getComputedStyle(strip, '::-webkit-scrollbar').height
+      );
+      strip.querySelectorAll('[data-scroll-test]').forEach((node) => {
+        node.remove();
+      });
+      return {
+        initialOverflow,
+        overflow,
+        overflowX,
+        restoredOverflow: strip.scrollWidth > strip.clientWidth,
+        scrollbarHeight
+      };
+    });
+  });
+  for (const strip of metrics) {
+    expect(strip.initialOverflow).toBe(false);
+    expect(strip.overflow).toBe(true);
+    expect(strip.overflowX).toBe('auto');
+    expect(strip.restoredOverflow).toBe(false);
+    expect(strip.scrollbarHeight).toBeGreaterThan(0);
+    expect(strip.scrollbarHeight).toBeLessThanOrEqual(6);
+  }
+});
+
 test('DOT, SVG, and explorer tab order and content persist', async ({page}) => {
   const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
   await installRoutes(page, state);
@@ -234,6 +289,7 @@ test('DOT, SVG, and explorer tab order and content persist', async ({page}) => {
   await expect(page.getByRole('tab', {name: 'Users Guide'})
     .locator('..').locator('.docs-tab-close')).toHaveText('X');
   const tabHeights = await page.evaluate(() => {
+    const explorerTabs = document.querySelector('#explorer-tabs');
     const referenceTab = document.querySelector('.docs-tab');
     const referenceControl = referenceTab.parentElement;
     const labelRange = document.createRange();
@@ -246,8 +302,8 @@ test('DOT, SVG, and explorer tab order and content persist', async ({page}) => {
     const permanentLabel = permanentRange.getBoundingClientRect();
     const permanentControl = permanentTab.getBoundingClientRect();
     return {
-      explorer: document.querySelector('#explorer-tabs')
-        .getBoundingClientRect().height,
+      explorer: explorerTabs.getBoundingClientRect().height,
+      explorerOverflow: explorerTabs.scrollWidth > explorerTabs.clientWidth,
       documents: document.querySelector('#dot-document-tabs')
         .getBoundingClientRect().height,
       reference: document.querySelector('.docs-tab-control')
@@ -263,8 +319,12 @@ test('DOT, SVG, and explorer tab order and content persist', async ({page}) => {
         permanentControl.top + permanentControl.height / 2
     };
   });
-  expect(tabHeights.explorer).toBeCloseTo(tabHeights.documents, 5);
-  expect(tabHeights.reference).toBeCloseTo(tabHeights.editor, 5);
+  expect(tabHeights.explorerOverflow).toBe(true);
+  expect(tabHeights.explorer).toBeGreaterThan(tabHeights.documents);
+  expect(tabHeights.explorer - tabHeights.documents).toBeLessThanOrEqual(20);
+  expect(Math.abs(
+    tabHeights.reference - tabHeights.editor
+  )).toBeLessThanOrEqual(1);
   expect(Math.abs(
     tabHeights.labelCenter - tabHeights.controlCenter
   )).toBeLessThanOrEqual(1);
