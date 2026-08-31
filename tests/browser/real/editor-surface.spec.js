@@ -335,6 +335,35 @@ test('resize cycles preserve Ace geometry at divider extremes', async ({
   expect(geometry.scrollerInside).toBe(true);
 });
 
+test('explorer collapse toggles and persists', async ({page}) => {
+  await page.setViewportSize({width: 1280, height: 850});
+  await page.goto('/apps/graph-viz/');
+  const collapse = page.getByRole('button', {name: 'Collapse explorer'});
+  await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+  await expect(collapse).toHaveText('‹');
+  await collapse.click();
+  const expand = page.getByRole('button', {name: 'Expand explorer'});
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  await expect(expand).toHaveText('›');
+  await expect(page.locator('#explorer-pane')).toHaveClass(/collapsed/);
+  await expect(page.locator('#workbench')).toHaveClass(/explorer-collapsed/);
+  await expect(page.locator('#explorer-resizer')).toBeDisabled();
+  await expect(page.locator('#explorer-tabs')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('graph-viz.session.v1'));
+    return saved?.explorerOpen;
+  })).toBe(false);
+
+  await page.reload();
+  await expect(page.getByRole('button', {name: 'Expand explorer'}))
+    .toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('button', {name: 'Expand explorer'}).click();
+  await expect(page.getByRole('button', {name: 'Collapse explorer'}))
+    .toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#explorer-resizer')).toBeEnabled();
+  await expect(page.getByRole('tab', {name: 'DOT Files'})).toBeVisible();
+});
+
 test('editor exposes label, keyboard focus, and failure semantics', async ({
   page
 }) => {

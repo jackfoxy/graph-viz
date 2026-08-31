@@ -31,6 +31,8 @@
     (expect !>(?=(^ (find "id=\"svg-source\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"explorer-pane\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"explorer-tabs\"" (trip html)))))
+    (expect !>(?=(^ (find "id=\"explorer-collapse\"" (trip html)))))
+    (expect !>(?=(^ (find "Collapse explorer" (trip html)))))
     (expect !>(?=(^ (find "id=\"dot-files-tab\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"svg-files-tab\"" (trip html)))))
     (expect !>(?=(^ (find "id=\"dot-files-tree\"" (trip html)))))
@@ -138,6 +140,8 @@
     (expect !>(?=(^ (find "pointerdown" script))))
     (expect !>(?=(^ (find "disconnected" script))))
     (expect !>(?=(^ (find "bounds.width - explorerDividerWidth" script))))
+    (expect !>(?=(^ (find "function applyExplorerLayout" script))))
+    (expect !>(?=(^ (find "explorer-collapsed" (trip css:web)))))
     (expect !>(?=(~ (find "Math.min(640" script))))
   ==
 ::
@@ -214,6 +218,7 @@
     (expect !>(?=(^ (find "theme: theme.value" js))))
     (expect !>(?=(^ (find "paneWidth: currentPaneWidth()" js))))
     (expect !>(?=(^ (find "explorerWidth: currentExplorerWidth()" js))))
+    (expect !>(?=(^ (find "explorerOpen," js))))
     (expect !>(?=(^ (find "explorerView," js))))
     (expect !>(?=(^ (find "explorerOrder," js))))
     (expect !>(?=(^ (find "docsTabs," js))))

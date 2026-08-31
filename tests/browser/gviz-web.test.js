@@ -204,6 +204,7 @@ const selectors = [
   '#help-panel', '#editor-help-card', '#close-help',
   '#fallback-help-content', '#docs-help-content', '#docs-help-nav',
   '#workbench', '#explorer-pane', '#explorer-tabs', '#explorer-resizer',
+  '#explorer-collapse',
   '#dot-files-tab', '#svg-files-tab',
   '#dot-files-panel', '#svg-files-panel',
   '#dot-files-tree', '#svg-files-tree',
@@ -568,6 +569,17 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(elements['#workspace'].values['--editor-width'], '62%');
   assert.equal(elements['#workbench'].values['--explorer-width'], '288px');
   assert.equal(elements['#theme'].value, 'system');
+  assert.equal(elements['#explorer-collapse']['aria-expanded'], 'true');
+  assert.equal(elements['#explorer-collapse'].textContent, '‹');
+  elements['#explorer-collapse'].listeners.click({});
+  assert(elements['#explorer-pane'].classes.has('collapsed'));
+  assert(elements['#workbench'].classes.has('explorer-collapsed'));
+  assert.equal(elements['#explorer-resizer'].disabled, true);
+  assert.equal(elements['#explorer-collapse']['aria-expanded'], 'false');
+  assert.equal(elements['#explorer-collapse'].textContent, '›');
+  elements['#explorer-collapse'].listeners.click({});
+  assert.equal(elements['#explorer-resizer'].disabled, false);
+  assert.equal(elements['#explorer-collapse']['aria-expanded'], 'true');
   assert.equal(document.documentElement.dataset.theme, 'system');
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
   assert.equal(document.documentElement.style.colorScheme, 'light');
@@ -1101,6 +1113,7 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(session.source, getDotSource());
   assert(Number.isFinite(session.view.scale));
   assert.equal(session.explorerWidth, 790);
+  assert.equal(session.explorerOpen, true);
   assert.equal(session.explorerView, 'dot-files');
   assert.deepEqual(session.docsTabs, []);
   assert.equal(session.nextDocs, 3);

@@ -65,6 +65,12 @@
                 ==
               ==
             ==
+            ;button#explorer-collapse.icon-button.explorer-collapse
+              =type           "button"
+              =aria-label     "Collapse explorer"
+              =aria-expanded  "true"
+              ‹
+            ==
           ==
           ;div#dot-files-panel.explorer-panel
             =role              "tabpanel"
@@ -772,6 +778,41 @@
     overflow: hidden;
   }
 
+  .explorer-header {
+    align-items: stretch;
+    display: flex;
+    min-width: 0;
+  }
+
+  .explorer-header .explorer-tabs { flex: 1; }
+
+  .explorer-collapse {
+    border-width: 0 0 1px 1px;
+    border-radius: 0;
+    flex: 0 0 2.65rem;
+    height: auto;
+    min-height: 2.3125rem;
+  }
+
+  .explorer-pane.collapsed .explorer-tabs,
+  .explorer-pane.collapsed .explorer-panel {
+    display: none;
+  }
+
+  .explorer-pane.collapsed .explorer-header {
+    justify-content: center;
+  }
+
+  .explorer-pane.collapsed .explorer-collapse {
+    border-left: 0;
+    flex-basis: 3rem;
+    width: 3rem;
+  }
+
+  .workbench.explorer-collapsed {
+    grid-template-columns: 3rem 0 minmax(0, 1fr);
+  }
+
   .explorer-tabs {
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -879,6 +920,8 @@
   .explorer-resizer:hover, .explorer-resizer:focus {
     background: var(--accent);
   }
+
+  .explorer-resizer.inactive { cursor: default; }
 
   .workspace {
     display: grid;
@@ -1538,6 +1581,11 @@
       overflow: visible;
     }
 
+    .workbench.explorer-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 3rem minmax(0, 1fr);
+    }
+
     .explorer-resizer { display: none; }
 
     .workspace {
@@ -1682,6 +1730,7 @@
   const workbench = document.querySelector('#workbench');
   const explorerPane = document.querySelector('#explorer-pane');
   const explorerTabs = document.querySelector('#explorer-tabs');
+  const explorerCollapse = document.querySelector('#explorer-collapse');
   const explorerResizer = document.querySelector('#explorer-resizer');
   const dotFilesTab = document.querySelector('#dot-files-tab');
   const svgFilesTab = document.querySelector('#svg-files-tab');
@@ -1714,6 +1763,7 @@
   let docsAvailable = null;
   let docsCheckPending = false;
   let docsTreeLoaded = false;
+  let explorerOpen = true;
   let docsTabs = [];
   let nextDocs = 1;
   let explorerView = 'dot-files';
@@ -2776,6 +2826,10 @@
 
   function openDocsTab(title, path) {
     if (docsAvailable !== true) return;
+    if (!explorerOpen) {
+      explorerOpen = true;
+      applyExplorerLayout();
+    }
     const existing = docsTabs.find((tab) => tab.path === path);
     if (existing) {
       setHelpOpen(false);
@@ -3210,6 +3264,10 @@
 
   function showFileExplorer(kind) {
     const viewName = kind === 'dot' ? 'dot-files' : 'svg-files';
+    if (!explorerOpen) {
+      explorerOpen = true;
+      applyExplorerLayout();
+    }
     setExplorerView(viewName, true);
     refreshFileTree(kind);
   }
@@ -3418,6 +3476,7 @@
         explorerWidth: Number.isFinite(explorerWidth)
           ? Math.max(explorerWidth, minExplorerWidth)
           : 288,
+        explorerOpen: saved.explorerOpen !== false,
         explorerView: savedExplorerView,
         explorerOrder: savedExplorerOrder,
         docsTabs: savedDocsTabs,
@@ -3481,6 +3540,20 @@
     if (editor) refreshEditor();
   }
 
+  function applyExplorerLayout() {
+    explorerPane.classList.toggle('collapsed', !explorerOpen);
+    workbench.classList.toggle('explorer-collapsed', !explorerOpen);
+    explorerResizer.classList.toggle('inactive', !explorerOpen);
+    explorerResizer.disabled = !explorerOpen;
+    explorerCollapse.setAttribute('aria-expanded', String(explorerOpen));
+    explorerCollapse.setAttribute(
+      'aria-label',
+      explorerOpen ? 'Collapse explorer' : 'Expand explorer'
+    );
+    explorerCollapse.textContent = explorerOpen ? '‹' : '›';
+    refreshEditor();
+  }
+
   function saveSession() {
     clearTimeout(saveTimer);
     try {
@@ -3493,6 +3566,7 @@
         source,
         paneWidth: currentPaneWidth(),
         explorerWidth: currentExplorerWidth(),
+        explorerOpen,
         explorerView,
         explorerOrder,
         docsTabs,
@@ -5155,6 +5229,11 @@
   helpPanel.addEventListener('click', (event) => {
     if (event.target === helpPanel) setHelpOpen(false, true);
   });
+  explorerCollapse.addEventListener('click', () => {
+    explorerOpen = !explorerOpen;
+    applyExplorerLayout();
+    queueSaveSession();
+  });
   for (const tab of [dotFilesTab, svgFilesTab]) {
     tab.addEventListener('click', () => {
       setExplorerView(tab.dataset.explorerView);
@@ -5308,6 +5387,7 @@
       `${savedSession.paneWidth}%`
     );
     setExplorerWidth(savedSession.explorerWidth);
+    explorerOpen = savedSession.explorerOpen;
     docsTabs = savedSession.docsTabs;
     nextDocs = savedSession.nextDocs;
     explorerView = savedSession.explorerView;
@@ -5321,6 +5401,7 @@
     autoRender.checked = savedSession.autoRender;
     pendingView = savedSession.view;
   }
+  applyExplorerLayout();
   renderDocsTabs();
   setExplorerView(explorerView);
   let sharedSource;
