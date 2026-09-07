@@ -4,6 +4,8 @@ const vm = require('node:vm');
 
 const application = process.argv[2];
 if (!application) throw new Error('usage: node gviz-web.test.js APP_JS');
+const applicationSource = fs.readFileSync(application === '-' ? 0 : application,
+  'utf8');
 
 class Element {
   constructor(localName = 'div') {
@@ -28,13 +30,14 @@ class Element {
     this.disabled = false;
     this.textContent = '';
     this.value = '';
-    this.selectionStart = 0;
-    this.selectionEnd = 0;
     this.scrollTop = 0;
     this.captured = new Set();
   }
 
   addEventListener(name, callback) { this.listeners[name] = callback; }
+  removeEventListener(name, callback) {
+    if (this.listeners[name] === callback) delete this.listeners[name];
+  }
   getAttribute(name) { return this[name] ?? null; }
   setAttribute(name, value) { this[name] = value; }
   removeAttribute(name) { delete this[name]; }
@@ -45,6 +48,11 @@ class Element {
   click() { this.clicked = true; }
   append(...children) {
     for (const child of children) {
+      if (child.parent) {
+        child.parent.children = child.parent.children.filter((item) => {
+          return item !== child;
+        });
+      }
       child.parent = this;
       this.children.push(child);
     }
@@ -102,8 +110,16 @@ class Element {
     if (selector === '[data-docs-tab]') {
       return all.filter((item) => item.dataset.docsTab);
     }
+    if (selector === '[data-ref-tab]') {
+      return all.filter((item) => item.dataset.refTab);
+    }
     if (selector === '.docs-explorer-panel') {
       return all.filter((item) => item.className === 'explorer-panel docs-explorer-panel');
+    }
+    if (selector === '.ref-explorer-panel') {
+      return all.filter((item) => {
+        return item.className === 'explorer-panel ref-explorer-panel';
+      });
     }
     if (selector === 'svg') {
       return all.filter((item) => item.localName === 'svg');
@@ -111,6 +127,14 @@ class Element {
     const view = selector.match(/^\[data-explorer-view="([^"]+)"\]$/);
     if (view) {
       return all.filter((item) => item.dataset.explorerView === view[1]);
+    }
+    const documentTab = selector.match(
+      /^\[data-document-tab="([^"]+)"\]$/
+    );
+    if (documentTab) {
+      return all.filter((item) => {
+        return item.dataset.documentTab === documentTab[1];
+      });
     }
     const panelFrame = selector.match(/^#([^ ]+) iframe$/);
     if (panelFrame) {
@@ -120,15 +144,6 @@ class Element {
       }) : [];
     }
     return [];
-  }
-  setSelectionRange(start, end) {
-    this.selectionStart = start;
-    this.selectionEnd = end;
-  }
-  setRangeText(replacement, start, end) {
-    this.value = this.value.slice(0, start) + replacement
-      + this.value.slice(end);
-    this.setSelectionRange(start + replacement.length, start + replacement.length);
   }
   async requestFullscreen() {
     document.fullscreenElement = this;
@@ -186,16 +201,18 @@ function svgDocument(source) {
 }
 
 const selectors = [
-  '#dot', '#line-numbers', '#template', '#render', '#error', '#preview',
+  '#dot', '#editor-load-error', '#template', '#render', '#error', '#preview',
+  '#dot-document-tabs', '#svg-document-tabs',
   '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',
   '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#reset-view',
-  '#browse-dot', '#load-dot', '#save-dot',
-  '#browse-svg', '#load-svg', '#save-svg', '#fit',
+  '#add-dot-ref', '#browse-dot', '#load-dot', '#save-dot',
+  '#add-svg-ref', '#browse-svg', '#load-svg', '#save-svg', '#fit',
   '#auto-render', '#theme', '#help',
   '#help-panel', '#editor-help-card', '#close-help',
-  '#fallback-help-content', '#docs-help-content',
+  '#fallback-help-content', '#docs-help-content', '#docs-help-nav',
   '#workbench', '#explorer-pane', '#explorer-tabs', '#explorer-resizer',
+  '#explorer-collapse',
   '#dot-files-tab', '#svg-files-tab',
   '#dot-files-panel', '#svg-files-panel',
   '#dot-files-tree', '#svg-files-tree',
@@ -217,23 +234,12 @@ const selectors = [
 const elements = Object.fromEntries(selectors.map((name) => {
   return [name, new Element()];
 }));
-const docsHelpLinks = [
-  ['usr/users-guide', '/docs/d/graph-viz/usr/users-guide'],
-  ['reference', '/docs/d/graph-viz/reference'],
-  ['graph-noun', '/docs/d/graph-viz/graph-noun'],
-  ['release-notes', '/docs/d/graph-viz/release-notes']
-].map(([path, href]) => {
-  const link = new Element();
-  link.dataset.docPath = path;
-  link.href = href;
-  link.textContent = path === 'usr/users-guide' ? 'Users Guide' : path;
-  return link;
-});
 elements['#auto-render'].checked = true;
 elements['#help-panel'].hidden = true;
 elements['#docs-help-content'].hidden = true;
 elements['#file-context-menu'].hidden = true;
 elements['#clay-error-modal'].hidden = true;
+elements['#editor-load-error'].hidden = true;
 
 for (const [name, view, panel] of [
   ['#dot-files-tab', 'dot-files', '#dot-files-panel'],
@@ -300,11 +306,15 @@ global.document = {
         return item.dataset?.docsTab === docs[1];
       });
     }
+    const ref = selector.match(/^\[data-ref-tab="([^"]+)"\]$/);
+    if (ref) {
+      return documentDescendants().find((item) => {
+        return item.dataset?.refTab === ref[1];
+      });
+    }
     return null;
   },
-  querySelectorAll: (selector) => selector === '.docs-help-link'
-    ? docsHelpLinks
-    : [],
+  querySelectorAll: () => [],
   getElementById: (id) => elements[`#${id}`] ||
     documentDescendants().find((item) => item.id === id) || null,
   importNode: (node) => node,
@@ -353,6 +363,123 @@ global.localStorage = {
   getItem: (key) => saved.get(key) ?? null,
   setItem: (key, value) => saved.set(key, value)
 };
+
+class FakeAceRange {
+  constructor(startRow, startColumn, endRow, endColumn) {
+    this.start = {row: startRow, column: startColumn};
+    this.end = {row: endRow, column: endColumn};
+  }
+}
+
+function fakePositionToIndex(source, position) {
+  const lines = source.split('\n');
+  const row = Math.max(0, Math.min(lines.length - 1, position.row));
+  const column = Math.max(0, Math.min(lines[row].length, position.column));
+  return lines.slice(0, row).reduce((total, line) => {
+    return total + line.length + 1;
+  }, column);
+}
+
+function fakeIndexToPosition(source, offset) {
+  const next = Math.max(0, Math.min(source.length, offset));
+  const before = source.slice(0, next);
+  const lines = before.split('\n');
+  return {row: lines.length - 1, column: lines.at(-1).length};
+}
+
+function createFakeAceEditor(host) {
+  const changeListeners = [];
+  const state = {source: '', anchorOffset: 0, leadOffset: 0};
+  let nextMarker = 1;
+  const undoManager = {
+    reset() {},
+    startNewGroup() {}
+  };
+  const session = {
+    doc: {
+      indexToPosition(offset) {
+        return fakeIndexToPosition(state.source, offset);
+      },
+      positionToIndex(position) {
+        return fakePositionToIndex(state.source, position);
+      }
+    },
+    setValue(source) {
+      state.source = source;
+      state.anchorOffset = source.length;
+      state.leadOffset = source.length;
+      for (const listener of changeListeners) listener({action: 'setValue'});
+    },
+    replace(range, replacement) {
+      const start = fakePositionToIndex(state.source, range.start);
+      const end = fakePositionToIndex(state.source, range.end);
+      state.source = state.source.slice(0, start) + replacement
+        + state.source.slice(end);
+      for (const listener of changeListeners) listener({action: 'replace'});
+    },
+    insert(position, source) {
+      const offset = fakePositionToIndex(state.source, position);
+      state.source = state.source.slice(0, offset) + source
+        + state.source.slice(offset);
+      state.anchorOffset = offset + source.length;
+      state.leadOffset = state.anchorOffset;
+      for (const listener of changeListeners) listener({action: 'insert'});
+    },
+    on(name, listener) {
+      if (name === 'change') changeListeners.push(listener);
+    },
+    getUndoManager() { return undoManager; },
+    setMode(mode) { this.mode = mode; },
+    setUseWorker(worker) { this.worker = worker; },
+    setAnnotations(annotations) { this.annotations = annotations; },
+    clearAnnotations() { this.annotations = []; },
+    addMarker(range, name, type) {
+      const id = nextMarker++;
+      this.marker = {id, range, name, type};
+      return id;
+    },
+    removeMarker(id) {
+      if (this.marker?.id === id) this.marker = undefined;
+    }
+  };
+  const selection = {
+    getRange() {
+      const start = fakeIndexToPosition(state.source, state.anchorOffset);
+      const end = fakeIndexToPosition(state.source, state.leadOffset);
+      return new FakeAceRange(start.row, start.column, end.row, end.column);
+    },
+    setSelectionRange(range) {
+      state.anchorOffset = fakePositionToIndex(state.source, range.start);
+      state.leadOffset = fakePositionToIndex(state.source, range.end);
+    },
+    moveCursorTo(row, column) {
+      const offset = fakePositionToIndex(state.source, {row, column});
+      state.anchorOffset = offset;
+      state.leadOffset = offset;
+    }
+  };
+  host.aceSession = session;
+  return {
+    session,
+    selection,
+    commands: {
+      platform: 'win',
+      addCommands(commands) { this.addedCommands = commands; },
+      bindKey(key, command) { this.boundKey = {key, command}; }
+    },
+    textInput: {getElement: () => host},
+    getValue: () => state.source,
+    setOptions(options) { this.options = options; },
+    setTheme(theme) { this.theme = theme; host.aceTheme = theme; },
+    focus: () => host.focus(),
+    clearSelection() {
+      state.anchorOffset = state.leadOffset;
+    },
+    scrollToLine(line) { host.scrollLine = line; },
+    resize() { host.resizeCount = (host.resizeCount || 0) + 1; }
+  };
+}
+
 global.window = {
   innerWidth: 1_024,
   innerHeight: 768,
@@ -365,7 +492,28 @@ global.window = {
   confirm: (message) => {
     confirmations.push(message);
     return confirmationAnswers.shift();
+  },
+  __GVIZ_BROWSER_TEST__: {acePlatform: 'win', keyboardLayout: 'en-US'}
+};
+const fakeAceEditors = new WeakMap();
+global.window.ace = {
+  edit: (host) => {
+    if (!fakeAceEditors.has(host)) {
+      fakeAceEditors.set(host, createFakeAceEditor(host));
+    }
+    return fakeAceEditors.get(host);
+  },
+  require: (name) => {
+    if (name === 'ace/range') return {Range: FakeAceRange};
+    assert.equal(name, 'ace/ext/beautify');
+    return {commands: [{name: 'beautify'}]};
   }
+};
+global.window.graphVizAceAssets = {
+  mode: 'ace/mode/dot',
+  lightTheme: 'ace/theme/github',
+  darkTheme: 'ace/theme/monokai',
+  useWorker: false
 };
 global.fetch = (url, options) => new Promise((resolve, reject) => {
   requests.push({url, options, resolve, reject});
@@ -390,6 +538,24 @@ function docsResponse(url = 'http://localhost:18080/docs') {
   };
 }
 
+function tocResponse() {
+  return {
+    ok: true,
+    status: 200,
+    headers: {get: () => 'text/plain; charset=utf-8'},
+    text: async () => [
+      '/keyboard-shortcuts/md  Keyboard Shortcuts',
+      '/users-guide/md         Users Guide',
+      '/dot-language/md        DOT Language',
+      '/dot-language           DOT Language Reference',
+      '  /attributes/md          Attributes',
+      '  /attributes             Attributes Reference',
+      '    /arrowhead/md            arrowhead',
+      '/reference/md           Reference'
+    ].join('\n')
+  };
+}
+
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 async function resolveBrowse(path, file, children) {
   const request = requests.at(-1);
@@ -403,16 +569,37 @@ function descendants(element) {
     return [child, ...descendants(child)];
   });
 }
-vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application});
+vm.runInThisContext(applicationSource, {filename: application});
+
+const editor = window.__GVIZ_EDITOR_TEST__;
+const svgEditor = window.__GVIZ_SVG_EDITOR_TEST__;
+const getDotSource = () => editor.getSource();
+const getSvgSource = () => svgEditor.getSource();
+const setDotSource = (source, notify = false) => {
+  editor.setSource(source, {history: 'reset', notify});
+};
+const getDotSelection = () => editor.getSelection();
 
 (async () => {
-  assert.equal(elements['#dot'].value, 'digraph saved { Alpha -> Beta }');
+  assert.equal(getDotSource(), 'digraph saved { Alpha -> Beta }');
   assert.equal(elements['#workspace'].values['--editor-width'], '62%');
   assert.equal(elements['#workbench'].values['--explorer-width'], '288px');
   assert.equal(elements['#theme'].value, 'system');
+  assert.equal(elements['#explorer-collapse']['aria-expanded'], 'true');
+  assert.equal(elements['#explorer-collapse'].textContent, '‹');
+  elements['#explorer-collapse'].listeners.click({});
+  assert(elements['#explorer-pane'].classes.has('collapsed'));
+  assert(elements['#workbench'].classes.has('explorer-collapsed'));
+  assert.equal(elements['#explorer-resizer'].disabled, true);
+  assert.equal(elements['#explorer-collapse']['aria-expanded'], 'false');
+  assert.equal(elements['#explorer-collapse'].textContent, '›');
+  elements['#explorer-collapse'].listeners.click({});
+  assert.equal(elements['#explorer-resizer'].disabled, false);
+  assert.equal(elements['#explorer-collapse']['aria-expanded'], 'true');
   assert.equal(document.documentElement.dataset.theme, 'system');
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
   assert.equal(document.documentElement.style.colorScheme, 'light');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
   assert.equal(requests[0].url, '/apps/graph-viz/file/dot/browse');
   assert.equal(requests[1].url, '/apps/graph-viz/file/svg/browse');
   requests[0].resolve(response(true, JSON.stringify({
@@ -452,6 +639,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(document.documentElement.dataset.theme, 'dark');
   assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
   assert.equal(document.documentElement.style.colorScheme, 'dark');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/monokai');
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal(JSON.parse(saved.get('graph-viz.session.v1'))
     .preferences.theme, 'dark');
@@ -459,14 +647,18 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#theme'].value = 'light';
   elements['#theme'].listeners.change({});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
   elements['#theme'].value = 'system';
   elements['#theme'].listeners.change({});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'dark');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/monokai');
   themeMedia.matches = false;
   themeMedia.listeners.change({matches: false});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
+  assert.equal(elements['#dot'].aceTheme, 'ace/theme/github');
 
-  requests[2].resolve(response(true, '<svg id="initial"/>'));
+  elements['#render'].listeners.click({});
+  requests.at(-1).resolve(response(true, '<svg id="initial"/>'));
   await tick();
   await tick();
   assert(elements['#preview'].children[0], elements['#error'].textContent);
@@ -477,7 +669,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#fullscreen-svg'].hidden, false);
   await elements['#copy-svg'].listeners.click({});
   assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
-  assert.equal(elements['#source-status'].textContent, 'SVG copied');
+  assert.equal(elements['#render-status'].textContent, 'SVG copied');
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
   const themedSvg = elements['#preview'].children[0];
@@ -489,48 +681,76 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#theme'].value = 'system';
   elements['#theme'].listeners.change({});
   assert.equal(document.documentElement.dataset.effectiveTheme, 'light');
-  assert.equal(requests[3].url, '/docs');
-  assert.equal(requests[3].options.credentials, 'same-origin');
-  assert.equal(requests[3].options.cache, 'no-store');
-  requests[3].resolve(docsResponse('http://localhost:18080/login'));
+  const docsRequest = requests.find((request) => request.url === '/docs');
+  assert(docsRequest);
+  assert.equal(docsRequest.options.credentials, 'same-origin');
+  assert.equal(docsRequest.options.cache, 'no-store');
+  docsRequest.resolve(docsResponse('http://localhost:18080/login'));
   await tick();
   assert.equal(elements['#fallback-help-content'].hidden, false);
   assert.equal(elements['#docs-help-content'].hidden, true);
   elements['#help'].listeners.click({});
   assert.equal(elements['#help-panel'].hidden, false);
-  let helpTab = document.querySelector('#help-tab');
-  assert(helpTab);
-  assert.equal(helpTab.textContent, 'Help');
-  assert.equal(helpTab['aria-selected'], 'true');
+  assert.equal(elements['#help']['aria-expanded'], 'true');
+  assert.equal(document.activeElement, elements['#close-help']);
   assert.deepEqual(
     descendants(elements['#explorer-tabs'])
       .filter((item) => item.role === 'tab')
       .map((item) => item.dataset.explorerView),
-    ['dot-files', 'svg-files', 'help']
+    ['dot-files', 'svg-files']
   );
+  elements['#close-help'].listeners.click({});
+  assert.equal(elements['#help-panel'].hidden, true);
+  assert.equal(elements['#help']['aria-expanded'], 'false');
+  assert.equal(document.activeElement, elements['#help']);
   elements['#help'].listeners.click({});
-  assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
-    return item.id === 'help-tab';
-  }).length, 1);
-  helpTab.parentElement.children.find((item) => {
-    return item.className === 'docs-tab-close';
-  }).listeners.click({});
-  assert.equal(document.querySelector('#help-tab'), null);
-  assert.equal(elements['#svg-files-tab']['aria-selected'], 'true');
+  assert.equal(elements['#help-panel'].hidden, false);
+  elements['#help-panel'].listeners.click({target: elements['#help-panel']});
+  assert.equal(elements['#help-panel'].hidden, true);
   elements['#help'].listeners.click({});
-  helpTab = document.querySelector('#help-tab');
-  assert(helpTab);
-  assert.equal(helpTab['aria-selected'], 'true');
-  requests[4].resolve(docsResponse());
+  const retryDocsRequest = requests.filter((request) => {
+    return request.url === '/docs';
+  }).at(-1);
+  retryDocsRequest.resolve(docsResponse());
+  await tick();
+  const tocRequest = requests.find((request) => {
+    return request.url === '/apps/graph-viz/doc.toc';
+  });
+  assert(tocRequest);
+  assert.equal(tocRequest.options.credentials, 'same-origin');
+  assert.equal(tocRequest.options.cache, 'no-store');
+  tocRequest.resolve(tocResponse());
+  await tick();
   await tick();
   assert.equal(elements['#fallback-help-content'].hidden, true);
   assert.equal(elements['#docs-help-content'].hidden, false);
+  const docsGroups = descendants(elements['#docs-help-nav']).filter((item) => {
+    return item.className === 'docs-help-group';
+  });
+  assert.equal(docsGroups.length, 2);
+  assert.equal(docsGroups[0].open, undefined);
+  assert.equal(docsGroups[1].open, undefined);
+  const docsHelpLinks = descendants(elements['#docs-help-nav']).filter((item) => {
+    return item.className === 'docs-help-link';
+  });
+  const usersGuideLink = docsHelpLinks.find((item) => {
+    return item.dataset.docPath === 'users-guide';
+  });
+  const referenceLink = docsHelpLinks.find((item) => {
+    return item.dataset.docPath === 'reference';
+  });
+  const arrowheadLink = docsHelpLinks.find((item) => {
+    return item.dataset.docPath === 'dot-language/attributes/arrowhead';
+  });
+  assert(usersGuideLink);
+  assert(referenceLink);
+  assert.equal(arrowheadLink.href,
+    '/docs/d/graph-viz/dot-language/attributes/arrowhead');
   assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   }).length, 0);
-  docsHelpLinks[0].listeners.click({preventDefault() {}});
+  usersGuideLink.listeners.click({preventDefault() {}});
   assert.equal(elements['#help-panel'].hidden, true);
-  assert(document.querySelector('#help-tab'));
   let docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   });
@@ -539,7 +759,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     descendants(elements['#explorer-tabs'])
       .filter((item) => item.role === 'tab')
       .map((item) => item.dataset.explorerView),
-    ['dot-files', 'svg-files', 'help', 'docs-1']
+    ['dot-files', 'svg-files', 'docs-1']
   );
   let docsPanels = descendants(elements['#explorer-pane']).filter((item) => {
     return item.className === 'explorer-panel docs-explorer-panel';
@@ -548,21 +768,21 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   let docsFrame = descendants(docsPanels[0]).find((item) => {
     return item.localName === 'iframe';
   });
-  assert.equal(docsFrame.src, '/docs/d/graph-viz/usr/users-guide');
+  assert.equal(docsFrame.src, '/docs/d/graph-viz/users-guide');
   docsFrame.contentDocument = {
     title: 'Docs / Graph Viz / Users Guide',
     querySelector: () => null
   };
   docsFrame.contentWindow = {
-    location: {pathname: '/docs/d/graph-viz/usr/users-guide'}
+    location: {pathname: '/docs/d/graph-viz/users-guide'}
   };
   docsFrame.listeners.load({});
   assert.equal(docsControls[0].children[0].textContent, 'Users Guide');
-  docsHelpLinks[0].listeners.click({preventDefault() {}});
+  usersGuideLink.listeners.click({preventDefault() {}});
   assert.equal(descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   }).length, 1);
-  docsHelpLinks[1].listeners.click({preventDefault() {}});
+  referenceLink.listeners.click({preventDefault() {}});
   docsControls = descendants(elements['#explorer-tabs']).filter((item) => {
     return item.className === 'docs-tab-control';
   });
@@ -618,7 +838,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, true);
   assert.equal(elements['#svg-source'].hidden, false);
-  assert.equal(elements['#svg-source'].textContent, '<svg id="initial"/>');
+  assert.equal(getSvgSource(), '<svg id="initial"/>');
   assert.equal(elements['#toggle-svg-source'].textContent, 'View rendered');
   assert.equal(elements['#toggle-svg-source']['aria-pressed'], 'true');
   assert.equal(elements['#fullscreen-svg'].hidden, true);
@@ -627,19 +847,19 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, false);
   assert.equal(elements['#svg-source'].hidden, true);
-  assert.equal(elements['#toggle-svg-source'].textContent, 'View source');
+  assert.equal(elements['#toggle-svg-source'].textContent, 'Edit SVG');
   assert.equal(elements['#fullscreen-svg'].hidden, false);
 
   elements['#template'].value = 'strict-digraph';
   elements['#template'].listeners.change({});
-  assert(elements['#dot'].value.startsWith('strict digraph unique_edges'));
-  assert(elements['#dot'].value.includes('last wins'));
+  assert(getDotSource().startsWith('strict digraph unique_edges'));
+  assert(getDotSource().includes('last wins'));
 
   const dot = elements['#dot'];
-  dot.value = 'digraph old { Alpha -> Beta }';
+  setDotSource('digraph old { Alpha -> Beta }');
   elements['#render'].listeners.click({});
   const oldRequest = requests.at(-1);
-  dot.value = 'digraph new { Alpha -> Beta }';
+  setDotSource('digraph new { Alpha -> Beta }');
   elements['#render'].listeners.click({});
   const newRequest = requests.at(-1);
   newRequest.resolve(response(true, '<svg id="new"/>'));
@@ -651,7 +871,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="new"/>');
   elements['#toggle-svg-source'].listeners.click({});
-  assert.equal(elements['#svg-source'].textContent, '<svg id="new"/>');
+  assert.equal(getSvgSource(), '<svg id="new"/>');
   elements['#toggle-svg-source'].listeners.click({});
 
   const retained = elements['#preview'].children[0];
@@ -664,6 +884,15 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#preview'].children[0], retained);
   assert.equal(elements['#preview-shell'].dataset.state, 'ready');
   assert(elements['#error'].textContent.includes('Line 1, column 9'));
+  assert.deepEqual(elements['#dot'].aceSession.annotations, [{
+    row: 0, column: 8, text: 'syntax error', type: 'error'
+  }]);
+  assert.equal(elements['#dot'].aceSession.marker.range.start.column, 8);
+  assert.equal(elements['#dot']['aria-invalid'], 'true');
+  setDotSource(getDotSource(), true);
+  assert.deepEqual(elements['#dot'].aceSession.annotations, []);
+  assert.equal(elements['#dot'].aceSession.marker, undefined);
+  assert.equal(elements['#dot']['aria-invalid'], 'false');
 
   let svg = elements['#preview'].children[0];
   const beforeZoom = svg.style.transform;
@@ -682,12 +911,12 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#preview'].listeners.pointerup({pointerId: 7});
   assert.notEqual(svg.style.transform, beforePan);
 
-  dot.value = [
+  setDotSource([
     'digraph shapes {',
     '  Alpha [shape=doublecircle]',
     '  Alpha -> Beta',
     '}'
-  ].join('\n');
+  ].join('\n'));
   elements['#preview'].listeners.click({target: svg.groups[0]});
   assert.equal(elements['#attr-shape'].value, 'doublecircle');
   assert.equal(
@@ -696,19 +925,19 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   );
   elements['#attr-style'].value = 'dashed';
   elements['#attribute-form'].listeners.submit({preventDefault() {}});
-  assert(dot.value.includes('shape=doublecircle'));
-  assert(dot.value.includes('style=\"dashed\"'));
+  assert(getDotSource().includes('shape=doublecircle'));
+  assert(getDotSource().includes('style=\"dashed\"'));
   requests.at(-1).resolve(response(true, '<svg id="styled"/>'));
   await tick();
   await tick();
   svg = elements['#preview'].children[0];
 
-  dot.value = [
+  setDotSource([
     'digraph bulk_nodes {',
     '  Alpha [shape=box]',
     '  Alpha -> Beta',
     '}'
-  ].join('\n');
+  ].join('\n'));
   elements['#preview'].listeners.click({target: svg.groups[0]});
   assert.equal(elements['#attr-change-all'].checked, false);
   assert.equal(elements['#attr-use-default'].checked, false);
@@ -721,7 +950,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#attr-use-default'].checked = true;
   elements['#attribute-form'].listeners.submit({preventDefault() {}});
   for (const name of ['Alpha', 'Beta']) {
-    const nodeLine = dot.value.split('\n').find((line) => {
+    const nodeLine = getDotSource().split('\n').find((line) => {
       return line.trimStart().startsWith(`${name} [`);
     });
     assert(nodeLine, name);
@@ -730,7 +959,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     assert(nodeLine.includes('fillcolor=\"yellow\"'), nodeLine);
     assert(nodeLine.includes('style=\"bold,filled\"'), nodeLine);
   }
-  const nodeDefault = dot.value.split('\n').find((line) => {
+  const nodeDefault = getDotSource().split('\n').find((line) => {
     return line.trimStart().startsWith('node [');
   });
   assert(nodeDefault);
@@ -743,18 +972,18 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
 
   elements['#new-node-name'].value = 'Gamma';
   elements['#add-node'].listeners.click({});
-  assert(dot.value.split('\n').some((line) => line.trim() === 'Gamma'));
+  assert(getDotSource().split('\n').some((line) => line.trim() === 'Gamma'));
   requests.at(-1).resolve(response(true, '<svg id="default-node"/>'));
   await tick();
   await tick();
   svg = elements['#preview'].children[0];
 
-  dot.value = [
+  setDotSource([
     'digraph bulk_edges {',
     '  Alpha -> Beta',
     '  Beta -> Gamma',
     '}'
-  ].join('\n');
+  ].join('\n'));
   elements['#preview'].listeners.click({target: svg.groups[3]});
   assert.equal(elements['#attr-change-all'].checked, false);
   assert.equal(elements['#attr-use-default'].checked, false);
@@ -765,7 +994,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#attr-change-all'].checked = true;
   elements['#attr-use-default'].checked = true;
   elements['#attribute-form'].listeners.submit({preventDefault() {}});
-  const edgeLines = dot.value.split('\n').filter((line) => {
+  const edgeLines = getDotSource().split('\n').filter((line) => {
     return line.includes(' -> ');
   });
   assert.equal(edgeLines.length, 2);
@@ -774,7 +1003,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     assert(line.includes('style=\"dotted\"'), line);
     assert(line.includes('penwidth=2'), line);
   }
-  const edgeDefault = dot.value.split('\n').find((line) => {
+  const edgeDefault = getDotSource().split('\n').find((line) => {
     return line.trimStart().startsWith('edge [');
   });
   assert(edgeDefault);
@@ -789,7 +1018,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     target: svg.groups[2], shiftKey: true
   });
   elements['#draw-edge'].listeners.click({});
-  assert(dot.value.split('\n').some((line) => {
+  assert(getDotSource().split('\n').some((line) => {
     return line.trim() === 'Alpha -> Gamma';
   }));
   requests.at(-1).resolve(response(true, '<svg id="default-edge"/>'));
@@ -797,7 +1026,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   await tick();
   svg = elements['#preview'].children[0];
 
-  dot.value = 'digraph chain { Alpha -> Beta -> Gamma }';
+  setDotSource('digraph chain { Alpha -> Beta -> Gamma }');
   elements['#preview'].listeners.click({target: svg.groups[4]});
   assert.equal(elements['#selection-kind'].textContent, 'Edge');
   assert.equal(elements['#selection-id'].textContent, 'Beta->Gamma');
@@ -819,12 +1048,12 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   elements['#attr-fontsize'].value = '12';
   elements['#attr-fontcolor'].value = 'green';
   elements['#attribute-form'].listeners.submit({preventDefault() {}});
-  assert(dot.value.includes('Alpha -> Beta'));
-  const selectedEdgeLine = dot.value.split('\n').find((line) => {
+  assert(getDotSource().includes('Alpha -> Beta'));
+  const selectedEdgeLine = getDotSource().split('\n').find((line) => {
     return line.includes('Beta -> Gamma');
   });
   assert(selectedEdgeLine);
-  assert(!dot.value.includes(
+  assert(!getDotSource().includes(
     'Alpha -> Beta [label=\"next\"'
   ));
   for (const attribute of [
@@ -853,7 +1082,11 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert(svg.groups[0].classList.contains('is-selected'));
   assert.equal(elements['#selection-kind'].textContent, 'Node');
   assert.equal(elements['#selection-id'].textContent, 'Alpha');
-  assert(dot.value.slice(dot.selectionStart, dot.selectionEnd).includes('Alpha'));
+  const selectedSource = getDotSelection();
+  assert(getDotSource().slice(
+    selectedSource.start,
+    selectedSource.end
+  ).includes('Alpha'));
 
   elements['#preview'].listeners.click({
     target: svg.groups[1], shiftKey: true
@@ -871,8 +1104,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#selection-id'].textContent, 'Alpha -> Gamma');
   assert.equal(elements['#draw-edge'].disabled, false);
 
-  dot.value = 'digraph persisted { Alpha -> Beta }';
-  dot.listeners.input({});
+  setDotSource('digraph persisted { Alpha -> Beta }', true);
   elements['#dot-files-tab'].listeners.keydown({
     key: 'ArrowRight', currentTarget: elements['#dot-files-tab'],
     preventDefault() {}
@@ -894,9 +1126,10 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(elements['#workbench'].values['--explorer-width'], '790px');
   await new Promise((resolve) => setTimeout(resolve, 200));
   const session = JSON.parse(saved.get('graph-viz.session.v1'));
-  assert.equal(session.source, dot.value);
+  assert.equal(session.source, getDotSource());
   assert(Number.isFinite(session.view.scale));
   assert.equal(session.explorerWidth, 790);
+  assert.equal(session.explorerOpen, true);
   assert.equal(session.explorerView, 'dot-files');
   assert.deepEqual(session.docsTabs, []);
   assert.equal(session.nextDocs, 3);
@@ -907,7 +1140,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/save');
   assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
     'examples/source');
-  assert.equal(requests.at(-1).options.body, dot.value);
+  assert.equal(requests.at(-1).options.body, getDotSource());
   confirmationAnswers.push(true);
   requests.at(-1).resolve(response(false, 'Clay file already exists', 409));
   await tick();
@@ -921,10 +1154,12 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   await saveDotRequest;
 
   prompts.push('examples/output');
+  const svgBeforeSave = elements['#preview'].children[0].renderSource;
   const saveSvgRequest = elements['#save-svg'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/save');
   assert.equal(requests.at(-1).options.headers['x-graph-viz-path'],
     'examples/output');
+  assert.equal(requests.at(-1).options.body, svgBeforeSave);
   const requestCount = requests.length;
   confirmationAnswers.push(false);
   requests.at(-1).resolve(response(false, 'Clay file already exists', 409));
@@ -953,7 +1188,7 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
     'examples/beta/txt');
   requests.at(-1).resolve(response(true, 'digraph browsed { B -> C }'));
   await browseLoadDot;
-  assert.equal(dot.value, 'digraph browsed { B -> C }');
+  assert.equal(getDotSource(), 'digraph browsed { B -> C }');
 
   const dotFileRow = dotFile.parentElement;
   const dotFileActions = dotFileRow.children.find((item) => {
@@ -967,11 +1202,11 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   });
   assert.equal(elements['#file-context-menu'].hidden, false);
   assert.equal(dotFile['aria-expanded'], 'true');
+  const contextRequestCount = requests.length;
   const contextLoadDot = elements['#file-context-open'].listeners.click({});
-  assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
-  requests.at(-1).resolve(response(true, 'digraph context { C -> D }'));
   await contextLoadDot;
-  assert.equal(dot.value, 'digraph context { C -> D }');
+  assert.equal(requests.length, contextRequestCount);
+  assert.equal(getDotSource(), 'digraph browsed { B -> C }');
   assert.equal(elements['#file-context-menu'].hidden, true);
 
   dotFileRow.listeners.contextmenu({
@@ -1010,22 +1245,25 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   });
   assert(svgFile);
   assert.equal(svgFile.textContent, 'preview/svg');
+  const sourceBeforeBrowseSvg = getDotSource();
   const browseLoadSvg = svgFile.listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
   requests.at(-1).resolve(response(true, '<svg id="browsed"/>'));
   await browseLoadSvg;
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="browsed"/>');
-  assert.equal(elements['#auto-render'].checked, false);
+  assert.equal(getDotSource(), sourceBeforeBrowseSvg);
+  assert.equal(elements['#auto-render'].checked, true);
 
   prompts.push('/examples/loaded');
   const loadDotRequest = elements['#load-dot'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/dot/load');
   requests.at(-1).resolve(response(true, 'digraph loaded { A -> B }'));
   await loadDotRequest;
-  assert.equal(dot.value, 'digraph loaded { A -> B }');
+  assert.equal(getDotSource(), 'digraph loaded { A -> B }');
 
   elements['#auto-render'].checked = true;
+  const sourceBeforePromptSvg = getDotSource();
   prompts.push('examples/loaded');
   const loadSvgRequest = elements['#load-svg'].listeners.click({});
   assert.equal(requests.at(-1).url, '/apps/graph-viz/file/svg/load');
@@ -1033,7 +1271,8 @@ vm.runInThisContext(fs.readFileSync(application, 'utf8'), {filename: application
   await loadSvgRequest;
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="loaded"/>');
-  assert.equal(elements['#auto-render'].checked, false);
+  assert.equal(getDotSource(), sourceBeforePromptSvg);
+  assert.equal(elements['#auto-render'].checked, true);
 
   const failedBrowse = elements['#browse-dot'].listeners.click({});
   requests.at(-1).resolve(response(false, 'Clay browse failed'));

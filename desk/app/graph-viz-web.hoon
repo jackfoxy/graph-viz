@@ -2,6 +2,17 @@
 ::
 /-  gviz
 /+  clay=gviz-clay, dbug, default-agent, lib=gviz, server, web=gviz-web
+/*  ace-core     %js   /web/ace/ace/js
+/*  ace-config   %js   /web/ace/graph-viz-config/js
+/*  ace-dot      %js   /web/ace/mode-dot/js
+/*  ace-light    %js   /web/ace/theme-github/js
+/*  ace-dark     %js   /web/ace/theme-monokai/js
+/*  ace-beaut    %js   /web/ace/ext-beautify/js
+/*  ace-prompt   %js   /web/ace/ext-prompt/js
+/*  ace-search   %js   /web/ace/ext-searchbox/js
+/*  ace-sets     %js   /web/ace/ext-settings-menu/js
+/*  ace-lic      %txt  /web/ace/license/txt
+/*  docs-toc     %toc  /doc/toc
 |%
 +$  versioned-state  $%(state-0)
 +$  state-0  [%0 ~]
@@ -57,7 +68,9 @@
 ++  handle-http
   |=  [eyre-id=@ta req=inbound-request:eyre]
   ^-  (quip card _this)
-  =/  url=tape  (trip url.request.req)
+  =/  raw-url=tape  (trip url.request.req)
+  =/  query=(unit @ud)  (find "?" raw-url)
+  =/  url=tape  ?~(query raw-url (scag u.query raw-url))
   =/  method  method.request.req
   ?:  ?&  =(%'GET' method)  =("/apps/graph-viz" url)  ==
     :_  this
@@ -68,6 +81,60 @@
   ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/app.js" url)  ==
     :_  this
     (respond eyre-id 200 'text/javascript; charset=utf-8' javascript:web)
+  ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/doc.toc" url)  ==
+    :_  this
+    (respond eyre-id 200 'text/plain; charset=utf-8' docs-toc)
+  ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/ace/ace.js" url)  ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-core)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/graph-viz-config.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-config)
+  ?:  ?&  =(%'GET' method)  =("/apps/graph-viz/ace/mode-dot.js" url)  ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-dot)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/theme-github.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-light)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/theme-monokai.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-dark)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/ext-beautify.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-beaut)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/ext-prompt.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-prompt)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/ext-searchbox.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-search)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/ext-settings_menu.js" url)
+      ==
+    :_  this
+    (respond eyre-id 200 'text/javascript; charset=utf-8' ace-sets)
+  ?:  ?&  =(%'GET' method)
+          =("/apps/graph-viz/ace/license.txt" url)
+      ==
+    :_  this
+    %-  respond
+    :*  eyre-id
+        200
+        'text/plain; charset=utf-8'
+        (of-wain:format ace-lic)
+    ==
   ?:  ?&  =(%'POST' method)
           =("/apps/graph-viz/file/dot/browse" url)
       ==

@@ -25,49 +25,6 @@
           ;h1: Graph Viz
         ==
         ;nav.toolbar(aria-label "Graph controls")
-          ;select#template
-            =title       "Insert starter template"
-            =aria-label  "Starter template"
-            ;option(value "", disabled "", hidden ""): Select template…
-            ;option(value "flowchart"): Flowchart
-            ;option(value "strict-digraph"): Strict digraph
-            ;option(value "state-machine"): State machine
-            ;option(value "dependencies"): Dependencies
-            ;option(value "clusters"): Clusters
-          ==
-          ;button#render.primary
-            =type   "button"
-            =title  "Render (Ctrl+Enter)"
-            ;span: Render
-          ==
-          ;div.zoom-controls(aria-label "Zoom controls")
-            ;button#zoom-in.icon-button
-              =type        "button"
-              =disabled    ""
-              =title       "Zoom in"
-              =aria-label  "Zoom in"
-              ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
-            ==
-            ;button#zoom-out.icon-button
-              =type        "button"
-              =disabled    ""
-              =title       "Zoom out"
-              =aria-label  "Zoom out"
-              ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
-            ==
-          ==
-          ;button#fit
-            =type      "button"
-            =disabled  ""
-            =title     "Fit graph (Ctrl+0)"
-            ;span: Fit
-          ==
-          ;button#reset-view
-            =type      "button"
-            =disabled  ""
-            =title     "Reset view (Ctrl+1)"
-            ;span: Reset
-          ==
           ;label.theme-control
             ;span: Theme
             ;select#theme(aria-label "Theme")
@@ -108,6 +65,12 @@
                 ==
               ==
             ==
+            ;button#explorer-collapse.icon-button.explorer-collapse
+              =type           "button"
+              =aria-label     "Collapse explorer"
+              =aria-expanded  "true"
+              ‹
+            ==
           ==
           ;div#dot-files-panel.explorer-panel
             =role              "tabpanel"
@@ -140,8 +103,20 @@
         ;section#workspace.workspace
         ;section#editor-pane.pane.editor-pane
           ;div.pane-header
-            ;h2: DOT source
+            ;h2#dot-source-heading: DOT source
+            ;span#source-status.status: Ready
             ;div.file-actions(aria-label "DOT file controls")
+              ;select#template
+                =title       "Insert starter template"
+                =aria-label  "Starter template"
+                ;option(value "", disabled "", hidden ""): Select template…
+                ;option(value "flowchart"): Flowchart
+                ;option(value "strict-digraph"): Strict digraph
+                ;option(value "state-machine"): State machine
+                ;option(value "dependencies"): Dependencies
+                ;option(value "clusters"): Clusters
+              ==
+              ;button#add-dot-ref(type "button", disabled ""): Add Ref
               ;button#browse-dot(type "button"): Browse
               ;button#load-dot(type "button"): Load DOT
               ;button#save-dot(type "button"): Save DOT
@@ -150,7 +125,11 @@
               ;input#auto-render(type "checkbox", checked "");
               ;span: Auto-render
             ==
-            ;span#source-status.status: Ready
+          ==
+          ;div#dot-document-tabs.document-tabs
+            =role        "tablist"
+            =aria-label  "Open DOT documents"
+            ;span(hidden "");
           ==
           ;div.visual-tools(aria-label "Visual editing tools")
             ;label.control
@@ -180,12 +159,18 @@
               ;span: Draw edge
             ==
           ==
-          ;label.sr-only(for "dot"): DOT source
           ;div.editor-body
-            ;pre#line-numbers.line-numbers(aria-hidden "true");
-            ;textarea#dot
-              =spellcheck  "false"
-              =aria-label  "DOT source"
+            ;div#editor-load-error.editor-load-error
+              =hidden  ""
+              =role    "alert"
+              ;strong: Source editors unavailable
+              ;span: Reload the page.
+              ;span: If the problem continues, verify the Ace assets are installed.
+            ==
+            ;div#dot.ace-editor-host
+              =role               "region"
+              =aria-labelledby    "dot-source-heading"
+              =aria-describedby   "error editor-load-error"
               ;+  ;/  (trip 'digraph { a -> b }')
             ==
           ==
@@ -200,7 +185,42 @@
         ;section#preview-pane.pane.preview-pane
           ;div.pane-header
             ;h2: Preview
+            ;span#render-status.status: Empty
             ;div.file-actions(aria-label "SVG file controls")
+              ;button#render.primary
+                =type   "button"
+                =title  "Render (Ctrl+Enter)"
+                ;span: Render
+              ==
+              ;div.zoom-controls(aria-label "Zoom controls")
+                ;button#zoom-in.icon-button
+                  =type        "button"
+                  =disabled    ""
+                  =title       "Zoom in"
+                  =aria-label  "Zoom in"
+                  ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+                ==
+                ;button#zoom-out.icon-button
+                  =type        "button"
+                  =disabled    ""
+                  =title       "Zoom out"
+                  =aria-label  "Zoom out"
+                  ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+                ==
+              ==
+              ;button#fit
+                =type      "button"
+                =disabled  ""
+                =title     "Fit graph (Ctrl+0)"
+                ;span: Fit
+              ==
+              ;button#reset-view
+                =type      "button"
+                =disabled  ""
+                =title     "Reset view (Ctrl+1)"
+                ;span: Reset
+              ==
+              ;button#add-svg-ref(type "button", disabled ""): Add Ref
               ;button#browse-svg(type "button"): Browse
               ;button#load-svg(type "button"): Load SVG
               ;button#save-svg(type "button", disabled ""): Save SVG
@@ -208,10 +228,14 @@
                 =type          "button"
                 =disabled      ""
                 =aria-pressed  "false"
-                ;span: View source
+                ;span: Edit SVG
               ==
             ==
-            ;span#render-status.status: Empty
+          ==
+          ;div#svg-document-tabs.document-tabs
+            =role        "tablist"
+            =aria-label  "Open SVG documents"
+            ;span(hidden "");
           ==
           ;pre#error.error(hidden "", role "alert");
           ;div#inspector.inspector(hidden "", aria-live "polite")
@@ -385,25 +409,35 @@
               ;p: Check the ship connection, then try again.
             ==
             ;div#preview.preview(aria-live "polite", tabindex "0");
-            ;pre#svg-source(hidden "", tabindex "0", aria-label "SVG source");
+            ;div#svg-source.ace-editor-host
+              =hidden      ""
+              =role        "region"
+              =aria-label  "SVG source editor"
+              ;span(hidden "");
+            ==
           ==
         ==
         ==
       ==
-      ;aside#help-panel.explorer-panel.help-explorer-panel
-        =hidden            ""
-        =role              "tabpanel"
-        =aria-labelledby   "help-tab"
-        =aria-label        "Help"
+      ;aside#help-panel.help-panel
+        =hidden          ""
+        =role            "dialog"
+        =aria-modal      "true"
+        =aria-labelledby  "help-title"
         ;div#editor-help-card.help-card.editor-help-card
           ;div.pane-header
-            ;h2: Editor help
-            ;button#close-help(type "button", aria-label "Close help"): Close
+            ;h2#help-title: Help
+            ;button#close-help.icon-button.help-close
+              =type        "button"
+              =title       "Close"
+              =aria-label  "Close help"
+              ;span.close-icon(aria-hidden "true");
+            ==
           ==
           ;div#fallback-help-content
-            ;p
+            ;nav.help-links(aria-label "Graph Viz documentation")
               ;a
-                =href    "https://www.graphviz.org/doc/info/lang.html"
+                =href    "/docs/d/graph-viz/dot-language"
                 =target  "_blank"
                 =rel     "noopener noreferrer"
                 DOT Language Reference
@@ -422,57 +456,39 @@
               ;li: Shift-click: select two nodes for an edge
               ;li: Delete: remove the selected node or edge
             ==
-            ;h3: LLM skill files
-            ;ul
-              ;li
-                ;a
-                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-dot-syntax"
-                  =target  "_blank"
-                  =rel     "noopener noreferrer"
-                  DOT Syntax
-                ==
-              ==
-              ;li
-                ;a
-                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-gall-api"
-                  =target  "_blank"
-                  =rel     "noopener noreferrer"
-                  Gall API
-                ==
-              ==
-              ;li
-                ;a
-                  =href    "https://github.com/jackfoxy/foxy-skills/tree/master/gviz-patterns"
-                  =target  "_blank"
-                  =rel     "noopener noreferrer"
-                  Common Patterns
-                ==
-              ==
-            ==
           ==
           ;div#docs-help-content.docs-help-content(hidden "")
             ;nav#docs-help-nav.docs-help-nav
               =aria-label  "Graph Viz documentation"
-              ;a.docs-help-link
-                =href           "/docs/d/graph-viz/usr/users-guide"
-                =data-doc-path  "usr/users-guide"
-                Users Guide
-              ==
-              ;a.docs-help-link
-                =href           "/docs/d/graph-viz/reference"
-                =data-doc-path  "reference"
-                Reference
-              ==
-              ;a.docs-help-link
-                =href           "/docs/d/graph-viz/graph-noun"
-                =data-doc-path  "graph-noun"
-                Positioned graph
-              ==
-              ;a.docs-help-link
-                =href           "/docs/d/graph-viz/release-notes"
-                =data-doc-path  "release-notes"
-                Release notes
-              ==
+              =aria-busy  "true"
+              ;p.docs-help-loading: Loading documentation…
+            ==
+          ==
+          ;nav.help-links.help-skill-links
+            =aria-label  "Graph Viz LLM skill files"
+            ;a
+              =href
+                "https://github.com/jackfoxy/foxy-skills/tree/master/".
+                "gviz-dot-syntax"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              DOT Syntax LLM Skill
+            ==
+            ;a
+              =href
+                "https://github.com/jackfoxy/foxy-skills/tree/master/".
+                "gviz-gall-api"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              Gall API LLM Skill
+            ==
+            ;a
+              =href
+                "https://github.com/jackfoxy/foxy-skills/tree/master/".
+                "gviz-patterns"
+              =target  "_blank"
+              =rel     "noopener noreferrer"
+              Common Patterns LLM Skill
             ==
           ==
         ==
@@ -502,6 +518,11 @@
           ;pre#clay-error-message.clay-error-message;
         ==
       ==
+      ;script(src "/apps/graph-viz/ace/ace.js");
+      ;script(src "/apps/graph-viz/ace/graph-viz-config.js");
+      ;script(src "/apps/graph-viz/ace/mode-dot.js");
+      ;script(src "/apps/graph-viz/ace/theme-github.js");
+      ;script(src "/apps/graph-viz/ace/ext-beautify.js");
       ;script(src "/apps/graph-viz/app.js");
     ==
   ==
@@ -620,7 +641,9 @@
   button, select { cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--accent); }
   button:focus-visible, select:focus-visible, input:focus-visible,
-  textarea:focus-visible { outline: 3px solid var(--focus); }
+  .help-card a:focus-visible {
+    outline: 3px solid var(--focus);
+  }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
 
   .primary {
@@ -715,8 +738,7 @@
     border-bottom: 1px solid var(--border);
     display: grid;
     gap: 0.5rem;
-    grid-template-columns:
-      minmax(8rem, 1fr) minmax(8rem, auto) minmax(8rem, auto) auto auto;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
     padding: 0.5rem 0.75rem;
   }
 
@@ -763,21 +785,63 @@
     overflow: hidden;
   }
 
-  .explorer-header { border-bottom: 1px solid var(--border); }
-
-  .explorer-tabs {
+  .explorer-header {
+    align-items: stretch;
     display: flex;
     min-width: 0;
+  }
+
+  .explorer-header .explorer-tabs { flex: 1; }
+
+  .explorer-collapse {
+    border-width: 0 0 1px 1px;
+    border-radius: 0;
+    flex: 0 0 2.65rem;
+    height: auto;
+    min-height: 2.3125rem;
+  }
+
+  .explorer-pane.collapsed .explorer-tabs,
+  .explorer-pane.collapsed .explorer-panel {
+    display: none;
+  }
+
+  .explorer-pane.collapsed .explorer-header {
+    justify-content: center;
+  }
+
+  .explorer-pane.collapsed .explorer-collapse {
+    border-left: 0;
+    flex-basis: 3rem;
+    width: 3rem;
+  }
+
+  .workbench.explorer-collapsed {
+    grid-template-columns: 3rem 0 minmax(0, 1fr);
+  }
+
+  .explorer-tabs {
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex: 0 0 2.55rem;
+    height: 2.55rem;
+    min-height: 2.55rem;
+    min-width: 0;
+    overscroll-behavior-inline: contain;
     overflow-x: auto;
-    scrollbar-width: thin;
+    overflow-y: hidden;
   }
 
   .explorer-tab-control, .docs-tab-control {
-    align-items: stretch;
+    align-items: center;
     border-right: 1px solid var(--border);
     display: inline-flex;
     flex: 0 0 auto;
+    height: 2.25rem;
   }
+
+  .docs-tab-control { position: relative; }
 
   .explorer-tab, .docs-tab, .docs-tab-close {
     background: transparent;
@@ -785,14 +849,29 @@
     border-radius: 0;
     color: var(--muted);
     font-size: 0.75rem;
-    min-height: 2.5rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding-block: 0;
   }
 
   .explorer-tab, .docs-tab {
-    max-width: 12rem;
+    max-width: 14rem;
     overflow: hidden;
+    text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .explorer-tab {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .docs-tab {
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
   }
 
   .explorer-tab-control.active, .docs-tab-control.active {
@@ -806,8 +885,14 @@
   }
 
   .docs-tab-close {
-    font-size: 1rem;
-    padding: 0.25rem 0.45rem;
+    bottom: 0;
+    font: 700 0.75rem/1 ui-monospace, monospace;
+    position: absolute;
+    padding: 0.25rem 0.55rem;
+    right: 0;
+    top: 0;
+    width: 1.75rem;
+    z-index: 1;
   }
 
   .explorer-panel {
@@ -834,17 +919,16 @@
     width: 100%;
   }
 
-  .help-explorer-panel {
+  .ref-explorer-panel {
     overflow: auto;
-    padding: 0.75rem;
+    padding: 1rem;
   }
 
-  .help-explorer-panel .help-card {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    max-width: none;
-    min-height: 100%;
+  .ref-source {
+    font: 0.8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+    margin: 0;
+    min-width: max-content;
+    white-space: pre;
   }
 
   .explorer-resizer {
@@ -859,6 +943,8 @@
   .explorer-resizer:hover, .explorer-resizer:focus {
     background: var(--accent);
   }
+
+  .explorer-resizer.inactive { cursor: default; }
 
   .workspace {
     display: grid;
@@ -881,72 +967,169 @@
     align-items: center;
     border-bottom: 1px solid var(--border);
     display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     justify-content: space-between;
     min-height: 2.75rem;
     padding: 0.5rem 0.75rem;
   }
 
   .pane-header h2 { font-size: 0.9rem; margin: 0; }
-  .file-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+  .file-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-left: auto;
+    min-width: 0;
+  }
   .status {
     color: var(--muted);
     font-size: 0.75rem;
     margin-left: 0.5rem;
   }
 
-  .editor-body {
+  .document-tabs {
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border);
     display: flex;
+    flex: 0 0 2.55rem;
+    height: 2.55rem;
+    min-height: 2.55rem;
+    min-width: 0;
+    overscroll-behavior-inline: contain;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .explorer-tabs::-webkit-scrollbar,
+  .document-tabs::-webkit-scrollbar {
+    height: 0.3rem;
+  }
+
+  .explorer-tabs::-webkit-scrollbar-track,
+  .document-tabs::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .explorer-tabs::-webkit-scrollbar-thumb,
+  .document-tabs::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 999px;
+  }
+
+  @supports (-moz-appearance: none) {
+    .explorer-tabs, .document-tabs {
+      scrollbar-color: var(--muted) transparent;
+      scrollbar-width: thin;
+    }
+  }
+
+  .document-tab-control {
+    align-items: stretch;
+    border-right: 1px solid var(--border);
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 2.25rem;
+  }
+
+  .document-tab-control.active {
+    box-shadow: inset 0 -2px var(--accent);
+  }
+
+  .document-tab-control[draggable='true'] { cursor: grab; }
+  .document-tab-control.is-dragging { opacity: 0.45; }
+
+  .document-tab, .document-tab-close, .document-tab-add {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding-block: 0;
+  }
+
+  .document-tab {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .document-tab[aria-selected='true'] {
+    color: var(--ink);
+    font-weight: 650;
+  }
+
+  .document-tab-close {
+    font: 700 0.75rem/1 ui-monospace, monospace;
+    padding: 0.25rem 0.55rem;
+  }
+
+  .document-tab-add {
+    color: var(--ink);
+    font-size: 1rem;
+    min-width: 2.25rem;
+    padding: 0.25rem 0.65rem;
+  }
+
+  .explorer-tab-control[draggable='true'],
+  .docs-tab-control[draggable='true'],
+  .ref-tab-control[draggable='true'] {
+    cursor: grab;
+  }
+
+  .explorer-tab-control.is-dragging,
+  .docs-tab-control.is-dragging,
+  .ref-tab-control.is-dragging {
+    opacity: 0.45;
+  }
+
+  .editor-body {
     flex: 1;
     min-height: 0;
     overflow: hidden;
-  }
-
-  .line-numbers {
-    background: var(--surface-alt);
-    border-right: 1px solid var(--border);
-    color: var(--muted);
-    flex: 0 0 auto;
-    font: 0.9rem/1.55 ui-monospace, monospace;
-    margin: 0;
-    min-width: 3.5rem;
-    overflow: hidden;
-    padding: 1rem 0.65rem;
-    text-align: right;
-    user-select: none;
-  }
-
-  .line-numbers span { display: block; }
-
-  .line-numbers .error-line {
-    background: var(--editor-error);
-    color: var(--danger);
-    font-weight: 700;
+    position: relative;
   }
 
   #dot {
     background: var(--surface);
     border: 0;
-    color: inherit;
-    flex: 1;
     font: 0.9rem/1.55 ui-monospace, monospace;
+    height: 100%;
     min-height: 12rem;
     outline: none;
-    padding: 1rem;
-    resize: none;
-    tab-size: 2;
     width: 100%;
   }
 
-  #dot:focus { box-shadow: inset 0 0 0 2px var(--accent); }
-
-  #dot.has-error-line {
-    background-image: linear-gradient(
-      var(--danger-background), var(--danger-background)
-    );
-    background-position: 0 var(--error-line-top);
-    background-repeat: no-repeat;
-    background-size: 100% 1.4rem;
+  #dot.ace_focus, #dot:focus-within {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
   }
+
+  #dot .ace_marker-layer .ace-error-marker {
+    background: var(--editor-error);
+    border-bottom: 2px solid var(--danger);
+    box-sizing: border-box;
+    position: absolute;
+  }
+
+  .editor-load-error {
+    background: var(--danger-background);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    display: grid;
+    gap: 0.5rem;
+    inset: 1rem;
+    padding: 1rem;
+    position: absolute;
+    z-index: 1;
+  }
+
+  .editor-load-error[hidden] { display: none; }
 
   .splitter {
     background: var(--border);
@@ -1103,17 +1286,16 @@
 
   #svg-source {
     background: var(--surface-alt);
-    color: var(--ink);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.8rem;
-    inset: 0;
-    line-height: 1.45;
-    margin: 0;
-    overflow: auto;
-    padding: 3.5rem 1rem 1rem;
+    border: 0;
+    inset: 3rem 0 0;
+    outline: none;
     position: absolute;
-    tab-size: 2;
-    white-space: pre;
+  }
+
+  #svg-source.ace_focus, #svg-source:focus-within {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
   }
 
   #svg-source[hidden] { display: none; }
@@ -1215,7 +1397,7 @@
     padding: 1rem;
     place-items: center;
     position: fixed;
-    z-index: 10;
+    z-index: 70;
   }
 
   .help-panel[hidden] { display: none; }
@@ -1250,32 +1432,132 @@
     width: 100%;
   }
 
+  .help-close {
+    height: 2rem;
+    padding: 0;
+    width: 2rem;
+  }
+
+  .close-icon {
+    height: 0.9rem;
+    position: relative;
+    width: 0.9rem;
+  }
+
+  .close-icon::before, .close-icon::after {
+    background: currentcolor;
+    content: '';
+    height: 1px;
+    left: 0;
+    position: absolute;
+    top: 0.42rem;
+    width: 0.9rem;
+  }
+
+  .close-icon::before { transform: rotate(45deg); }
+  .close-icon::after { transform: rotate(-45deg); }
+
+  .help-links {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .help-links a {
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.65rem 0.75rem;
+    text-decoration: none;
+  }
+
+  .help-card a { color: inherit; }
+  .help-card a p { margin: 0; }
+
+  .help-skill-links {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1rem;
+  }
+
+  .help-skill-links a { text-align: center; }
+
   #fallback-help-content[hidden], .docs-help-content[hidden] {
     display: none;
   }
 
   .docs-help-content {
-    padding-top: 0.75rem;
+    display: grid;
+    gap: 0.8rem;
   }
 
   .docs-help-nav {
     align-content: start;
     display: grid;
-    gap: 0.25rem;
+    gap: 0.4rem;
+    max-height: min(32rem, calc(100vh - 15rem));
+    overflow: auto;
   }
 
   .docs-help-link {
-    border-radius: 0.35rem;
-    color: var(--accent);
-    padding: 0.5rem;
+    border-radius: 0.3rem;
+    padding: 0.45rem 0.65rem;
     text-decoration: none;
   }
 
   .docs-help-link:hover, .docs-help-link[aria-current="page"] {
-    background: var(--background);
+    background: var(--surface-alt);
   }
 
   .docs-help-link[aria-current="page"] { font-weight: 600; }
+
+  .docs-help-summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    font-weight: 600;
+    list-style: none;
+    padding: 0.6rem 0.7rem;
+  }
+
+  .docs-help-summary::-webkit-details-marker { display: none; }
+
+  .docs-help-summary:hover { background: var(--surface-alt); }
+
+  .docs-help-summary::before {
+    color: var(--muted);
+    content: '\25b8';
+    font-size: 0.7rem;
+    margin-right: 0.5rem;
+  }
+
+  .docs-help-group[open] > .docs-help-summary::before { content: '\25be'; }
+
+  .docs-help-group {
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+  }
+
+  .docs-help-subnav {
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 0;
+    padding: 0.3rem 0.3rem 0.3rem 1.5rem;
+  }
+
+  .docs-help-subnav .docs-help-link {
+    display: block;
+    font-size: 0.9rem;
+    padding: 0.3rem 0.65rem;
+  }
+
+  .docs-help-subnav .docs-help-group {
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+  }
+
+  .docs-help-loading {
+    color: var(--muted);
+    margin: 0;
+    padding: 0.65rem;
+  }
 
   .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
 
@@ -1352,6 +1634,11 @@
       overflow: visible;
     }
 
+    .workbench.explorer-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 3rem minmax(0, 1fr);
+    }
+
     .explorer-resizer { display: none; }
 
     .workspace {
@@ -1363,12 +1650,7 @@
     .splitter { display: none; }
     .preview-pane { border-top: 1px solid var(--border); }
 
-    .docs-help-nav {
-      display: flex;
-      overflow-x: auto;
-    }
-
-    .docs-help-link { flex: 0 0 auto; }
+    .help-skill-links { grid-template-columns: minmax(0, 1fr); }
   }
   '''
 ::
@@ -1431,7 +1713,9 @@
   };
   const starter = templates.flowchart;
   const dot = document.querySelector('#dot');
-  const lineNumbers = document.querySelector('#line-numbers');
+  const dotDocumentTabs = document.querySelector('#dot-document-tabs');
+  const svgDocumentTabs = document.querySelector('#svg-document-tabs');
+  const editorLoadError = document.querySelector('#editor-load-error');
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
   const error = document.querySelector('#error');
@@ -1478,9 +1762,11 @@
   const fullscreenZoomOut = document.querySelector('#fullscreen-zoom-out');
   const fullscreenZoomIn = document.querySelector('#fullscreen-zoom-in');
   const resetView = document.querySelector('#reset-view');
+  const addDotRef = document.querySelector('#add-dot-ref');
   const browseDot = document.querySelector('#browse-dot');
   const loadDot = document.querySelector('#load-dot');
   const saveDot = document.querySelector('#save-dot');
+  const addSvgRef = document.querySelector('#add-svg-ref');
   const browseSvg = document.querySelector('#browse-svg');
   const loadSvg = document.querySelector('#load-svg');
   const saveSvg = document.querySelector('#save-svg');
@@ -1495,12 +1781,11 @@
     '#fallback-help-content'
   );
   const docsHelpContent = document.querySelector('#docs-help-content');
-  const docsHelpLinks = Array.from(
-    document.querySelectorAll('.docs-help-link')
-  );
+  const docsHelpNav = document.querySelector('#docs-help-nav');
   const workbench = document.querySelector('#workbench');
   const explorerPane = document.querySelector('#explorer-pane');
   const explorerTabs = document.querySelector('#explorer-tabs');
+  const explorerCollapse = document.querySelector('#explorer-collapse');
   const explorerResizer = document.querySelector('#explorer-resizer');
   const dotFilesTab = document.querySelector('#dot-files-tab');
   const svgFilesTab = document.querySelector('#svg-files-tab');
@@ -1528,17 +1813,34 @@
   const storageKey = 'graph-viz.session.v1';
   const themes = ['system', 'light', 'dark'];
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
+  const isMac = /Mac|iPhone|iPad|iPod/.test(
+    navigator.platform || navigator.userAgent || ''
+  );
   const docsRoot = '/docs/d/graph-viz/';
-  const helpExplorerView = 'help';
   const permanentExplorerViews = ['dot-files', 'svg-files'];
   let docsAvailable = null;
   let docsCheckPending = false;
+  let docsTreeLoaded = false;
+  let explorerOpen = true;
   let docsTabs = [];
   let nextDocs = 1;
+  let refTabs = [];
+  let nextRef = 1;
   let explorerView = 'dot-files';
+  let explorerOrder = [...permanentExplorerViews];
+  let dotTabs = [];
+  let activeDotTabId;
+  let nextDotTab = 1;
+  let svgTabs = [];
+  let activeSvgTabId;
+  let nextSvgTab = 1;
+  let draggedTab;
   let contextFileKind;
   let contextFilePath;
   let contextFileSource;
+  let clayErrorReturnFocus;
+  dotFilesTab.parentElement.dataset.explorerTabId = 'dot-files';
+  svgFilesTab.parentElement.dataset.explorerTabId = 'svg-files';
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1583,12 +1885,693 @@
   let graphSize = {width: 1, height: 1};
   let view = {scale: 1, x: 0, y: 0};
   let panPoint;
-  let errorLine = 0;
   let lastSvgSource = '';
   let showingSvgSource = false;
   let pendingView;
   let selectedItems = [];
   let inheritNewNodeShape = false;
+
+  function createAceEditorAdapter(host, options = {}) {
+    if (!window.ace || !window.graphVizAceAssets) {
+      throw new Error('Ace runtime or configuration did not load');
+    }
+    const assets = window.graphVizAceAssets;
+    const AceRange = window.ace.require('ace/range').Range;
+    const beautify = window.ace.require('ace/ext/beautify');
+    if (!Array.isArray(beautify?.commands)) {
+      throw new Error('Ace Beautify extension did not load');
+    }
+    const aceEditor = window.ace.edit(host);
+    const session = aceEditor.session;
+    const changeListeners = new Set();
+    const textInput = aceEditor.textInput.getElement();
+    let errorMarker;
+    let suppressChanges = 0;
+
+    aceEditor.setOptions({
+      displayIndentGuides: true,
+      fontSize: '0.9rem',
+      highlightActiveLine: true,
+      showPrintMargin: false,
+      tabSize: 2,
+      useSoftTabs: true,
+      wrap: true
+    });
+    aceEditor.setTheme(
+      document.documentElement.dataset.effectiveTheme === 'dark'
+        ? assets.darkTheme
+        : assets.lightTheme
+    );
+    session.setMode(options.mode || assets.mode);
+    session.setUseWorker(assets.useWorker);
+    if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
+      aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
+    }
+    aceEditor.commands.addCommands(beautify.commands);
+    aceEditor.commands.bindKey('Ctrl-T', 'transposeletters');
+    textInput.setAttribute(
+      'aria-label',
+      options.label || 'DOT source editor'
+    );
+    if (options.labelledBy) {
+      textInput.setAttribute('aria-labelledby', options.labelledBy);
+    }
+    textInput.setAttribute(
+      'aria-describedby',
+      options.describedBy || 'error editor-load-error'
+    );
+    textInput.setAttribute('aria-invalid', 'false');
+
+    function getSource() {
+      return aceEditor.getValue();
+    }
+
+    function clampOffset(offset) {
+      const numeric = Number.isFinite(offset) ? Math.trunc(offset) : 0;
+      return Math.max(0, Math.min(getSource().length, numeric));
+    }
+
+    function getSelection() {
+      const range = aceEditor.selection.getRange();
+      return {
+        start: positionToOffset(range.start),
+        end: positionToOffset(range.end)
+      };
+    }
+
+    function setSelection(start, end = start) {
+      const nextStart = clampOffset(start);
+      const nextEnd = Math.max(nextStart, clampOffset(end));
+      const first = offsetToPosition(nextStart);
+      const last = offsetToPosition(nextEnd);
+      aceEditor.selection.setSelectionRange(new AceRange(
+        first.row,
+        first.column,
+        last.row,
+        last.column
+      ));
+    }
+
+    function offsetToPosition(offset) {
+      return session.doc.indexToPosition(clampOffset(offset), 0);
+    }
+
+    function positionToOffset(position) {
+      const source = getSource();
+      const lines = source.split('\n');
+      const requestedRow = Number.isFinite(position?.row)
+        ? Math.trunc(position.row)
+        : 0;
+      const row = Math.max(0, Math.min(lines.length - 1, requestedRow));
+      const requestedColumn = Number.isFinite(position?.column)
+        ? Math.trunc(position.column)
+        : 0;
+      const column = Math.max(0, Math.min(lines[row].length, requestedColumn));
+      return session.doc.positionToIndex({row, column}, 0);
+    }
+
+    function notifyChange() {
+      for (const listener of changeListeners) listener();
+    }
+
+    function mutate(change, notify) {
+      suppressChanges += 1;
+      try {
+        change();
+      } finally {
+        suppressChanges -= 1;
+      }
+      if (notify !== false) notifyChange();
+    }
+
+    function isolateUndo(change) {
+      const undoManager = session.getUndoManager();
+      undoManager.startNewGroup();
+      try {
+        change();
+      } finally {
+        undoManager.startNewGroup();
+      }
+    }
+
+    function setSource(source, options = {}) {
+      mutate(() => {
+        const history = options.history || 'undoable';
+        if (history === 'reset') {
+          session.setValue(source);
+          session.getUndoManager().reset();
+        } else if (history === 'undoable') {
+          const last = offsetToPosition(getSource().length);
+          isolateUndo(() => {
+            session.replace(new AceRange(
+              0,
+              0,
+              last.row,
+              last.column
+            ), source);
+          });
+        } else {
+          throw new Error(`Unsupported editor history mode: ${history}`);
+        }
+        const selection = options.selection || {
+          start: source.length,
+          end: source.length
+        };
+        setSelection(selection.start, selection.end);
+      }, options.notify);
+    }
+
+    function replaceRange(start, end, replacement, options = {}) {
+      const rangeStart = clampOffset(start);
+      const rangeEnd = Math.max(rangeStart, clampOffset(end));
+      const first = offsetToPosition(rangeStart);
+      const last = offsetToPosition(rangeEnd);
+      mutate(() => {
+        isolateUndo(() => {
+          session.replace(new AceRange(
+            first.row,
+            first.column,
+            last.row,
+            last.column
+          ), replacement);
+        });
+        const replacementEnd = rangeStart + replacement.length;
+        if (options.selection && typeof options.selection === 'object') {
+          setSelection(options.selection.start, options.selection.end);
+        } else if (options.selection === 'select') {
+          setSelection(rangeStart, replacementEnd);
+        } else if (options.selection === 'start') {
+          setSelection(rangeStart);
+        } else {
+          setSelection(replacementEnd);
+        }
+      }, options.notify);
+    }
+
+    function selectRange(start, end, options = {}) {
+      setSelection(start, end);
+      if (options.focus) aceEditor.focus();
+      if (options.reveal) {
+        const position = offsetToPosition(start);
+        aceEditor.scrollToLine(position.row, true, true);
+      }
+    }
+
+    function clearDiagnostic() {
+      session.clearAnnotations();
+      if (errorMarker !== undefined) session.removeMarker(errorMarker);
+      errorMarker = undefined;
+      textInput.setAttribute('aria-invalid', 'false');
+    }
+
+    function setDiagnostic(problem) {
+      clearDiagnostic();
+      if (!problem) return;
+      const requestedLine = Number(problem.line);
+      if (!Number.isFinite(requestedLine) || requestedLine < 1) return;
+      const lines = getSource().split('\n');
+      const row = Math.min(lines.length - 1, Math.trunc(requestedLine) - 1);
+      const requestedColumn = Number(problem.column);
+      const column = Math.max(0, Math.min(
+        lines[row].length,
+        Number.isFinite(requestedColumn)
+          ? Math.trunc(requestedColumn) - 1
+          : 0
+      ));
+      const endColumn = Math.min(lines[row].length, column + 1);
+      const markerEnd = endColumn > column ? endColumn : column + 1;
+      const message = problem.message || 'syntax error';
+      session.setAnnotations([{row, column, text: message, type: 'error'}]);
+      errorMarker = session.addMarker(
+        new AceRange(row, column, row, markerEnd),
+        'ace-error-marker',
+        'text',
+        false
+      );
+      aceEditor.selection.moveCursorTo(row, column);
+      aceEditor.clearSelection();
+      aceEditor.scrollToLine(row, true, true);
+      textInput.setAttribute('aria-invalid', 'true');
+    }
+
+    session.on('change', () => {
+      if (!suppressChanges) notifyChange();
+    });
+
+    return {
+      getSource,
+      setSource,
+      replaceRange,
+      getSelection,
+      setSelection,
+      selectRange,
+      offsetToPosition,
+      positionToOffset,
+      focus: () => aceEditor.focus(),
+      onChange(listener) {
+        changeListeners.add(listener);
+        return () => changeListeners.delete(listener);
+      },
+      isFocused(target) {
+        const active = document.activeElement;
+        return target === host || host.contains(target)
+          || active === host || host.contains(active)
+          || Boolean(aceEditor.isFocused?.());
+      },
+      setDiagnostic,
+      setTheme(effective) {
+        aceEditor.setTheme(
+          effective === 'dark' ? assets.darkTheme : assets.lightTheme
+        );
+      },
+      refresh: () => aceEditor.resize(true)
+    };
+  }
+
+  let editor;
+  let svgEditor;
+  try {
+    editor = createAceEditorAdapter(dot, {
+      labelledBy: 'dot-source-heading'
+    });
+    svgEditor = createAceEditorAdapter(svgSource, {
+      label: 'SVG source editor',
+      mode: 'ace/mode/text'
+    });
+  } catch (cause) {
+    dot.hidden = true;
+    editorLoadError.hidden = false;
+    editorLoadError.title = String(cause);
+    throw cause;
+  }
+  if (window.__GVIZ_BROWSER_TEST__) {
+    window.__GVIZ_EDITOR_TEST__ = editor;
+    window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
+  }
+
+  let editorResizeQueued = false;
+  function refreshEditor() {
+    if (editorResizeQueued) return;
+    editorResizeQueued = true;
+    requestAnimationFrame(() => {
+      editorResizeQueued = false;
+      editor.refresh();
+    });
+  }
+
+  function tabLabel(path, kind) {
+    if (!path) return kind === 'dot' ? 'Untitled' : 'Preview';
+    const parts = path.split('/');
+    const leaf = parts.at(-1);
+    if (kind === 'dot' && leaf === 'txt' && parts.length > 1) {
+      return `${parts.at(-2)}.dot`;
+    }
+    if (kind === 'svg' && leaf === 'svg' && parts.length > 1) {
+      return `${parts.at(-2)}.svg`;
+    }
+    return leaf;
+  }
+
+  function activeDotTab() {
+    return dotTabs.find((tab) => tab.id === activeDotTabId);
+  }
+
+  function activeSvgTab() {
+    return svgTabs.find((tab) => tab.id === activeSvgTabId);
+  }
+
+  function tabDirty(tab) {
+    return tab.source !== tab.cleanSource;
+  }
+
+  function svgTabEdited(tab) {
+    return tab.source !== tab.editBaseSource;
+  }
+
+  function captureActiveDotTab() {
+    const tab = activeDotTab();
+    if (!tab || !editor) return;
+    tab.source = editor.getSource();
+    tab.selection = editor.getSelection();
+    syncRefFromParent('dot', tab.id);
+  }
+
+  function captureActiveSvgTab() {
+    const tab = activeSvgTab();
+    if (!tab) return;
+    if (showingSvgSource) tab.source = svgEditor.getSource();
+    else if (currentSvg) tab.source = lastSvgSource;
+    tab.view = {...view};
+    tab.showingSource = showingSvgSource;
+    syncRefFromParent('svg', tab.id);
+  }
+
+  function createDotTab(source = starter, options = {}) {
+    const tab = {
+      id: `dot-${nextDotTab++}`,
+      label: options.label || tabLabel(options.path, 'dot'),
+      path: options.path,
+      source,
+      cleanSource: options.cleanSource ?? source,
+      selection: options.selection || {start: 0, end: 0}
+    };
+    dotTabs.push(tab);
+    return tab;
+  }
+
+  function addEmptyDotTab() {
+    const tab = createDotTab('', {label: 'Untitled'});
+    selectDotTab(tab.id, true);
+  }
+
+  function createSvgTab(source = '', options = {}) {
+    const tab = {
+      id: `svg-${nextSvgTab++}`,
+      label: options.label || tabLabel(options.path, 'svg'),
+      path: options.path,
+      source,
+      cleanSource: options.cleanSource ?? source,
+      editBaseSource: options.editBaseSource ?? source,
+      view: options.view,
+      showingSource: options.showingSource === true,
+      sourceDotId: options.sourceDotId
+    };
+    svgTabs.push(tab);
+    return tab;
+  }
+
+  function documentTabs(kind) {
+    return kind === 'dot' ? dotTabs : svgTabs;
+  }
+
+  function activeDocumentTabId(kind) {
+    return kind === 'dot' ? activeDotTabId : activeSvgTabId;
+  }
+
+  function documentTabContainer(kind) {
+    return kind === 'dot' ? dotDocumentTabs : svgDocumentTabs;
+  }
+
+  function parentTab(kind, id) {
+    return documentTabs(kind).find((tab) => tab.id === id);
+  }
+
+  function refForParent(kind, parentId) {
+    return refTabs.find((tab) => {
+      return tab.kind === kind && tab.parentId === parentId;
+    });
+  }
+
+  function canAddRef(kind, id) {
+    const tab = parentTab(kind, id);
+    return Boolean(tab?.source.trim() && !refForParent(kind, id));
+  }
+
+  function updateRefActions() {
+    addDotRef.disabled = !canAddRef('dot', activeDotTabId);
+    addSvgRef.disabled = !canAddRef('svg', activeSvgTabId);
+  }
+
+  function documentTabKeydown(event, kind) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
+      .includes(event.key)) return;
+    event.preventDefault();
+    const tabs = documentTabs(kind);
+    const current = tabs.findIndex((tab) => {
+      return tab.id === event.currentTarget.dataset.documentTab;
+    });
+    let next = current;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else if (event.key === 'ArrowLeft') {
+      next = (current - 1 + tabs.length) % tabs.length;
+    } else {
+      next = (current + 1) % tabs.length;
+    }
+    if (kind === 'dot') selectDotTab(tabs[next].id, true);
+    else selectSvgTab(tabs[next].id, true);
+  }
+
+  function moveTab(kind, sourceId, targetId, after) {
+    const order = kind === 'explorer'
+      ? explorerOrder
+      : documentTabs(kind).map((tab) => tab.id);
+    const source = order.indexOf(sourceId);
+    const target = order.indexOf(targetId);
+    if (source < 0 || target < 0 || source === target) return;
+    order.splice(source, 1);
+    let insertion = order.indexOf(targetId) + (after ? 1 : 0);
+    insertion = Math.max(0, Math.min(order.length, insertion));
+    order.splice(insertion, 0, sourceId);
+    if (kind === 'explorer') {
+      explorerOrder = order;
+      syncExplorerTabOrder();
+    } else {
+      const byId = new Map(documentTabs(kind).map((tab) => [tab.id, tab]));
+      const reordered = order.map((id) => byId.get(id));
+      if (kind === 'dot') dotTabs = reordered;
+      else svgTabs = reordered;
+      renderDocumentTabs(kind);
+    }
+    queueSaveSession();
+  }
+
+  function enableTabDrag(wrapper, kind, id) {
+    if (wrapper.dataset.dragEnabled) return;
+    wrapper.dataset.dragEnabled = 'true';
+    wrapper.draggable = true;
+    wrapper.addEventListener('dragstart', (event) => {
+      draggedTab = {kind, id};
+      wrapper.classList.add('is-dragging');
+      event.dataTransfer?.setData('text/plain', id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copyMove';
+    });
+    wrapper.addEventListener('dragover', (event) => {
+      if (draggedTab?.kind !== kind) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    });
+    wrapper.addEventListener('drop', (event) => {
+      if (draggedTab?.kind !== kind) return;
+      event.preventDefault();
+      const bounds = wrapper.getBoundingClientRect();
+      const after = event.clientX > bounds.left + bounds.width / 2;
+      moveTab(kind, draggedTab.id, id, after);
+    });
+    wrapper.addEventListener('dragend', () => {
+      wrapper.classList.remove('is-dragging');
+      draggedTab = undefined;
+    });
+  }
+
+  function renderDocumentTabs(kind) {
+    const container = documentTabContainer(kind);
+    const activeId = activeDocumentTabId(kind);
+    container.replaceChildren();
+    for (const tab of documentTabs(kind)) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'document-tab-control';
+      wrapper.classList.toggle('active', tab.id === activeId);
+      const control = document.createElement('button');
+      control.type = 'button';
+      control.className = 'document-tab';
+      control.dataset.documentTab = tab.id;
+      control.setAttribute('role', 'tab');
+      control.setAttribute('aria-selected', String(tab.id === activeId));
+      control.tabIndex = tab.id === activeId ? 0 : -1;
+      control.textContent = tab.label;
+      control.title = tab.path || tab.label;
+      control.addEventListener('click', () => {
+        if (kind === 'dot') selectDotTab(tab.id);
+        else selectSvgTab(tab.id);
+      });
+      control.addEventListener('keydown', (event) => {
+        documentTabKeydown(event, kind);
+      });
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'document-tab-close';
+      const dirty = tabDirty(tab);
+      close.textContent = dirty ? 'O' : 'X';
+      close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
+      close.setAttribute('aria-label', `Close ${tab.label}`);
+      close.addEventListener('click', (event) => {
+        event.stopPropagation?.();
+        if (kind === 'dot') closeDotTab(tab.id);
+        else closeSvgTab(tab.id);
+      });
+      wrapper.append(control, close);
+      enableTabDrag(wrapper, kind, tab.id);
+      container.append(wrapper);
+    }
+    if (kind === 'dot') {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'document-tab-control document-tab-add-control';
+      wrapper.setAttribute('role', 'presentation');
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'document-tab-add';
+      add.setAttribute('aria-label', 'Add empty DOT tab');
+      add.title = 'Add empty DOT tab';
+      add.textContent = '+';
+      add.addEventListener('click', addEmptyDotTab);
+      wrapper.append(add);
+      container.append(wrapper);
+    }
+    updateRefActions();
+  }
+
+  function clearSvgDocument() {
+    clearVisualSelection();
+    preview.replaceChildren();
+    svgEditor.setSource('', {history: 'reset', notify: false});
+    currentSvg = undefined;
+    lastSvgSource = '';
+    showingSvgSource = false;
+    setPreviewControls(false);
+    setState('empty', 'Empty');
+  }
+
+  function displayActiveSvgTab() {
+    const tab = activeSvgTab();
+    if (!tab?.source) {
+      clearSvgDocument();
+      return;
+    }
+    svgEditor.setSource(tab.source, {
+      history: 'reset',
+      notify: false,
+      selection: {start: 0, end: 0}
+    });
+    lastSvgSource = tab.source;
+    pendingView = validView(tab.view);
+    try {
+      installSvg(tab.source);
+      error.hidden = true;
+      setSvgSourceVisible(tab.showingSource);
+    } catch (cause) {
+      currentSvg = undefined;
+      preview.replaceChildren();
+      error.textContent = `Invalid SVG: ${cause.message || cause}`;
+      error.hidden = false;
+      setSvgSourceVisible(true);
+      setPreviewControls(true);
+      setState('ready', 'Invalid SVG');
+      return;
+    }
+    setPreviewControls(true);
+    setState('ready', tab.path ? 'Loaded' : 'Rendered');
+  }
+
+  function selectDotTab(id, focus = false, renderSelected = true) {
+    const tab = dotTabs.find((item) => item.id === id);
+    if (!tab) return;
+    if (id === activeDotTabId) {
+      if (focus) {
+        dotDocumentTabs.querySelector(
+          `[data-document-tab="${id}"]`
+        )?.focus();
+      }
+      return;
+    }
+    captureActiveDotTab();
+    invalidateRender();
+    clearTimeout(renderTimer);
+    activeDotTabId = id;
+    editor.setSource(tab.source, {
+      history: 'reset',
+      notify: false,
+      selection: tab.selection
+    });
+    clearVisualSelection();
+    error.hidden = true;
+    setEditorProblem();
+    sourceStatus.textContent = 'Ready';
+    renderDocumentTabs('dot');
+    queueSaveSession();
+    if (renderSelected && autoRender.checked) renderNow();
+    if (focus) {
+      dotDocumentTabs.querySelector(
+        `[data-document-tab="${id}"]`
+      )?.focus();
+    }
+  }
+
+  function selectSvgTab(id, focus = false, capture = true) {
+    const tab = svgTabs.find((item) => item.id === id);
+    if (!tab) return;
+    if (capture && id === activeSvgTabId) {
+      if (focus) {
+        svgDocumentTabs.querySelector(
+          `[data-document-tab="${id}"]`
+        )?.focus();
+      }
+      return;
+    }
+    if (capture) captureActiveSvgTab();
+    activeSvgTabId = id;
+    displayActiveSvgTab();
+    renderDocumentTabs('svg');
+    queueSaveSession();
+    if (focus) {
+      svgDocumentTabs.querySelector(
+        `[data-document-tab="${id}"]`
+      )?.focus();
+    }
+  }
+
+  function closeDotTab(id) {
+    captureActiveDotTab();
+    const index = dotTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const tab = dotTabs[index];
+    if (tabDirty(tab)
+      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
+      return;
+    }
+    const wasActive = id === activeDotTabId;
+    dotTabs.splice(index, 1);
+    if (!dotTabs.length) createDotTab();
+    if (wasActive) {
+      activeDotTabId = undefined;
+      const next = dotTabs[Math.min(index, dotTabs.length - 1)];
+      selectDotTab(next.id, true);
+    } else {
+      renderDocumentTabs('dot');
+      queueSaveSession();
+    }
+  }
+
+  function closeSvgTab(id) {
+    captureActiveSvgTab();
+    const index = svgTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const tab = svgTabs[index];
+    if (tabDirty(tab)
+      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
+      return;
+    }
+    const wasActive = id === activeSvgTabId;
+    svgTabs.splice(index, 1);
+    if (!svgTabs.length) createSvgTab();
+    if (wasActive) {
+      activeSvgTabId = undefined;
+      const next = svgTabs[Math.min(index, svgTabs.length - 1)];
+      selectSvgTab(next.id, true, false);
+    } else {
+      renderDocumentTabs('svg');
+      queueSaveSession();
+    }
+  }
+
+  if (typeof ResizeObserver === 'function') {
+    const editorResizeObserver = new ResizeObserver(() => {
+      refreshEditor();
+      svgEditor.refresh();
+    });
+    editorResizeObserver.observe(dot);
+    editorResizeObserver.observe(svgSource);
+  }
 
   function validTheme(candidate) {
     return themes.includes(candidate) ? candidate : 'system';
@@ -1603,6 +2586,8 @@
     document.documentElement.dataset.theme = selected;
     document.documentElement.dataset.effectiveTheme = effective;
     document.documentElement.style.colorScheme = effective;
+    editor.setTheme(effective);
+    svgEditor.setTheme(effective);
     if (persist) queueSaveSession();
   }
 
@@ -1651,23 +2636,29 @@
     attrShape.replaceChildren(...options);
   }
 
+  function setViewControls(enabled) {
+    const active = enabled && !showingSvgSource;
+    zoomOut.disabled = !active;
+    zoomIn.disabled = !active;
+    fullscreenZoomOut.disabled = !active;
+    fullscreenZoomIn.disabled = !active;
+    resetView.disabled = !active;
+    fit.disabled = !active;
+    fullscreenSvg.hidden = !active;
+  }
+
   function setPreviewControls(enabled) {
     if (!enabled) setSvgSourceVisible(false);
-    zoomOut.disabled = !enabled || showingSvgSource;
-    zoomIn.disabled = !enabled || showingSvgSource;
-    fullscreenZoomOut.disabled = !enabled || showingSvgSource;
-    fullscreenZoomIn.disabled = !enabled || showingSvgSource;
-    resetView.disabled = !enabled || showingSvgSource;
+    setViewControls(enabled);
     saveSvg.disabled = !enabled;
-    fit.disabled = !enabled || showingSvgSource;
     toggleSvgSource.disabled = !enabled;
     copySvg.disabled = !enabled;
     fullscreenSvg.disabled = !enabled;
-    fullscreenSvg.hidden = !enabled || showingSvgSource;
   }
 
   function setSvgSourceVisible(visible) {
-    showingSvgSource = Boolean(visible && currentSvg && lastSvgSource);
+    const tab = activeSvgTab();
+    showingSvgSource = Boolean(visible && tab?.source);
     preview.hidden = showingSvgSource;
     svgSource.hidden = !showingSvgSource;
     toggleSvgSource.setAttribute(
@@ -1676,24 +2667,54 @@
     );
     toggleSvgSource.textContent = showingSvgSource
       ? 'View rendered'
-      : 'View source';
-    zoomOut.disabled = !currentSvg || showingSvgSource;
-    zoomIn.disabled = !currentSvg || showingSvgSource;
-    fullscreenZoomOut.disabled = !currentSvg || showingSvgSource;
-    fullscreenZoomIn.disabled = !currentSvg || showingSvgSource;
-    resetView.disabled = !currentSvg || showingSvgSource;
-    fit.disabled = !currentSvg || showingSvgSource;
-    fullscreenSvg.hidden = !currentSvg || showingSvgSource;
+      : 'Edit SVG';
+    setViewControls(Boolean(currentSvg));
     if (showingSvgSource) {
       clearVisualSelection();
-      svgSource.focus();
+      requestAnimationFrame(() => {
+        svgEditor.refresh();
+        svgEditor.focus();
+      });
     } else if (currentSvg) {
       preview.focus();
     }
   }
 
   function toggleSvgView() {
-    setSvgSourceVisible(!showingSvgSource);
+    const tab = activeSvgTab();
+    if (!tab?.source) return;
+    if (!showingSvgSource) {
+      svgEditor.setSource(tab.source, {
+        history: 'reset',
+        notify: false,
+        selection: {start: 0, end: 0}
+      });
+      setSvgSourceVisible(true);
+      tab.showingSource = true;
+      queueSaveSession();
+      return;
+    }
+    const source = svgEditor.getSource();
+    try {
+      validateSource(source);
+      installSvg(source);
+    } catch (cause) {
+      error.textContent = `Invalid SVG: ${cause.message || cause}`;
+      error.hidden = false;
+      setState('ready', 'Invalid SVG');
+      svgEditor.focus();
+      return;
+    }
+    tab.source = source;
+    tab.showingSource = false;
+    lastSvgSource = source;
+    error.hidden = true;
+    setSvgSourceVisible(false);
+    setPreviewControls(true);
+    setState('ready', tab.path ? 'Loaded' : 'Rendered');
+    syncRefFromParent('svg', tab.id);
+    renderDocumentTabs('svg');
+    queueSaveSession();
   }
 
   async function writeClipboard(source) {
@@ -1721,7 +2742,7 @@
     if (!lastSvgSource) return;
     try {
       await writeClipboard(lastSvgSource);
-      sourceStatus.textContent = 'SVG copied';
+      renderStatus.textContent = 'SVG copied';
     } catch (cause) {
       showClientProblem('Unable to copy SVG source');
     }
@@ -1762,19 +2783,23 @@
     return docsTabs.find((tab) => tab.id === id);
   }
 
+  function refTabById(id) {
+    return refTabs.find((tab) => tab.id === id);
+  }
+
   function explorerTabButtons() {
     return Array.from(explorerTabs.querySelectorAll('[role="tab"]'));
   }
 
   function validExplorerView(viewName) {
     return permanentExplorerViews.includes(viewName) ||
-      (viewName === helpExplorerView &&
-        Boolean(document.querySelector('#help-tab'))) ||
-      Boolean(docsTabById(viewName));
+      Boolean(docsTabById(viewName)) || Boolean(refTabById(viewName));
   }
 
   function setExplorerView(viewName, focus = false) {
-    explorerView = validExplorerView(viewName) ? viewName : 'dot-files';
+    explorerView = validExplorerView(viewName)
+      ? viewName
+      : 'dot-files';
     for (const tab of explorerTabButtons()) {
       const active = tab.dataset.explorerView === explorerView;
       tab.setAttribute('aria-selected', String(active));
@@ -1786,10 +2811,6 @@
       if (panel) panel.hidden = !active;
     }
     const selectedDocs = docsTabById(explorerView);
-    help.setAttribute(
-      'aria-expanded',
-      String(explorerView === helpExplorerView)
-    );
     if (selectedDocs && docsAvailable === true) {
       const frame = document.querySelector(
         `#${selectedDocs.id}-panel iframe`
@@ -1803,6 +2824,7 @@
         `[data-explorer-view="${explorerView}"]`
       )?.focus();
     }
+    refreshEditor();
     queueSaveSession();
   }
 
@@ -1821,59 +2843,6 @@
       next = (current + 1) % tabs.length;
     }
     setExplorerView(tabs[next].dataset.explorerView, true);
-  }
-
-  function createHelpTab() {
-    const existing = document.querySelector('#help-tab');
-    if (existing) return existing;
-    const wrapper = document.createElement('div');
-    wrapper.id = 'help-tab-control';
-    wrapper.className = 'explorer-tab-control help-tab-control';
-    wrapper.setAttribute('role', 'presentation');
-    const control = document.createElement('button');
-    control.type = 'button';
-    control.id = 'help-tab';
-    control.className = 'explorer-tab';
-    control.dataset.explorerView = helpExplorerView;
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', 'false');
-    control.setAttribute('aria-controls', 'help-panel');
-    control.tabIndex = -1;
-    control.textContent = 'Help';
-    control.addEventListener(
-      'click',
-      () => setExplorerView(helpExplorerView)
-    );
-    control.addEventListener('keydown', explorerTabKeydown);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'docs-tab-close';
-    close.setAttribute('aria-label', 'Close Help');
-    close.textContent = '×';
-    close.addEventListener('click', closeHelpTab);
-    wrapper.append(control, close);
-    const svgControl = svgFilesTab.parentElement;
-    if (svgControl) svgControl.after(wrapper);
-    else explorerTabs.append(wrapper);
-    explorerPane.append(helpPanel);
-    return control;
-  }
-
-  function openHelp() {
-    createHelpTab();
-    setHelpVariant(docsAvailable === true);
-    refreshHelpVariant();
-    setExplorerView(helpExplorerView, true);
-  }
-
-  function closeHelpTab() {
-    const control = document.querySelector('#help-tab');
-    if (!control) return;
-    const wasActive = explorerView === helpExplorerView;
-    control.parentElement?.remove();
-    helpPanel.hidden = true;
-    if (wasActive) setExplorerView('svg-files', true);
-    else queueSaveSession();
   }
 
   function docsTabLabel(documentTitle) {
@@ -1928,11 +2897,35 @@
     }
   }
 
+  function syncExplorerTabOrder() {
+    const available = [
+      ...permanentExplorerViews,
+      ...docsTabs.map((tab) => tab.id),
+      ...refTabs.map((tab) => tab.id)
+    ];
+    explorerOrder = explorerOrder.filter((id) => available.includes(id));
+    for (const id of available) {
+      if (!explorerOrder.includes(id)) explorerOrder.push(id);
+    }
+    const wrappers = new Map(
+      Array.from(explorerTabs.children).map((wrapper) => {
+        return [wrapper.dataset.explorerTabId, wrapper];
+      })
+    );
+    for (const id of explorerOrder) {
+      const wrapper = wrappers.get(id);
+      if (!wrapper) continue;
+      enableTabDrag(wrapper, 'explorer', id);
+      explorerTabs.append(wrapper);
+    }
+  }
+
   function createDocsTab(tab) {
     const wrapper = document.createElement('div');
     wrapper.className = 'docs-tab-control';
     wrapper.setAttribute('role', 'presentation');
     wrapper.dataset.docsTab = tab.id;
+    wrapper.dataset.explorerTabId = tab.id;
     const control = document.createElement('button');
     control.type = 'button';
     control.className = 'docs-tab';
@@ -1951,7 +2944,7 @@
     close.type = 'button';
     close.className = 'docs-tab-close';
     close.setAttribute('aria-label', `Close ${tab.title}`);
-    close.textContent = '×';
+    close.textContent = 'X';
     close.addEventListener('click', () => closeDocsTab(tab.id));
     wrapper.append(control, close);
     explorerTabs.append(wrapper);
@@ -1971,6 +2964,7 @@
     frame.addEventListener('error', disableDocsExplorer);
     panel.append(frame);
     explorerPane.append(panel);
+    syncExplorerTabOrder();
   }
 
   function renderDocsTabs() {
@@ -1983,18 +2977,160 @@
       node.remove();
     }
     for (const tab of docsTabs) createDocsTab(tab);
+    syncExplorerTabOrder();
+  }
+
+  function updateRefContent(tab) {
+    const panel = document.getElementById(`${tab.id}-panel`);
+    if (!panel) return;
+    const source = document.createElement('pre');
+    source.className = 'ref-source';
+    source.textContent = tab.source;
+    panel.replaceChildren(source);
+  }
+
+  function createRefTabControl(tab) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'docs-tab-control ref-tab-control';
+    wrapper.setAttribute('role', 'presentation');
+    wrapper.dataset.refTab = tab.id;
+    wrapper.dataset.explorerTabId = tab.id;
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.className = 'docs-tab ref-tab';
+    control.id = `${tab.id}-tab`;
+    control.dataset.explorerView = tab.id;
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', 'false');
+    control.setAttribute('aria-controls', `${tab.id}-panel`);
+    control.tabIndex = -1;
+    control.textContent = tab.label;
+    control.title = tab.label;
+    control.addEventListener('click', () => setExplorerView(tab.id));
+    control.addEventListener('keydown', explorerTabKeydown);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'docs-tab-close ref-tab-close';
+    close.setAttribute('aria-label', `Close ${tab.label} reference`);
+    close.textContent = 'X';
+    close.addEventListener('click', () => closeRefTab(tab.id));
+    wrapper.append(control, close);
+    explorerTabs.append(wrapper);
+    const panel = document.createElement('div');
+    panel.className = 'explorer-panel ref-explorer-panel';
+    panel.id = `${tab.id}-panel`;
+    panel.hidden = true;
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', control.id);
+    explorerPane.append(panel);
+    updateRefContent(tab);
+  }
+
+  function renderRefTabs() {
+    for (const node of explorerTabs.querySelectorAll('[data-ref-tab]')) {
+      node.remove();
+    }
+    for (const node of explorerPane.querySelectorAll(
+      '.ref-explorer-panel'
+    )) {
+      node.remove();
+    }
+    for (const tab of refTabs) createRefTabControl(tab);
+    syncExplorerTabOrder();
+    updateRefActions();
+  }
+
+  function syncRefFromParent(kind, parentId) {
+    const ref = refForParent(kind, parentId);
+    const parent = parentTab(kind, parentId);
+    if (!ref || !parent) return;
+    ref.label = parent.label;
+    ref.source = parent.source;
+    const control = explorerTabs.querySelector(
+      `[data-explorer-view="${ref.id}"]`
+    );
+    if (control) {
+      control.textContent = ref.label;
+      control.title = ref.label;
+      control.parentElement?.querySelector('.ref-tab-close')
+        ?.setAttribute('aria-label', `Close ${ref.label} reference`);
+    }
+    updateRefContent(ref);
+    updateRefActions();
+  }
+
+  function syncAllRefs() {
+    for (const ref of refTabs) {
+      syncRefFromParent(ref.kind, ref.parentId);
+    }
+  }
+
+  function addRef(kind, parentId) {
+    if (kind === 'dot' && parentId === activeDotTabId) {
+      captureActiveDotTab();
+    }
+    if (kind === 'svg' && parentId === activeSvgTabId) {
+      captureActiveSvgTab();
+    }
+    if (!canAddRef(kind, parentId)) return;
+    const parent = parentTab(kind, parentId);
+    const tab = {
+      id: `ref-${nextRef++}`,
+      kind,
+      parentId,
+      label: parent.label,
+      source: parent.source
+    };
+    refTabs.push(tab);
+    explorerOrder.push(tab.id);
+    createRefTabControl(tab);
+    syncExplorerTabOrder();
+    if (!explorerOpen) {
+      explorerOpen = true;
+      applyExplorerLayout();
+    }
+    setExplorerView(tab.id, true);
+    renderDocumentTabs(kind);
+    queueSaveSession();
+  }
+
+  function closeRefTab(id) {
+    const index = refTabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    const tab = refTabs[index];
+    const wasActive = explorerView === id;
+    const orderIndex = explorerOrder.indexOf(id);
+    document.querySelector(`[data-ref-tab="${id}"]`)?.remove();
+    document.querySelector(`#${id}-panel`)?.remove();
+    refTabs.splice(index, 1);
+    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
+    if (wasActive) {
+      const neighbor = explorerOrder[
+        Math.min(orderIndex, explorerOrder.length - 1)
+      ];
+      setExplorerView(neighbor || '', true);
+    }
+    renderDocumentTabs(tab.kind);
+    queueSaveSession();
   }
 
   function openDocsTab(title, path) {
     if (docsAvailable !== true) return;
+    if (!explorerOpen) {
+      explorerOpen = true;
+      applyExplorerLayout();
+    }
     const existing = docsTabs.find((tab) => tab.path === path);
     if (existing) {
+      setHelpOpen(false);
       setExplorerView(existing.id, true);
       return;
     }
     const tab = {id: `docs-${nextDocs++}`, title, path};
     docsTabs.push(tab);
+    explorerOrder.push(tab.id);
     createDocsTab(tab);
+    setHelpOpen(false);
     setExplorerView(tab.id, true);
   }
 
@@ -2002,14 +3138,105 @@
     const index = docsTabs.findIndex((tab) => tab.id === id);
     if (index < 0) return;
     const wasActive = explorerView === id;
+    const orderIndex = explorerOrder.indexOf(id);
     document.querySelector(`[data-docs-tab="${id}"]`)?.remove();
     document.querySelector(`#${id}-panel`)?.remove();
     docsTabs.splice(index, 1);
+    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
     if (wasActive) {
-      const neighbor = docsTabs[Math.min(index, docsTabs.length - 1)];
-      setExplorerView(neighbor?.id || 'dot-files', true);
+      const neighbor = explorerOrder[
+        Math.min(orderIndex, explorerOrder.length - 1)
+      ];
+      setExplorerView(neighbor || '', true);
     } else {
       queueSaveSession();
+    }
+  }
+
+  function parseDocsToc(source) {
+    const root = [];
+    const folders = [];
+    for (const line of source.split(/\r?\n/)) {
+      const match = line.match(
+        /^(\s*)(\/[^\s]+)(?:\s+(.*\S))?\s*$/
+      );
+      if (!match) continue;
+      const indentation = match[1].replace(/\t/g, '  ').length;
+      if (indentation % 2 !== 0) continue;
+      const level = indentation / 2;
+      const parts = match[2].slice(1).split('/').filter(Boolean);
+      if (parts.length < 1 || parts.length > 2 ||
+        !parts.every((part) => /^[A-Za-z0-9._~-]+$/.test(part))) {
+        continue;
+      }
+      const children = level === 0
+        ? root
+        : folders[level - 1]?.children;
+      if (!children) continue;
+      const folder = parts.length === 1;
+      const entry = {
+        children: folder ? [] : undefined,
+        folder,
+        slug: parts[0],
+        title: match[3] || parts[0]
+      };
+      children.push(entry);
+      folders.length = level;
+      if (folder) folders[level] = entry;
+    }
+    return root;
+  }
+
+  function appendDocsEntries(container, entries, parentPath = []) {
+    for (const entry of entries) {
+      const path = [...parentPath, entry.slug];
+      if (entry.folder) {
+        const group = document.createElement('details');
+        group.className = 'docs-help-group';
+        const summary = document.createElement('summary');
+        summary.className = 'docs-help-summary';
+        summary.textContent = entry.title;
+        const subnav = document.createElement('div');
+        subnav.className = 'docs-help-subnav';
+        appendDocsEntries(subnav, entry.children, path);
+        group.append(summary, subnav);
+        container.append(group);
+        continue;
+      }
+      const docPath = path.join('/');
+      const link = document.createElement('a');
+      link.className = 'docs-help-link';
+      link.href = `${docsRoot}${docPath}`;
+      link.dataset.docPath = docPath;
+      link.textContent = entry.title;
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        openDocsTab(entry.title, docPath);
+      });
+      container.append(link);
+    }
+  }
+
+  async function loadDocsTree() {
+    if (docsTreeLoaded) return true;
+    try {
+      const response = await fetch('/apps/graph-viz/doc.toc', {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok || !contentType.includes('text/plain')) return false;
+      const entries = parseDocsToc(await response.text());
+      if (!entries.length) return false;
+      const tree = document.createDocumentFragment();
+      appendDocsEntries(tree, entries);
+      docsHelpNav.replaceChildren(tree);
+      docsHelpNav.setAttribute('aria-busy', 'false');
+      docsTreeLoaded = true;
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -2018,7 +3245,7 @@
     const wasDocs = Boolean(docsTabById(explorerView));
     docsTabs = [];
     renderDocsTabs();
-    if (wasDocs) setExplorerView('dot-files');
+    if (wasDocs) setExplorerView(explorerOrder[0] || '');
     setHelpVariant(false);
   }
 
@@ -2028,6 +3255,17 @@
     if (useDocs && docsTabById(explorerView)) {
       setExplorerView(explorerView);
     }
+  }
+
+  function setHelpOpen(open, restoreFocus = false) {
+    helpPanel.hidden = !open;
+    help.setAttribute('aria-expanded', String(open));
+    if (open) {
+      setHelpVariant(docsAvailable === true);
+      refreshHelpVariant();
+      closeHelp.focus();
+    }
+    if (!open && restoreFocus) help.focus();
   }
 
   async function refreshHelpVariant() {
@@ -2046,6 +3284,7 @@
       docsAvailable = response.ok &&
         responseUrl.origin === window.location.origin && docsPath &&
         contentType.includes('text/html');
+      if (docsAvailable) docsAvailable = await loadDocsTree();
     } catch (_) {
       docsAvailable = false;
     } finally {
@@ -2056,6 +3295,9 @@
   }
 
   function showClayError(cause) {
+    if (!clayErrorModal.contains(document.activeElement)) {
+      clayErrorReturnFocus = document.activeElement;
+    }
     clayErrorMessage.textContent = String(cause);
     clayErrorModal.hidden = false;
     closeClayError.focus();
@@ -2063,6 +3305,8 @@
 
   function hideClayError() {
     clayErrorModal.hidden = true;
+    clayErrorReturnFocus?.focus?.();
+    clayErrorReturnFocus = undefined;
   }
 
   function closeFileContext(restoreFocus = false) {
@@ -2309,7 +3553,12 @@
   }
 
   function showFileExplorer(kind) {
-    setExplorerView(kind === 'dot' ? 'dot-files' : 'svg-files', true);
+    const viewName = kind === 'dot' ? 'dot-files' : 'svg-files';
+    if (!explorerOpen) {
+      explorerOpen = true;
+      applyExplorerLayout();
+    }
+    setExplorerView(viewName, true);
     refreshFileTree(kind);
   }
 
@@ -2358,11 +3607,108 @@
     };
   }
 
+  function validTabPath(path) {
+    if (path === undefined) return undefined;
+    if (typeof path !== 'string' || path.length > 1_024) return undefined;
+    try {
+      return normalizeClayPath(path);
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  function validTabLabel(label, fallback) {
+    return typeof label === 'string' && label.trim()
+      && label.length <= 200
+      ? label.trim()
+      : fallback;
+  }
+
+  function validSavedSource(source) {
+    try {
+      return validateSource(source);
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  function validDotTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^dot-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    const source = validSavedSource(candidate.source);
+    if (source === undefined) return undefined;
+    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
+    const path = validTabPath(candidate.path);
+    const start = Number(candidate.selection?.start);
+    const end = Number(candidate.selection?.end);
+    const selection = {
+      start: Number.isFinite(start)
+        ? clamp(Math.trunc(start), 0, source.length)
+        : 0,
+      end: Number.isFinite(end)
+        ? clamp(Math.trunc(end), 0, source.length)
+        : 0
+    };
+    selection.end = Math.max(selection.start, selection.end);
+    return {
+      id: candidate.id,
+      label: validTabLabel(candidate.label, tabLabel(path, 'dot')),
+      path,
+      source,
+      cleanSource,
+      selection
+    };
+  }
+
+  function validSvgTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^svg-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    const source = validSavedSource(candidate.source);
+    if (source === undefined) return undefined;
+    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
+    const editBaseSource = validSavedSource(candidate.editBaseSource)
+      ?? source;
+    const path = validTabPath(candidate.path);
+    const sourceDotId = /^dot-[1-9][0-9]*$/.test(candidate.sourceDotId)
+      ? candidate.sourceDotId
+      : undefined;
+    return {
+      id: candidate.id,
+      label: validTabLabel(candidate.label, tabLabel(path, 'svg')),
+      path,
+      source,
+      cleanSource,
+      editBaseSource,
+      view: validView(candidate.view),
+      showingSource: candidate.showingSource === true,
+      sourceDotId
+    };
+  }
+
+  function validRefTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    if (!/^ref-[1-9][0-9]*$/.test(candidate.id)) return undefined;
+    if (!['dot', 'svg'].includes(candidate.kind)) return undefined;
+    const parentPattern = candidate.kind === 'dot'
+      ? /^dot-[1-9][0-9]*$/
+      : /^svg-[1-9][0-9]*$/;
+    if (!parentPattern.test(candidate.parentId)) return undefined;
+    const source = validSavedSource(candidate.source);
+    if (source === undefined) return undefined;
+    return {
+      id: candidate.id,
+      kind: candidate.kind,
+      parentId: candidate.parentId,
+      label: validTabLabel(candidate.label, 'Reference'),
+      source
+    };
+  }
+
   function loadSession() {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey));
       if (!saved || saved.version !== 1) return undefined;
-      const source = validateSource(saved.source);
+      const source = validSavedSource(saved.source) ?? starter;
       const paneWidth = Number(saved.paneWidth);
       const explorerWidth = Number(saved.explorerWidth);
       const preferences = saved.preferences || {};
@@ -2382,11 +3728,76 @@
         return Math.max(highest, Number(tab.id.slice(5)) + 1);
       }, 1);
       const savedNextDocs = Number(saved.nextDocs);
+      const dotIds = new Set();
+      const dotPaths = new Set();
+      const savedDotTabs = Array.isArray(saved.dotTabs)
+        ? saved.dotTabs.map(validDotTab).filter((tab) => {
+          if (!tab || dotIds.has(tab.id)
+            || (tab.path && dotPaths.has(tab.path))) return false;
+          dotIds.add(tab.id);
+          if (tab.path) dotPaths.add(tab.path);
+          return true;
+        })
+        : [];
+      const svgIds = new Set();
+      const svgPaths = new Set();
+      const savedSvgTabs = Array.isArray(saved.svgTabs)
+        ? saved.svgTabs.map(validSvgTab).filter((tab) => {
+          if (!tab || svgIds.has(tab.id)
+            || (tab.path && svgPaths.has(tab.path))) return false;
+          svgIds.add(tab.id);
+          if (tab.path) svgPaths.add(tab.path);
+          if (tab.sourceDotId && !dotIds.has(tab.sourceDotId)) {
+            tab.sourceDotId = undefined;
+          }
+          return true;
+        })
+        : [];
+      const highestDotId = savedDotTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(4)) + 1);
+      }, 1);
+      const highestSvgId = savedSvgTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(4)) + 1);
+      }, 1);
+      const savedNextDotTab = Number(saved.nextDotTab);
+      const savedNextSvgTab = Number(saved.nextSvgTab);
+      const refParents = new Set();
+      const refIds = new Set();
+      const savedRefTabs = Array.isArray(saved.refTabs)
+        ? saved.refTabs.map(validRefTab).filter((tab) => {
+          if (!tab || refIds.has(tab.id)) return false;
+          const parentKey = `${tab.kind}:${tab.parentId}`;
+          if (refParents.has(parentKey)) return false;
+          refIds.add(tab.id);
+          refParents.add(parentKey);
+          return true;
+        })
+        : [];
+      const highestRefId = savedRefTabs.reduce((highest, tab) => {
+        return Math.max(highest, Number(tab.id.slice(4)) + 1);
+      }, 1);
+      const savedNextRef = Number(saved.nextRef);
       const savedExplorerView = typeof saved.explorerView === 'string'
         && (permanentExplorerViews.includes(saved.explorerView)
-          || savedDocsTabs.some((tab) => tab.id === saved.explorerView))
+          || savedDocsTabs.some((tab) => tab.id === saved.explorerView)
+          || savedRefTabs.some((tab) => tab.id === saved.explorerView))
         ? saved.explorerView
         : 'dot-files';
+      const availableExplorerTabs = [
+        ...permanentExplorerViews,
+        ...savedDocsTabs.map((tab) => tab.id),
+        ...savedRefTabs.map((tab) => tab.id)
+      ];
+      const savedExplorerOrder = Array.isArray(saved.explorerOrder)
+        ? saved.explorerOrder.filter((id, index, items) => {
+          return typeof id === 'string'
+            && availableExplorerTabs.includes(id)
+            && items.indexOf(id) === index;
+        })
+        : [];
+      for (const id of availableExplorerTabs) {
+        if (!savedExplorerOrder.includes(id)) savedExplorerOrder.push(id);
+      }
       return {
         source,
         paneWidth: Number.isFinite(paneWidth)
@@ -2395,11 +3806,31 @@
         explorerWidth: Number.isFinite(explorerWidth)
           ? Math.max(explorerWidth, minExplorerWidth)
           : 288,
+        explorerOpen: saved.explorerOpen !== false,
         explorerView: savedExplorerView,
+        explorerOrder: savedExplorerOrder,
         docsTabs: savedDocsTabs,
         nextDocs: Number.isSafeInteger(savedNextDocs)
           ? Math.max(savedNextDocs, highestDocsId)
           : highestDocsId,
+        refTabs: savedRefTabs,
+        nextRef: Number.isSafeInteger(savedNextRef)
+          ? Math.max(savedNextRef, highestRefId)
+          : highestRefId,
+        dotTabs: savedDotTabs,
+        activeDotTabId: dotIds.has(saved.activeDotTabId)
+          ? saved.activeDotTabId
+          : savedDotTabs[0]?.id,
+        nextDotTab: Number.isSafeInteger(savedNextDotTab)
+          ? Math.max(savedNextDotTab, highestDotId)
+          : highestDotId,
+        svgTabs: savedSvgTabs,
+        activeSvgTabId: svgIds.has(saved.activeSvgTabId)
+          ? saved.activeSvgTabId
+          : savedSvgTabs[0]?.id,
+        nextSvgTab: Number.isSafeInteger(savedNextSvgTab)
+          ? Math.max(savedNextSvgTab, highestSvgId)
+          : highestSvgId,
         view: validView(saved.view),
         autoRender: preferences.autoRender !== false,
         theme: validTheme(preferences.theme)
@@ -2440,20 +3871,48 @@
       maxExplorerWidth()
     );
     workbench.style.setProperty('--explorer-width', `${nextWidth}px`);
+    if (editor) refreshEditor();
+  }
+
+  function applyExplorerLayout() {
+    explorerPane.classList.toggle('collapsed', !explorerOpen);
+    workbench.classList.toggle('explorer-collapsed', !explorerOpen);
+    explorerResizer.classList.toggle('inactive', !explorerOpen);
+    explorerResizer.disabled = !explorerOpen;
+    explorerCollapse.setAttribute('aria-expanded', String(explorerOpen));
+    explorerCollapse.setAttribute(
+      'aria-label',
+      explorerOpen ? 'Collapse explorer' : 'Expand explorer'
+    );
+    explorerCollapse.textContent = explorerOpen ? '‹' : '›';
+    refreshEditor();
   }
 
   function saveSession() {
     clearTimeout(saveTimer);
     try {
-      validateSource(dot.value);
+      captureActiveDotTab();
+      captureActiveSvgTab();
+      const source = editor.getSource();
+      validateSource(source);
       localStorage.setItem(storageKey, JSON.stringify({
         version: 1,
-        source: dot.value,
+        source,
         paneWidth: currentPaneWidth(),
         explorerWidth: currentExplorerWidth(),
+        explorerOpen,
         explorerView,
+        explorerOrder,
         docsTabs,
         nextDocs,
+        refTabs,
+        nextRef,
+        dotTabs,
+        activeDotTabId,
+        nextDotTab,
+        svgTabs,
+        activeSvgTabId,
+        nextSvgTab,
         view,
         preferences: {
           autoRender: autoRender.checked,
@@ -2505,6 +3964,7 @@
   }
 
   function showClientProblem(message) {
+    setEditorProblem();
     error.textContent = message;
     error.hidden = false;
     setState(currentSvg ? 'ready' : 'empty', 'Input error');
@@ -2529,40 +3989,15 @@
   }
 
   function showProblem(problem) {
-    setErrorLine(problem.kind === 'parse' ? Number(problem.line) : 0);
+    setEditorProblem(problem.kind === 'parse' ? problem : undefined);
     error.textContent = formatProblem(problem);
     error.hidden = false;
     const hasPreview = Boolean(preview.querySelector('svg'));
     setState(hasPreview ? 'ready' : 'empty', 'Render failed');
   }
 
-  function syncEditorScroll() {
-    lineNumbers.scrollTop = dot.scrollTop;
-    if (!errorLine) return;
-    const style = getComputedStyle(dot);
-    const lineHeight = parseFloat(style.lineHeight);
-    const paddingTop = parseFloat(style.paddingTop);
-    const top = paddingTop + (errorLine - 1) * lineHeight - dot.scrollTop;
-    dot.style.setProperty('--error-line-top', `${top}px`);
-  }
-
-  function updateLineNumbers() {
-    const count = dot.value.split('\n').length;
-    const numbers = document.createDocumentFragment();
-    for (let number = 1; number <= count; number += 1) {
-      const item = document.createElement('span');
-      item.textContent = String(number);
-      if (number === errorLine) item.className = 'error-line';
-      numbers.append(item);
-    }
-    lineNumbers.replaceChildren(numbers);
-    syncEditorScroll();
-  }
-
-  function setErrorLine(line) {
-    errorLine = Number.isFinite(line) && line > 0 ? line : 0;
-    dot.classList.toggle('has-error-line', errorLine > 0);
-    updateLineNumbers();
+  function setEditorProblem(problem) {
+    editor.setDiagnostic(problem);
   }
 
   function dotTokens(source) {
@@ -2912,10 +4347,29 @@
     return before + newline + `  ${statement}\n` + source.slice(body.close);
   }
 
-  function applyVisualMutation(source) {
-    validateSource(source);
-    dot.value = source;
-    editorChanged();
+  function sourceDifference(before, after) {
+    let start = 0;
+    while (start < before.length && start < after.length
+      && before[start] === after[start]) start += 1;
+    let beforeEnd = before.length;
+    let afterEnd = after.length;
+    while (beforeEnd > start && afterEnd > start
+      && before[beforeEnd - 1] === after[afterEnd - 1]) {
+      beforeEnd -= 1;
+      afterEnd -= 1;
+    }
+    return {
+      start,
+      end: beforeEnd,
+      replacement: after.slice(start, afterEnd)
+    };
+  }
+
+  function applyVisualMutation(before, after) {
+    validateSource(after);
+    if (before === after) return;
+    const edit = sourceDifference(before, after);
+    editor.replaceRange(edit.start, edit.end, edit.replacement);
     renderNow();
   }
 
@@ -2931,16 +4385,17 @@
       if (!nodeShapes.includes(shape)) {
         throw new Error('Unsupported node shape');
       }
-      const exists = dotStatements(dot.value).some((statement) => {
+      const currentSource = editor.getSource();
+      const exists = dotStatements(currentSource).some((statement) => {
         return statement.nodeNames.includes(identity);
       });
       if (exists) throw new Error('A node with that name already exists');
       const source = insertRootStatement(
-        dot.value,
+        currentSource,
         shape ? `${id} [shape=${shape}]` : id
       );
       newNodeName.value = '';
-      applyVisualMutation(source);
+      applyVisualMutation(currentSource, source);
     } catch (cause) {
       mutationProblem(cause);
     }
@@ -2952,33 +4407,36 @@
         || selectedItems.some((item) => item.kind !== 'node')) {
         throw new Error('Shift-click two nodes before drawing an edge');
       }
-      const body = graphBody(dot.value);
+      const source = editor.getSource();
+      const body = graphBody(source);
       const [tail, head] = selectedItems.map((item) => item.identity);
       const identity = tail + body.operator + head;
-      const exists = dotStatements(dot.value).some((statement) => {
+      const exists = dotStatements(source).some((statement) => {
         return statement.edges.includes(identity);
       });
       if (exists) throw new Error('That edge already exists');
       const edge = `${dotIdSource(tail)} ${body.operator} ${dotIdSource(head)}`;
-      applyVisualMutation(insertRootStatement(dot.value, edge));
+      applyVisualMutation(source, insertRootStatement(source, edge));
     } catch (cause) {
       mutationProblem(cause);
     }
   }
 
-  function statementRemovalRange(statement) {
-    const lineStart = dot.value.lastIndexOf('\n', statement.start - 1) + 1;
-    const nextLine = dot.value.indexOf('\n', statement.end);
-    const lineEnd = nextLine < 0 ? dot.value.length : nextLine + 1;
-    const before = dot.value.slice(lineStart, statement.start).trim();
-    const afterEnd = nextLine < 0 ? dot.value.length : nextLine;
-    const after = dot.value.slice(statement.end, afterEnd).trim();
+  function statementRemovalRange(source, statement) {
+    const lineStart = source.lastIndexOf('\n', statement.start - 1) + 1;
+    const nextLine = source.indexOf('\n', statement.end);
+    const lineEnd = nextLine < 0 ? source.length : nextLine + 1;
+    const before = source.slice(lineStart, statement.start).trim();
+    const afterEnd = nextLine < 0 ? source.length : nextLine;
+    const after = source.slice(statement.end, afterEnd).trim();
     if (!before && !after) return {start: lineStart, end: lineEnd};
     return {start: statement.start, end: statement.end};
   }
 
   function removeStatementRanges(source, statements) {
-    const ordered = statements.map(statementRemovalRange)
+    const ordered = statements.map((statement) => {
+      return statementRemovalRange(source, statement);
+    })
       .sort((left, right) => left.start - right.start);
     const merged = [];
     for (const range of ordered) {
@@ -3003,7 +4461,8 @@
         throw new Error('Select one node or edge to delete');
       }
       const selected = selectedItems[0];
-      const statements = dotStatements(dot.value);
+      const source = editor.getSource();
+      const statements = dotStatements(source);
       let removals;
       if (selected.kind === 'edge') {
         const statement = statements.find((candidate) => {
@@ -3025,14 +4484,14 @@
         }
       }
       if (!removals.length) throw new Error('Source statement not found');
-      applyVisualMutation(removeStatementRanges(dot.value, removals));
+      applyVisualMutation(source, removeStatementRanges(source, removals));
     } catch (cause) {
       mutationProblem(cause);
     }
   }
 
-  function editableStatement(kind, identity) {
-    const statements = dotStatements(dot.value);
+  function editableStatement(kind, identity, source = editor.getSource()) {
+    const statements = dotStatements(source);
     if (kind === 'edge') {
       return statements.find((candidate) => {
         return candidate.edges.includes(identity);
@@ -3046,13 +4505,13 @@
     return matches.at(-1);
   }
 
-  function splitEdgeStatement(statement) {
+  function splitEdgeStatement(source, statement) {
     if (statement.edges.length < 2 || !statement.simpleEdges) {
-      return statement;
+      return source;
     }
-    const parsed = readStatementAttributes(statement);
-    const lineStart = dot.value.lastIndexOf('\n', statement.start - 1) + 1;
-    const indent = dot.value.slice(lineStart, statement.start)
+    const parsed = readStatementAttributes(statement, source);
+    const lineStart = source.lastIndexOf('\n', statement.start - 1) + 1;
+    const indent = source.slice(lineStart, statement.start)
       .match(/^\s*/)?.[0] || '';
     const statements = statement.edgeParts.map((edge) => {
       const base = dotIdSource(edge.tail) + ' ' + edge.operator + ' '
@@ -3060,15 +4519,13 @@
       return writeStatementAttributes({...parsed, base});
     });
     const replacement = statements.join('\n' + indent);
-    dot.value = dot.value.slice(0, statement.start)
-      + replacement
-      + dot.value.slice(statement.end);
-    return undefined;
+    return source.slice(0, statement.start) + replacement
+      + source.slice(statement.end);
   }
 
-  function readStatementAttributes(statement) {
+  function readStatementAttributes(statement, source = editor.getSource()) {
     if (!statement) return {base: '', semicolon: false, attributes: new Map()};
-    const segment = dot.value.slice(statement.start, statement.end);
+    const segment = source.slice(statement.start, statement.end);
     const tokens = dotTokens(segment);
     const firstOpen = tokens.findIndex((token) => token.value === '[');
     const semicolon = tokens.at(-1)?.value === ';';
@@ -3329,7 +4786,7 @@
     let result = source;
     for (const statement of unique) {
       const parsed = applyFormAttributes(
-        readStatementAttributes(statement),
+        readStatementAttributes(statement, result),
         kind
       );
       result = result.slice(0, statement.start)
@@ -3392,19 +4849,23 @@
         throw new Error('Select one node or edge to edit');
       }
       const selected = selectedItems[0];
-      let source = dot.value;
+      const originalSource = editor.getSource();
+      let source = originalSource;
       if (attrChangeAll.checked) {
         source = changeAllAttributes(source, selected.kind);
       } else {
         let statement = editableStatement(selected.kind, selected.identity);
         if (selected.kind === 'edge' && statement?.edges.length > 1) {
-          splitEdgeStatement(statement);
-          source = dot.value;
-          statement = editableStatement(selected.kind, selected.identity);
+          source = splitEdgeStatement(source, statement);
+          statement = editableStatement(
+            selected.kind,
+            selected.identity,
+            source
+          );
         }
         const parsed = applyFormAttributes(
           statement
-            ? readStatementAttributes(statement)
+            ? readStatementAttributes(statement, source)
             : {
                 base: dotIdSource(selected.identity),
                 semicolon: false,
@@ -3422,14 +4883,14 @@
       if (attrUseDefault.checked) {
         source = addAttributeDefault(source, selected.kind);
       }
-      applyVisualMutation(source);
+      applyVisualMutation(originalSource, source);
     } catch (cause) {
       mutationProblem(cause);
     }
   }
 
   function sourceRangeFor(kind, identity) {
-    const statements = dotStatements(dot.value);
+    const statements = dotStatements(editor.getSource());
     if (kind === 'node') {
       const explicit = statements.find((statement) => {
         return statement.kind === 'node'
@@ -3452,12 +4913,7 @@
       sourceStatus.textContent = 'Source statement not found';
       return;
     }
-    dot.focus();
-    dot.setSelectionRange(range.start, range.end);
-    const line = dot.value.slice(0, range.start).split('\n').length;
-    const lineHeight = parseFloat(getComputedStyle(dot).lineHeight);
-    dot.scrollTop = Math.max(0, (line - 2) * lineHeight);
-    syncEditorScroll();
+    editor.selectRange(range.start, range.end, {focus: true, reveal: true});
     sourceStatus.textContent = `Selected ${kind}`;
   }
 
@@ -3538,9 +4994,11 @@
   }
 
   function editorChanged() {
+    captureActiveDotTab();
+    renderDocumentTabs('dot');
     clearVisualSelection();
     error.hidden = true;
-    setErrorLine(0);
+    setEditorProblem();
     queueSaveSession();
     if (autoRender.checked) {
       queueRender();
@@ -3549,6 +5007,27 @@
       clearTimeout(renderTimer);
       sourceStatus.textContent = 'Changed';
     }
+  }
+
+  function svgEditorChanged() {
+    const tab = activeSvgTab();
+    if (!tab || !showingSvgSource) return;
+    const source = svgEditor.getSource();
+    try {
+      validateSource(source);
+    } catch (cause) {
+      error.textContent = String(cause);
+      error.hidden = false;
+      return;
+    }
+    tab.source = source;
+    tab.showingSource = true;
+    lastSvgSource = source;
+    error.hidden = true;
+    setState('ready', 'Changed');
+    syncRefFromParent('svg', tab.id);
+    renderDocumentTabs('svg');
+    queueSaveSession();
   }
 
   function clamp(value, minimum, maximum) {
@@ -3659,7 +5138,6 @@
     clearVisualSelection();
     currentSvg = svg;
     lastSvgSource = source;
-    svgSource.textContent = source;
     preview.replaceChildren(svg);
     const restoredView = pendingView;
     pendingView = undefined;
@@ -3730,14 +5208,41 @@
     return body;
   }
 
+  async function clayCopyChanged(kind, path, baseline) {
+    let stored;
+    try {
+      stored = await clayFileRequest(kind, 'load', '', path);
+    } catch (_) {
+      return false;
+    }
+    return stored !== undefined && stored !== baseline;
+  }
+
   async function loadCurrentDot(path) {
     try {
+      const requestedPath = path ?? requestClayPath('DOT');
+      if (requestedPath === undefined) return;
+      const existing = dotTabs.find((tab) => {
+        return tab.path === requestedPath;
+      });
+      if (existing) {
+        selectDotTab(existing.id, true);
+        return;
+      }
       sourceStatus.textContent = 'Loading';
-      const source = await clayFileRequest('dot', 'load', '', path);
+      const source = await clayFileRequest(
+        'dot',
+        'load',
+        '',
+        requestedPath
+      );
       if (source === undefined) return;
       validateSource(source);
-      dot.value = source;
-      editorChanged();
+      const tab = createDotTab(source, {
+        path: requestedPath,
+        label: tabLabel(requestedPath, 'dot')
+      });
+      selectDotTab(tab.id, true);
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -3748,11 +5253,39 @@
 
   async function saveCurrentDot() {
     try {
-      validateSource(dot.value);
+      captureActiveDotTab();
+      const tab = activeDotTab();
+      if (!tab) return;
+      const source = editor.getSource();
+      validateSource(source);
+      const path = tab.path ?? requestClayPath('DOT');
+      if (path === undefined) return;
+      if (tab.path
+        && await clayCopyChanged('dot', path, tab.cleanSource)
+        && !window.confirm(
+          `${path} changed in Clay since it was loaded. Overwrite it?`
+        )) {
+        sourceStatus.textContent = 'Ready';
+        return;
+      }
       sourceStatus.textContent = 'Saving';
-      const result = await clayFileRequest('dot', 'save', dot.value);
+      const result = await clayFileRequest(
+        'dot',
+        'save',
+        source,
+        path,
+        Boolean(tab.path)
+      );
       sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
-      if (result !== undefined) await refreshFileTree('dot');
+      if (result !== undefined) {
+        tab.path = path;
+        tab.label = tabLabel(path, 'dot');
+        tab.cleanSource = source;
+        syncRefFromParent('dot', tab.id);
+        renderDocumentTabs('dot');
+        queueSaveSession();
+        await refreshFileTree('dot');
+      }
     } catch (cause) {
       showClayError(cause);
       showClientProblem(String(cause));
@@ -3762,15 +5295,32 @@
 
   async function loadCurrentSvg(path) {
     try {
+      const requestedPath = path ?? requestClayPath('SVG');
+      if (requestedPath === undefined) return;
+      const existing = svgTabs.find((tab) => {
+        return tab.path === requestedPath;
+      });
+      if (existing) {
+        selectSvgTab(existing.id, true);
+        return;
+      }
       setState('loading', 'Loading');
-      const source = await clayFileRequest('svg', 'load', '', path);
+      const source = await clayFileRequest(
+        'svg',
+        'load',
+        '',
+        requestedPath
+      );
       if (source === undefined) {
         const state = currentSvg ? 'ready' : 'empty';
         setState(state, currentSvg ? 'Rendered' : 'Empty');
         return;
       }
-      installSvg(source);
-      autoRender.checked = false;
+      const tab = createSvgTab(source, {
+        path: requestedPath,
+        label: tabLabel(requestedPath, 'svg')
+      });
+      selectSvgTab(tab.id, true);
       queueSaveSession();
       error.textContent = '';
       error.hidden = true;
@@ -3785,12 +5335,39 @@
   }
 
   async function saveCurrentSvg() {
-    if (!lastSvgSource) return;
+    captureActiveSvgTab();
+    const tab = activeSvgTab();
+    if (!tab?.source) return;
     try {
+      const path = tab.path ?? requestClayPath('SVG');
+      if (path === undefined) return;
+      if (tab.path
+        && await clayCopyChanged('svg', path, tab.cleanSource)
+        && !window.confirm(
+          `${path} changed in Clay since it was loaded. Overwrite it?`
+        )) {
+        setState('ready', 'Rendered');
+        return;
+      }
       setState('loading', 'Saving');
-      const result = await clayFileRequest('svg', 'save', lastSvgSource);
+      const result = await clayFileRequest(
+        'svg',
+        'save',
+        tab.source,
+        path,
+        Boolean(tab.path)
+      );
       setState('ready', result === undefined ? 'Rendered' : 'Saved');
-      if (result !== undefined) await refreshFileTree('svg');
+      if (result !== undefined) {
+        tab.path = path;
+        tab.label = tabLabel(path, 'svg');
+        tab.cleanSource = tab.source;
+        tab.editBaseSource = tab.source;
+        syncRefFromParent('svg', tab.id);
+        renderDocumentTabs('svg');
+        queueSaveSession();
+        await refreshFileTree('svg');
+      }
     } catch (cause) {
       showClayError(cause);
       error.textContent = String(cause);
@@ -3799,138 +5376,142 @@
     }
   }
 
-  function handleTab(event) {
-    event.preventDefault();
-    const indent = '  ';
-    const start = dot.selectionStart;
-    const end = dot.selectionEnd;
-    if (start === end && !event.shiftKey) {
-      dot.setRangeText(indent, start, end, 'end');
-      editorChanged();
-      return;
+  function renderedSvgLabel(dotTab) {
+    if (!dotTab || dotTab.label === 'Untitled') return 'Preview';
+    if (dotTab.label.endsWith('.dot')) {
+      return `${dotTab.label.slice(0, -4)}.svg`;
     }
-    const lineStart = dot.value.lastIndexOf('\n', start - 1) + 1;
-    if (start === end) {
-      const match = dot.value.slice(lineStart, lineStart + 2).match(/^ {1,2}/);
-      if (!match) return;
-      dot.setRangeText('', lineStart, lineStart + match[0].length, 'end');
-      const cursor = Math.max(lineStart, start - match[0].length);
-      dot.setSelectionRange(cursor, cursor);
-      editorChanged();
-      return;
-    }
-    const block = dot.value.slice(lineStart, end);
-    const replacement = block.split('\n').map((line) => {
-      return event.shiftKey ? line.replace(/^ {1,2}/, '') : indent + line;
-    }).join('\n');
-    dot.setRangeText(replacement, lineStart, end, 'select');
-    dot.setSelectionRange(lineStart, lineStart + replacement.length);
-    editorChanged();
+    return `${dotTab.label}.svg`;
   }
 
-  function handleEditorKeydown(event) {
-    if (event.key === 'Tab') {
-      handleTab(event);
-      return;
+  function installRenderedSvg(source, dotTabId) {
+    captureActiveSvgTab();
+    let tab = svgTabs.find((item) => item.sourceDotId === dotTabId);
+    if (!tab) {
+      tab = svgTabs.find((item) => {
+        return !item.source && !item.path && !item.sourceDotId;
+      });
     }
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    const pairs = {'{': '}', '[': ']', '(': ')', '"': '"'};
-    const closers = Object.values(pairs);
-    const start = dot.selectionStart;
-    const end = dot.selectionEnd;
-    if (start === end && closers.includes(event.key)
-      && dot.value[start] === event.key) {
-      event.preventDefault();
-      dot.setSelectionRange(start + 1, start + 1);
-      return;
+    const dotTab = dotTabs.find((item) => item.id === dotTabId);
+    if (!tab) {
+      tab = createSvgTab('', {cleanSource: ''});
     }
-    const closing = pairs[event.key];
-    const escapedQuote = event.key === '"' && dot.value[start - 1] === '\\';
-    if (!closing || escapedQuote) return;
-    event.preventDefault();
-    const selected = dot.value.slice(start, end);
-    dot.setRangeText(event.key + selected + closing, start, end, 'select');
-    dot.setSelectionRange(start + 1, end + 1);
-    editorChanged();
+    const restoredView = !tab.source && !tab.sourceDotId
+      ? pendingView
+      : undefined;
+    tab.label = renderedSvgLabel(dotTab);
+    tab.source = source;
+    tab.editBaseSource = source;
+    tab.sourceDotId = dotTabId;
+    tab.view = restoredView;
+    tab.showingSource = false;
+    syncRefFromParent('svg', tab.id);
+    activeSvgTabId = undefined;
+    selectSvgTab(tab.id, false, false);
   }
 
   function insertTemplate() {
     const source = templates[template.value];
     if (!source) return;
-    dot.value = source;
+    editor.setSource(source, {
+      history: 'undoable',
+      selection: {start: 0, end: 0}
+    });
     template.value = '';
-    dot.focus();
-    dot.setSelectionRange(0, 0);
-    editorChanged();
+    editor.focus();
   }
 
   function handleShortcut(event) {
-    if (event.key === 'Escape' && !clayErrorModal.hidden) {
+    const consume = () => {
       event.preventDefault();
+      event.stopPropagation?.();
+    };
+    if (event.key === 'Escape' && !helpPanel.hidden) {
+      consume();
+      setHelpOpen(false, true);
+      return;
+    }
+    if (event.key === 'Escape' && !clayErrorModal.hidden) {
+      consume();
       hideClayError();
       return;
     }
     if (event.key === 'Escape' && !fileContextMenu.hidden) {
-      event.preventDefault();
+      consume();
       closeFileContext(true);
       return;
     }
-    if (event.key === 'Escape' && explorerView === helpExplorerView) {
-      event.preventDefault();
-      closeHelpTab();
-      help.focus();
+    const primary = (event.ctrlKey || event.metaKey) && !event.altKey;
+    const key = event.key.toLowerCase();
+    if (primary && !event.shiftKey && event.key === 'Enter') {
+      consume();
+      renderNow();
       return;
     }
-    if (event.key === 'Escape' && selectedItems.length) {
-      event.preventDefault();
+    if (primary && key === 's') {
+      consume();
+      if (event.shiftKey) saveCurrentSvg();
+      else saveCurrentDot();
+      return;
+    }
+    if (primary && !event.shiftKey && event.key === '0') {
+      consume();
+      fitToWindow();
+      return;
+    }
+    if (primary && !event.shiftKey && event.key === '1') {
+      consume();
+      resetGraphView();
+      return;
+    }
+    if (editor.isFocused(event.target)
+      || svgEditor.isFocused(event.target)) return;
+    const focus = event.target || document.activeElement;
+    const inPreview = focus === preview || preview.contains(focus);
+    if (event.key === 'Escape' && selectedItems.length && inPreview) {
+      consume();
       clearVisualSelection();
       preview.focus();
       return;
     }
-    if (event.key === 'Delete' && selectedItems.length === 1
-      && !event.target?.matches?.('input, textarea, select')) {
-      event.preventDefault();
+    if ((event.key === 'Delete' || event.key === 'Backspace')
+      && selectedItems.length === 1 && inPreview) {
+      consume();
       deleteSelectedItem();
-      return;
-    }
-    if (!event.ctrlKey && !event.metaKey) return;
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      renderNow();
-    } else if (event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      if (event.shiftKey) {
-        saveCurrentSvg();
-      } else {
-        saveCurrentDot();
-      }
-    } else if (event.key === '0') {
-      event.preventDefault();
-      fitToWindow();
-    } else if (event.key === '1') {
-      event.preventDefault();
-      resetGraphView();
     }
   }
 
   async function render() {
     const uid = latestRequestUid = ++requestUid;
+    captureActiveDotTab();
+    const dotTabId = activeDotTabId;
+    const source = editor.getSource();
     try {
-      validateSource(dot.value);
+      validateSource(source);
     } catch (cause) {
       showClientProblem(String(cause));
       sourceStatus.textContent = 'Too large';
       button.disabled = false;
       return;
     }
-    if (!dot.value.trim()) {
-      preview.replaceChildren();
-      currentSvg = undefined;
-      lastSvgSource = '';
+    if (!source.trim()) {
+      installRenderedSvg('', dotTabId);
       error.hidden = true;
-      setErrorLine(0);
+      setEditorProblem();
       setPreviewControls(false);
       setState('empty', 'Empty');
+      sourceStatus.textContent = 'Ready';
+      button.disabled = false;
+      return;
+    }
+    captureActiveSvgTab();
+    const replacingSvg = svgTabs.find((tab) => {
+      return tab.sourceDotId === dotTabId;
+    });
+    if (replacingSvg && svgTabEdited(replacingSvg)
+      && !window.confirm(
+        `Replace edited SVG in ${replacingSvg.label}?`
+      )) {
       sourceStatus.textContent = 'Ready';
       button.disabled = false;
       return;
@@ -3947,7 +5528,7 @@
           'content-type': 'text/vnd.graphviz',
           'x-graph-viz-request': String(uid)
         },
-        body: dot.value
+        body: source
       });
       const body = await response.text();
       if (uid !== latestRequestUid) return;
@@ -3970,12 +5551,12 @@
         return;
       }
       try {
-        installSvg(body);
+        installRenderedSvg(body, dotTabId);
       } catch (_) {
         showProblem({kind: 'request', message: 'Invalid SVG response'});
         return;
       }
-      setErrorLine(0);
+      setEditorProblem();
       setPreviewControls(true);
       setState('ready', 'Rendered');
     } catch (cause) {
@@ -3992,6 +5573,12 @@
   }
 
   button.addEventListener('click', renderNow);
+  addDotRef.addEventListener('click', () => {
+    addRef('dot', activeDotTabId);
+  });
+  addSvgRef.addEventListener('click', () => {
+    addRef('svg', activeSvgTabId);
+  });
   addNode.addEventListener('click', addVisualNode);
   drawEdge.addEventListener('click', drawSelectedEdge);
   deleteSelection.addEventListener('click', deleteSelectedItem);
@@ -4020,7 +5607,12 @@
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();
-    if (autoRender.checked) queueRender();
+    if (autoRender.checked) {
+      queueRender();
+    } else {
+      invalidateRender();
+      clearTimeout(renderTimer);
+    }
   });
   theme.addEventListener('change', () => applyTheme(theme.value));
   if (themeMedia.addEventListener) {
@@ -4028,9 +5620,8 @@
   } else {
     themeMedia.addListener(systemThemeChanged);
   }
-  dot.addEventListener('input', editorChanged);
-  dot.addEventListener('keydown', handleEditorKeydown);
-  dot.addEventListener('scroll', syncEditorScroll);
+  editor.onChange(editorChanged);
+  svgEditor.onChange(svgEditorChanged);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fullscreenZoomOut.addEventListener(
@@ -4040,13 +5631,28 @@
   fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
-  help.addEventListener('click', openHelp);
-  closeHelp.addEventListener('click', closeHelpTab);
-  docsHelpLinks.forEach((link) => {
-    link.addEventListener('click', (event) => {
-      event.preventDefault();
-      openDocsTab(link.textContent.trim(), link.dataset.docPath);
-    });
+  help.addEventListener('click', () => setHelpOpen(true));
+  closeHelp.addEventListener('click', () => setHelpOpen(false, true));
+  helpPanel.addEventListener('click', (event) => {
+    if (event.target === helpPanel) setHelpOpen(false, true);
+  });
+  explorerCollapse.addEventListener('click', () => {
+    explorerOpen = !explorerOpen;
+    applyExplorerLayout();
+    queueSaveSession();
+  });
+  explorerPane.addEventListener('dragover', (event) => {
+    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
+      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  });
+  explorerPane.addEventListener('drop', (event) => {
+    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
+      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
+    event.preventDefault();
+    event.stopPropagation?.();
+    addRef(draggedTab.kind, draggedTab.id);
   });
   for (const tab of [dotFilesTab, svgFilesTab]) {
     tab.addEventListener('click', () => {
@@ -4071,7 +5677,7 @@
     if (group) {
       selectVisualElement(
         group,
-        event.shiftKey || event.ctrlKey || event.metaKey
+        event.shiftKey || event.metaKey || (!isMac && event.ctrlKey)
       );
     } else if (event.target === preview || event.target === currentSvg) {
       clearVisualSelection();
@@ -4162,6 +5768,7 @@
     const percent = ((event.clientX - bounds.left) / bounds.width) * 100;
     const width = Math.max(25, Math.min(70, percent));
     workspace.style.setProperty('--editor-width', `${width}%`);
+    refreshEditor();
     queueSaveSession();
   });
 
@@ -4173,10 +5780,11 @@
     const change = event.key === 'ArrowLeft' ? -2 : 2;
     const width = Math.max(25, Math.min(70, current + change));
     workspace.style.setProperty('--editor-width', `${width}%`);
+    refreshEditor();
     queueSaveSession();
   });
 
-  document.addEventListener('keydown', handleShortcut);
+  document.addEventListener('keydown', handleShortcut, {capture: true});
   document.addEventListener('click', (event) => {
     if (fileContextMenu.hidden || fileContextMenu.contains(event.target)) {
       return;
@@ -4186,7 +5794,11 @@
   });
   document.addEventListener('fullscreenchange', updateFullscreenControl);
   window.addEventListener('beforeunload', saveSession);
-  window.addEventListener('resize', () => closeFileContext());
+  window.addEventListener('resize', () => {
+    closeFileContext();
+    refreshEditor();
+    svgEditor.refresh();
+  });
   const savedSession = loadSession();
   applyTheme(savedSession?.theme || 'system', false);
   let initialProblem = '';
@@ -4196,27 +5808,68 @@
       `${savedSession.paneWidth}%`
     );
     setExplorerWidth(savedSession.explorerWidth);
+    explorerOpen = savedSession.explorerOpen;
     docsTabs = savedSession.docsTabs;
     nextDocs = savedSession.nextDocs;
+    refTabs = savedSession.refTabs;
+    nextRef = savedSession.nextRef;
     explorerView = savedSession.explorerView;
+    explorerOrder = savedSession.explorerOrder;
+    dotTabs = savedSession.dotTabs;
+    activeDotTabId = savedSession.activeDotTabId;
+    nextDotTab = savedSession.nextDotTab;
+    svgTabs = savedSession.svgTabs;
+    activeSvgTabId = savedSession.activeSvgTabId;
+    nextSvgTab = savedSession.nextSvgTab;
     autoRender.checked = savedSession.autoRender;
     pendingView = savedSession.view;
   }
+  applyExplorerLayout();
   renderDocsTabs();
+  renderRefTabs();
   setExplorerView(explorerView);
+  let sharedSource;
   try {
-    dot.value = sourceFromUrl() ?? savedSession?.source ?? starter;
+    sharedSource = sourceFromUrl();
   } catch (cause) {
-    dot.value = savedSession?.source ?? starter;
     initialProblem = String(cause);
+  }
+  if (sharedSource !== undefined) {
+    const shared = createDotTab(sharedSource, {label: 'Shared'});
+    activeDotTabId = shared.id;
+  }
+  if (!dotTabs.length) {
+    const first = createDotTab(savedSession?.source ?? starter);
+    activeDotTabId = first.id;
+  }
+  if (!activeDotTab()) activeDotTabId = dotTabs[0].id;
+  const initialDot = activeDotTab();
+  editor.setSource(initialDot.source, {
+    history: 'reset',
+    notify: false,
+    selection: initialDot.selection
+  });
+  renderDocumentTabs('dot');
+  if (!svgTabs.length) {
+    const first = createSvgTab();
+    activeSvgTabId = first.id;
+  }
+  if (!activeSvgTab()) activeSvgTabId = svgTabs[0].id;
+  syncAllRefs();
+  try {
+    selectSvgTab(activeSvgTabId, false, false);
+  } catch (_) {
+    svgTabs = [];
+    const first = createSvgTab();
+    activeSvgTabId = first.id;
+    selectSvgTab(first.id, false, false);
   }
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
   populateAttributeShapes();
-  updateLineNumbers();
   refreshFileTree('dot');
   refreshFileTree('svg');
-  render();
+  if (autoRender.checked) render();
   refreshHelpVariant();
   if (initialProblem) showClientProblem(initialProblem);
   '''

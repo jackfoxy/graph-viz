@@ -1,0 +1,44 @@
+# ltail
+
+Logical tail of an edge
+
+type: [string](../attribute-types/string.md), default: `""`
+
+When `[compound](compound.md)=true`, if `ltail` is defined and is the name of a cluster containing the real tail, the edge is clipped to the boundary of the cluster.
+
+<div style="position: relative;">
+  <button type="button" aria-label="Copy DOT source" title="Copy DOT source" onclick="navigator.clipboard.writeText(this.parentElement.querySelector('code').textContent)" style="position: absolute; top: 0.5rem; right: 0.5rem; z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: 1px solid currentColor; border-radius: 0.25rem; background: Canvas; color: CanvasText; cursor: pointer;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect width="14" height="14" x="8" y="8" rx="2"></rect>
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+    </svg>
+  </button>
+  <pre><code class="language-dot">digraph {
+  compound=true;
+
+  subgraph cluster_a {
+    label="Cluster A";
+    node1; node3; node5; node7;
+  }
+  subgraph cluster_b {
+    label="Cluster B";
+    node2; node4; node6; node8;
+  }
+
+  node1 -&gt; node2 [label="1"];
+  node3 -&gt; node4 [label="2" ltail="cluster_a"];
+
+  node5 -&gt; node6 [label="3" lhead="cluster_b"];
+  node7 -&gt; node8 [label="4" ltail="cluster_a" lhead="cluster_b"];
+}</code></pre>
+</div>
+
+See [limitation](../attributes.md#undir_note).
+
+_Valid on:_
+
+  * Edges
+
+
+
+**Note:** [dot](/docs/layouts/dot/) only.
