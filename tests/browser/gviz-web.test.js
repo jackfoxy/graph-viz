@@ -572,7 +572,9 @@ function descendants(element) {
 vm.runInThisContext(applicationSource, {filename: application});
 
 const editor = window.__GVIZ_EDITOR_TEST__;
+const svgEditor = window.__GVIZ_SVG_EDITOR_TEST__;
 const getDotSource = () => editor.getSource();
+const getSvgSource = () => svgEditor.getSource();
 const setDotSource = (source, notify = false) => {
   editor.setSource(source, {history: 'reset', notify});
 };
@@ -667,7 +669,7 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(elements['#fullscreen-svg'].hidden, false);
   await elements['#copy-svg'].listeners.click({});
   assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
-  assert.equal(elements['#source-status'].textContent, 'SVG copied');
+  assert.equal(elements['#render-status'].textContent, 'SVG copied');
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
   const themedSvg = elements['#preview'].children[0];
@@ -836,7 +838,7 @@ const getDotSelection = () => editor.getSelection();
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, true);
   assert.equal(elements['#svg-source'].hidden, false);
-  assert.equal(elements['#svg-source'].textContent, '<svg id="initial"/>');
+  assert.equal(getSvgSource(), '<svg id="initial"/>');
   assert.equal(elements['#toggle-svg-source'].textContent, 'View rendered');
   assert.equal(elements['#toggle-svg-source']['aria-pressed'], 'true');
   assert.equal(elements['#fullscreen-svg'].hidden, true);
@@ -845,7 +847,7 @@ const getDotSelection = () => editor.getSelection();
   elements['#toggle-svg-source'].listeners.click({});
   assert.equal(elements['#preview'].hidden, false);
   assert.equal(elements['#svg-source'].hidden, true);
-  assert.equal(elements['#toggle-svg-source'].textContent, 'View source');
+  assert.equal(elements['#toggle-svg-source'].textContent, 'Edit SVG');
   assert.equal(elements['#fullscreen-svg'].hidden, false);
 
   elements['#template'].value = 'strict-digraph';
@@ -869,7 +871,7 @@ const getDotSelection = () => editor.getSelection();
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="new"/>');
   elements['#toggle-svg-source'].listeners.click({});
-  assert.equal(elements['#svg-source'].textContent, '<svg id="new"/>');
+  assert.equal(getSvgSource(), '<svg id="new"/>');
   elements['#toggle-svg-source'].listeners.click({});
 
   const retained = elements['#preview'].children[0];

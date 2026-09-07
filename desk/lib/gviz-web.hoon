@@ -163,7 +163,7 @@
             ;div#editor-load-error.editor-load-error
               =hidden  ""
               =role    "alert"
-              ;strong: DOT editor unavailable
+              ;strong: Source editors unavailable
               ;span: Reload the page.
               ;span: If the problem continues, verify the Ace assets are installed.
             ==
@@ -228,7 +228,7 @@
                 =type          "button"
                 =disabled      ""
                 =aria-pressed  "false"
-                ;span: View source
+                ;span: Edit SVG
               ==
             ==
           ==
@@ -409,7 +409,12 @@
               ;p: Check the ship connection, then try again.
             ==
             ;div#preview.preview(aria-live "polite", tabindex "0");
-            ;pre#svg-source(hidden "", tabindex "0", aria-label "SVG source");
+            ;div#svg-source.ace-editor-host
+              =hidden      ""
+              =role        "region"
+              =aria-label  "SVG source editor"
+              ;span(hidden "");
+            ==
           ==
         ==
         ==
@@ -1281,17 +1286,16 @@
 
   #svg-source {
     background: var(--surface-alt);
-    color: var(--ink);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.8rem;
-    inset: 0;
-    line-height: 1.45;
-    margin: 0;
-    overflow: auto;
-    padding: 3.5rem 1rem 1rem;
+    border: 0;
+    inset: 3rem 0 0;
+    outline: none;
     position: absolute;
-    tab-size: 2;
-    white-space: pre;
+  }
+
+  #svg-source.ace_focus, #svg-source:focus-within {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
   }
 
   #svg-source[hidden] { display: none; }
@@ -1809,6 +1813,9 @@
   const storageKey = 'graph-viz.session.v1';
   const themes = ['system', 'light', 'dark'];
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
+  const isMac = /Mac|iPhone|iPad|iPod/.test(
+    navigator.platform || navigator.userAgent || ''
+  );
   const docsRoot = '/docs/d/graph-viz/';
   const permanentExplorerViews = ['dot-files', 'svg-files'];
   let docsAvailable = null;
@@ -1884,7 +1891,7 @@
   let selectedItems = [];
   let inheritNewNodeShape = false;
 
-  function createAceEditorAdapter(host) {
+  function createAceEditorAdapter(host, options = {}) {
     if (!window.ace || !window.graphVizAceAssets) {
       throw new Error('Ace runtime or configuration did not load');
     }
@@ -1915,16 +1922,24 @@
         ? assets.darkTheme
         : assets.lightTheme
     );
-    session.setMode(assets.mode);
+    session.setMode(options.mode || assets.mode);
     session.setUseWorker(assets.useWorker);
     if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
       aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
     }
     aceEditor.commands.addCommands(beautify.commands);
     aceEditor.commands.bindKey('Ctrl-T', 'transposeletters');
-    textInput.setAttribute('aria-label', 'DOT source editor');
-    textInput.setAttribute('aria-labelledby', 'dot-source-heading');
-    textInput.setAttribute('aria-describedby', 'error editor-load-error');
+    textInput.setAttribute(
+      'aria-label',
+      options.label || 'DOT source editor'
+    );
+    if (options.labelledBy) {
+      textInput.setAttribute('aria-labelledby', options.labelledBy);
+    }
+    textInput.setAttribute(
+      'aria-describedby',
+      options.describedBy || 'error editor-load-error'
+    );
     textInput.setAttribute('aria-invalid', 'false');
 
     function getSource() {
@@ -2117,13 +2132,6 @@
         changeListeners.add(listener);
         return () => changeListeners.delete(listener);
       },
-      onKeydown(listener) {
-        host.addEventListener('keydown', listener);
-        return () => host.removeEventListener('keydown', listener);
-      },
-      containsTarget(target) {
-        return target === host || host.contains(target);
-      },
       isFocused(target) {
         const active = document.activeElement;
         return target === host || host.contains(target)
@@ -2141,8 +2149,15 @@
   }
 
   let editor;
+  let svgEditor;
   try {
-    editor = createAceEditorAdapter(dot);
+    editor = createAceEditorAdapter(dot, {
+      labelledBy: 'dot-source-heading'
+    });
+    svgEditor = createAceEditorAdapter(svgSource, {
+      label: 'SVG source editor',
+      mode: 'ace/mode/text'
+    });
   } catch (cause) {
     dot.hidden = true;
     editorLoadError.hidden = false;
@@ -2151,6 +2166,7 @@
   }
   if (window.__GVIZ_BROWSER_TEST__) {
     window.__GVIZ_EDITOR_TEST__ = editor;
+    window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
   }
 
   let editorResizeQueued = false;
@@ -2184,12 +2200,12 @@
     return svgTabs.find((tab) => tab.id === activeSvgTabId);
   }
 
-  function dotTabDirty(tab) {
+  function tabDirty(tab) {
     return tab.source !== tab.cleanSource;
   }
 
-  function svgTabDirty(tab) {
-    return tab.source !== tab.cleanSource;
+  function svgTabEdited(tab) {
+    return tab.source !== tab.editBaseSource;
   }
 
   function captureActiveDotTab() {
@@ -2202,8 +2218,9 @@
 
   function captureActiveSvgTab() {
     const tab = activeSvgTab();
-    if (!tab || !tab.source || !currentSvg) return;
-    tab.source = lastSvgSource;
+    if (!tab) return;
+    if (showingSvgSource) tab.source = svgEditor.getSource();
+    else if (currentSvg) tab.source = lastSvgSource;
     tab.view = {...view};
     tab.showingSource = showingSvgSource;
     syncRefFromParent('svg', tab.id);
@@ -2234,6 +2251,7 @@
       path: options.path,
       source,
       cleanSource: options.cleanSource ?? source,
+      editBaseSource: options.editBaseSource ?? source,
       view: options.view,
       showingSource: options.showingSource === true,
       sourceDotId: options.sourceDotId
@@ -2319,14 +2337,10 @@
   }
 
   function enableTabDrag(wrapper, kind, id) {
-    wrapper.draggable = kind === 'explorer' || canAddRef(kind, id);
     if (wrapper.dataset.dragEnabled) return;
     wrapper.dataset.dragEnabled = 'true';
+    wrapper.draggable = true;
     wrapper.addEventListener('dragstart', (event) => {
-      if (!wrapper.draggable) {
-        event.preventDefault();
-        return;
-      }
       draggedTab = {kind, id};
       wrapper.classList.add('is-dragging');
       event.dataTransfer?.setData('text/plain', id);
@@ -2377,7 +2391,7 @@
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'document-tab-close';
-      const dirty = kind === 'dot' ? dotTabDirty(tab) : svgTabDirty(tab);
+      const dirty = tabDirty(tab);
       close.textContent = dirty ? 'O' : 'X';
       close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
       close.setAttribute('aria-label', `Close ${tab.label}`);
@@ -2410,7 +2424,7 @@
   function clearSvgDocument() {
     clearVisualSelection();
     preview.replaceChildren();
-    svgSource.textContent = '';
+    svgEditor.setSource('', {history: 'reset', notify: false});
     currentSvg = undefined;
     lastSvgSource = '';
     showingSvgSource = false;
@@ -2424,9 +2438,27 @@
       clearSvgDocument();
       return;
     }
+    svgEditor.setSource(tab.source, {
+      history: 'reset',
+      notify: false,
+      selection: {start: 0, end: 0}
+    });
+    lastSvgSource = tab.source;
     pendingView = validView(tab.view);
-    installSvg(tab.source);
-    setSvgSourceVisible(tab.showingSource);
+    try {
+      installSvg(tab.source);
+      error.hidden = true;
+      setSvgSourceVisible(tab.showingSource);
+    } catch (cause) {
+      currentSvg = undefined;
+      preview.replaceChildren();
+      error.textContent = `Invalid SVG: ${cause.message || cause}`;
+      error.hidden = false;
+      setSvgSourceVisible(true);
+      setPreviewControls(true);
+      setState('ready', 'Invalid SVG');
+      return;
+    }
     setPreviewControls(true);
     setState('ready', tab.path ? 'Loaded' : 'Rendered');
   }
@@ -2493,7 +2525,7 @@
     const index = dotTabs.findIndex((tab) => tab.id === id);
     if (index < 0) return;
     const tab = dotTabs[index];
-    if (dotTabDirty(tab)
+    if (tabDirty(tab)
       && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
       return;
     }
@@ -2515,7 +2547,7 @@
     const index = svgTabs.findIndex((tab) => tab.id === id);
     if (index < 0) return;
     const tab = svgTabs[index];
-    if (svgTabDirty(tab)
+    if (tabDirty(tab)
       && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
       return;
     }
@@ -2533,8 +2565,12 @@
   }
 
   if (typeof ResizeObserver === 'function') {
-    const editorResizeObserver = new ResizeObserver(refreshEditor);
+    const editorResizeObserver = new ResizeObserver(() => {
+      refreshEditor();
+      svgEditor.refresh();
+    });
     editorResizeObserver.observe(dot);
+    editorResizeObserver.observe(svgSource);
   }
 
   function validTheme(candidate) {
@@ -2551,6 +2587,7 @@
     document.documentElement.dataset.effectiveTheme = effective;
     document.documentElement.style.colorScheme = effective;
     editor.setTheme(effective);
+    svgEditor.setTheme(effective);
     if (persist) queueSaveSession();
   }
 
@@ -2599,23 +2636,29 @@
     attrShape.replaceChildren(...options);
   }
 
+  function setViewControls(enabled) {
+    const active = enabled && !showingSvgSource;
+    zoomOut.disabled = !active;
+    zoomIn.disabled = !active;
+    fullscreenZoomOut.disabled = !active;
+    fullscreenZoomIn.disabled = !active;
+    resetView.disabled = !active;
+    fit.disabled = !active;
+    fullscreenSvg.hidden = !active;
+  }
+
   function setPreviewControls(enabled) {
     if (!enabled) setSvgSourceVisible(false);
-    zoomOut.disabled = !enabled || showingSvgSource;
-    zoomIn.disabled = !enabled || showingSvgSource;
-    fullscreenZoomOut.disabled = !enabled || showingSvgSource;
-    fullscreenZoomIn.disabled = !enabled || showingSvgSource;
-    resetView.disabled = !enabled || showingSvgSource;
+    setViewControls(enabled);
     saveSvg.disabled = !enabled;
-    fit.disabled = !enabled || showingSvgSource;
     toggleSvgSource.disabled = !enabled;
     copySvg.disabled = !enabled;
     fullscreenSvg.disabled = !enabled;
-    fullscreenSvg.hidden = !enabled || showingSvgSource;
   }
 
   function setSvgSourceVisible(visible) {
-    showingSvgSource = Boolean(visible && currentSvg && lastSvgSource);
+    const tab = activeSvgTab();
+    showingSvgSource = Boolean(visible && tab?.source);
     preview.hidden = showingSvgSource;
     svgSource.hidden = !showingSvgSource;
     toggleSvgSource.setAttribute(
@@ -2624,25 +2667,53 @@
     );
     toggleSvgSource.textContent = showingSvgSource
       ? 'View rendered'
-      : 'View source';
-    zoomOut.disabled = !currentSvg || showingSvgSource;
-    zoomIn.disabled = !currentSvg || showingSvgSource;
-    fullscreenZoomOut.disabled = !currentSvg || showingSvgSource;
-    fullscreenZoomIn.disabled = !currentSvg || showingSvgSource;
-    resetView.disabled = !currentSvg || showingSvgSource;
-    fit.disabled = !currentSvg || showingSvgSource;
-    fullscreenSvg.hidden = !currentSvg || showingSvgSource;
+      : 'Edit SVG';
+    setViewControls(Boolean(currentSvg));
     if (showingSvgSource) {
       clearVisualSelection();
-      svgSource.focus();
+      requestAnimationFrame(() => {
+        svgEditor.refresh();
+        svgEditor.focus();
+      });
     } else if (currentSvg) {
       preview.focus();
     }
   }
 
   function toggleSvgView() {
-    setSvgSourceVisible(!showingSvgSource);
-    captureActiveSvgTab();
+    const tab = activeSvgTab();
+    if (!tab?.source) return;
+    if (!showingSvgSource) {
+      svgEditor.setSource(tab.source, {
+        history: 'reset',
+        notify: false,
+        selection: {start: 0, end: 0}
+      });
+      setSvgSourceVisible(true);
+      tab.showingSource = true;
+      queueSaveSession();
+      return;
+    }
+    const source = svgEditor.getSource();
+    try {
+      validateSource(source);
+      installSvg(source);
+    } catch (cause) {
+      error.textContent = `Invalid SVG: ${cause.message || cause}`;
+      error.hidden = false;
+      setState('ready', 'Invalid SVG');
+      svgEditor.focus();
+      return;
+    }
+    tab.source = source;
+    tab.showingSource = false;
+    lastSvgSource = source;
+    error.hidden = true;
+    setSvgSourceVisible(false);
+    setPreviewControls(true);
+    setState('ready', tab.path ? 'Loaded' : 'Rendered');
+    syncRefFromParent('svg', tab.id);
+    renderDocumentTabs('svg');
     queueSaveSession();
   }
 
@@ -2671,7 +2742,7 @@
     if (!lastSvgSource) return;
     try {
       await writeClipboard(lastSvgSource);
-      sourceStatus.textContent = 'SVG copied';
+      renderStatus.textContent = 'SVG copied';
     } catch (cause) {
       showClientProblem('Unable to copy SVG source');
     }
@@ -3595,6 +3666,8 @@
     const source = validSavedSource(candidate.source);
     if (source === undefined) return undefined;
     const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
+    const editBaseSource = validSavedSource(candidate.editBaseSource)
+      ?? source;
     const path = validTabPath(candidate.path);
     const sourceDotId = /^dot-[1-9][0-9]*$/.test(candidate.sourceDotId)
       ? candidate.sourceDotId
@@ -3605,6 +3678,7 @@
       path,
       source,
       cleanSource,
+      editBaseSource,
       view: validView(candidate.view),
       showingSource: candidate.showingSource === true,
       sourceDotId
@@ -4935,6 +5009,27 @@
     }
   }
 
+  function svgEditorChanged() {
+    const tab = activeSvgTab();
+    if (!tab || !showingSvgSource) return;
+    const source = svgEditor.getSource();
+    try {
+      validateSource(source);
+    } catch (cause) {
+      error.textContent = String(cause);
+      error.hidden = false;
+      return;
+    }
+    tab.source = source;
+    tab.showingSource = true;
+    lastSvgSource = source;
+    error.hidden = true;
+    setState('ready', 'Changed');
+    syncRefFromParent('svg', tab.id);
+    renderDocumentTabs('svg');
+    queueSaveSession();
+  }
+
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
   }
@@ -5043,7 +5138,6 @@
     clearVisualSelection();
     currentSvg = svg;
     lastSvgSource = source;
-    svgSource.textContent = source;
     preview.replaceChildren(svg);
     const restoredView = pendingView;
     pendingView = undefined;
@@ -5114,6 +5208,16 @@
     return body;
   }
 
+  async function clayCopyChanged(kind, path, baseline) {
+    let stored;
+    try {
+      stored = await clayFileRequest(kind, 'load', '', path);
+    } catch (_) {
+      return false;
+    }
+    return stored !== undefined && stored !== baseline;
+  }
+
   async function loadCurrentDot(path) {
     try {
       const requestedPath = path ?? requestClayPath('DOT');
@@ -5156,6 +5260,14 @@
       validateSource(source);
       const path = tab.path ?? requestClayPath('DOT');
       if (path === undefined) return;
+      if (tab.path
+        && await clayCopyChanged('dot', path, tab.cleanSource)
+        && !window.confirm(
+          `${path} changed in Clay since it was loaded. Overwrite it?`
+        )) {
+        sourceStatus.textContent = 'Ready';
+        return;
+      }
       sourceStatus.textContent = 'Saving';
       const result = await clayFileRequest(
         'dot',
@@ -5229,6 +5341,14 @@
     try {
       const path = tab.path ?? requestClayPath('SVG');
       if (path === undefined) return;
+      if (tab.path
+        && await clayCopyChanged('svg', path, tab.cleanSource)
+        && !window.confirm(
+          `${path} changed in Clay since it was loaded. Overwrite it?`
+        )) {
+        setState('ready', 'Rendered');
+        return;
+      }
       setState('loading', 'Saving');
       const result = await clayFileRequest(
         'svg',
@@ -5242,6 +5362,7 @@
         tab.path = path;
         tab.label = tabLabel(path, 'svg');
         tab.cleanSource = tab.source;
+        tab.editBaseSource = tab.source;
         syncRefFromParent('svg', tab.id);
         renderDocumentTabs('svg');
         queueSaveSession();
@@ -5280,6 +5401,7 @@
       : undefined;
     tab.label = renderedSvgLabel(dotTab);
     tab.source = source;
+    tab.editBaseSource = source;
     tab.sourceDotId = dotTabId;
     tab.view = restoredView;
     tab.showingSource = false;
@@ -5342,7 +5464,8 @@
       resetGraphView();
       return;
     }
-    if (editor.isFocused(event.target)) return;
+    if (editor.isFocused(event.target)
+      || svgEditor.isFocused(event.target)) return;
     const focus = event.target || document.activeElement;
     const inPreview = focus === preview || preview.contains(focus);
     if (event.key === 'Escape' && selectedItems.length && inPreview) {
@@ -5351,8 +5474,8 @@
       preview.focus();
       return;
     }
-    if (event.key === 'Delete' && selectedItems.length === 1
-      && inPreview) {
+    if ((event.key === 'Delete' || event.key === 'Backspace')
+      && selectedItems.length === 1 && inPreview) {
       consume();
       deleteSelectedItem();
     }
@@ -5377,6 +5500,18 @@
       setEditorProblem();
       setPreviewControls(false);
       setState('empty', 'Empty');
+      sourceStatus.textContent = 'Ready';
+      button.disabled = false;
+      return;
+    }
+    captureActiveSvgTab();
+    const replacingSvg = svgTabs.find((tab) => {
+      return tab.sourceDotId === dotTabId;
+    });
+    if (replacingSvg && svgTabEdited(replacingSvg)
+      && !window.confirm(
+        `Replace edited SVG in ${replacingSvg.label}?`
+      )) {
       sourceStatus.textContent = 'Ready';
       button.disabled = false;
       return;
@@ -5486,6 +5621,7 @@
     themeMedia.addListener(systemThemeChanged);
   }
   editor.onChange(editorChanged);
+  svgEditor.onChange(svgEditorChanged);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fullscreenZoomOut.addEventListener(
@@ -5541,7 +5677,7 @@
     if (group) {
       selectVisualElement(
         group,
-        event.shiftKey || event.ctrlKey || event.metaKey
+        event.shiftKey || event.metaKey || (!isMac && event.ctrlKey)
       );
     } else if (event.target === preview || event.target === currentSvg) {
       clearVisualSelection();
@@ -5661,6 +5797,7 @@
   window.addEventListener('resize', () => {
     closeFileContext();
     refreshEditor();
+    svgEditor.refresh();
   });
   const savedSession = loadSession();
   applyTheme(savedSession?.theme || 'system', false);
@@ -5698,8 +5835,6 @@
     initialProblem = String(cause);
   }
   if (sharedSource !== undefined) {
-    dotTabs = [];
-    activeDotTabId = undefined;
     const shared = createDotTab(sharedSource, {label: 'Shared'});
     activeDotTabId = shared.id;
   }
