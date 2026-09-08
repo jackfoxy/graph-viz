@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 const manifest = require('../ace-win-linux-shortcuts.json');
 
 const groups = ['Line Operations', 'Selection', 'Go to'];
@@ -323,23 +324,13 @@ async function exerciseBinding(page, row, binding) {
 }
 
 async function openEditor(page) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: false, children: []})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: [
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">',
-        '<title>Shortcut fixture</title><circle cx="5" cy="5" r="4"/>',
-        '</svg>'
-      ].join('')
-    });
+  await installBackend(page, {
+    browse: true,
+    render: [
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">',
+      '<title>Shortcut fixture</title><circle cx="5" cy="5" r="4"/>',
+      '</svg>'
+    ].join('')
   });
   await page.goto('/apps/graph-viz/');
   await page.evaluate(() => {

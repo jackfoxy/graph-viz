@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 function renderedSvg(source, title = 'Undo test') {
   const nodes = ['Alpha', 'Beta', 'Gamma', 'Delta']
@@ -27,46 +28,27 @@ function renderedSvg(source, title = 'Undo test') {
 }
 
 async function installRoutes(page, observations) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    const request = route.request();
-    const isSvg = request.url().includes('/svg/');
-    const path = request.headers()['x-graph-viz-path'] || '';
-    const children = !isSvg ? []
-      : path === '' ? ['history']
-        : path === 'history' ? ['svg'] : [];
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        file: isSvg && path === 'history/svg',
-        children
-      })
-    });
-  });
-  await page.route('**/apps/graph-viz/file/svg/load', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: renderedSvg('digraph loaded { Alpha }', 'Loaded history SVG')
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    observations.renderBodies.push(source);
-    if (observations.failNextRender) {
-      observations.failNextRender = false;
-      await route.fulfill({
-        status: 422,
-        contentType: 'application/json',
-        body: JSON.stringify({kind: 'parse', message: 'history failure'})
-      });
-      return;
+  await installBackend(page, {
+    browse: ({kind, path}) => {
+      const isSvg = kind === 'svg';
+      const children = !isSvg ? []
+        : path === '' ? ['history']
+          : path === 'history' ? ['svg'] : [];
+      return {file: isSvg && path === 'history/svg', children};
+    },
+    svgLoad: renderedSvg('digraph loaded { Alpha }', 'Loaded history SVG'),
+    render: (source) => {
+      observations.renderBodies.push(source);
+      if (observations.failNextRender) {
+        observations.failNextRender = false;
+        return {
+          status: 422,
+          contentType: 'application/json',
+          body: JSON.stringify({kind: 'parse', message: 'history failure'})
+        };
+      }
+      return renderedSvg(source);
     }
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: renderedSvg(source)
-    });
   });
 }
 

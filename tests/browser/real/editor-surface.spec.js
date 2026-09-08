@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 const svg = [
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">',
@@ -6,17 +7,10 @@ const svg = [
 ].join('');
 
 async function installRoutes(page) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: false, children: []})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    if (source.includes('INVALID')) {
-      await route.fulfill({
+  await installBackend(page, {
+    browse: true,
+    render: (source) => source.includes('INVALID')
+      ? {
         status: 422,
         contentType: 'application/json',
         body: JSON.stringify({
@@ -25,14 +19,8 @@ async function installRoutes(page) {
           column: 7,
           message: 'expected DOT statement'
         })
-      });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: svg
-    });
+      }
+      : svg
   });
 }
 

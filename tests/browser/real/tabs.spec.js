@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 function renderedSvg(title) {
   return [
@@ -7,71 +8,44 @@ function renderedSvg(title) {
   ].join('');
 }
 
+const dotSources = {
+  'left/txt': 'digraph left { A -> B }',
+  'menu/txt': 'digraph menu { C -> D }'
+};
+
 async function installRoutes(page, state) {
-  await page.route('**/docs', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<html><title>Docs</title></html>'
-    });
-  });
-  await page.route('**/docs/d/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<html><title>Graph Viz > Users Guide</title></html>'
-    });
-  });
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    const request = route.request();
-    const kind = request.url().includes('/dot/') ? 'dot' : 'svg';
-    const path = request.headers()['x-graph-viz-path'] || '';
-    const leaf = kind === 'dot' ? 'txt' : 'svg';
-    let children = [];
-    if (!path) children = kind === 'dot' ? ['left', 'menu'] : ['preview'];
-    else if (!path.endsWith(`/${leaf}`)) children = [leaf];
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: path.endsWith(`/${leaf}`), children})
-    });
-  });
-  const dotSources = {
-    'left/txt': 'digraph left { A -> B }',
-    'menu/txt': 'digraph menu { C -> D }'
-  };
-  await page.route('**/apps/graph-viz/file/dot/load', async (route) => {
-    const path = route.request().headers()['x-graph-viz-path'];
-    state.dotLoads.push(path);
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/plain',
-      body: dotSources[path]
-    });
-  });
-  await page.route('**/apps/graph-viz/file/svg/load', async (route) => {
-    state.svgLoads += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: renderedSvg('Loaded file')
-    });
-  });
-  await page.route('**/apps/graph-viz/file/*/save', async (route) => {
-    state.saves.push({
-      url: route.request().url(),
-      headers: route.request().headers(),
-      body: route.request().postData()
-    });
-    await route.fulfill({status: 200, contentType: 'text/plain', body: 'ok'});
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    state.renders.push(route.request().postData());
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: renderedSvg(`Render ${state.renders.length}`)
-    });
+  await installBackend(page, {
+    docs: {
+      index: '<html><title>Docs</title></html>',
+      pagesGlob: '**/docs/d/**',
+      pages: '<html><title>Graph Viz > Users Guide</title></html>'
+    },
+    browse: ({kind, path}) => {
+      const leaf = kind === 'dot' ? 'txt' : 'svg';
+      let children = [];
+      if (!path) children = kind === 'dot' ? ['left', 'menu'] : ['preview'];
+      else if (!path.endsWith(`/${leaf}`)) children = [leaf];
+      return {file: path.endsWith(`/${leaf}`), children};
+    },
+    dotLoad: (path) => {
+      state.dotLoads.push(path);
+      return dotSources[path];
+    },
+    svgLoad: () => {
+      state.svgLoads += 1;
+      return renderedSvg('Loaded file');
+    },
+    save: ({body, request}) => {
+      state.saves.push({
+        url: request.url(),
+        headers: request.headers(),
+        body
+      });
+    },
+    render: (source, request) => {
+      state.renders.push(request.postData());
+      return renderedSvg(`Render ${state.renders.length}`);
+    }
   });
 }
 

@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 function visualSvg(source) {
   const nodes = ['Alpha', 'Beta'].filter((name) => source.includes(name));
@@ -14,49 +15,20 @@ function visualSvg(source) {
   ].join('');
 }
 
-async function installRoutes(page, state) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    const kind = route.request().url().includes('/file/dot/')
-      ? 'dot'
-      : 'svg';
-    const path = route.request().headers()['x-graph-viz-path'];
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(path
-        ? {file: true, children: []}
-        : {file: false, children: [`sample.${kind}`]})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    state.renders.push(source);
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: visualSvg(source)
-    });
-  });
-  await page.route('**/apps/graph-viz/file/*/save', async (route) => {
-    const kind = route.request().url().includes('/file/dot/')
-      ? 'dot'
-      : 'svg';
-    state.saves[kind].push(route.request().postData() || '');
-    await route.fulfill({status: 200, contentType: 'text/plain', body: 'ok'});
-  });
-  await page.route('**/docs', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Graph Viz Docs</title>'
-    });
-  });
-  await page.route('**/docs/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Graph Viz / Users Guide</title>'
-    });
+async function installRoutes(page, state, options = {}) {
+  await installBackend(page, {
+    browse: ({kind, path}) => path
+      ? {file: true, children: []}
+      : {file: false, children: [`sample.${kind}`]},
+    render: (source) => {
+      state.renders.push(source);
+      return visualSvg(source);
+    },
+    save: ({kind, body}) => {
+      state.saves[kind].push(body || '');
+    },
+    docs: true,
+    ...options
   });
 }
 
@@ -336,13 +308,8 @@ test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
 
 test('Clay dialog Escape restores the invoking control', async ({page}) => {
   const state = {renders: [], saves: {dot: [], svg: []}};
-  await installRoutes(page, state);
-  await page.route('**/apps/graph-viz/file/dot/load', async (route) => {
-    await route.fulfill({
-      status: 500,
-      contentType: 'text/plain',
-      body: 'forced load failure'
-    });
+  await installRoutes(page, state, {
+    dotLoad: () => ({status: 500, body: 'forced load failure'})
   });
   await page.goto('/apps/graph-viz/');
   await page.evaluate(() => {

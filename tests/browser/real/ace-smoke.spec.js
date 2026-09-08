@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 const smokeSource = 'digraph smoke {Alpha -> Beta}';
 
@@ -17,22 +18,12 @@ test.beforeEach(async ({context, page}) => {
       return setItem.call(this, key, value);
     };
   });
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: false, children: []})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: [
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">',
-        '<title>Smoke</title><circle cx="5" cy="5" r="4"/></svg>'
-      ].join('')
-    });
+  await installBackend(page, {
+    browse: true,
+    render: [
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">',
+      '<title>Smoke</title><circle cx="5" cy="5" r="4"/></svg>'
+    ].join('')
   });
   await page.goto('/apps/graph-viz/');
 });

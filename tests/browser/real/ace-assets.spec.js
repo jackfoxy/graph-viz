@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 const aceRoot = '/apps/graph-viz/ace';
 const clayJavaScriptLineLimit = 32 * 1024;
@@ -14,14 +15,6 @@ const javascriptAssets = [
   `${aceRoot}/ext-settings_menu.js`
 ];
 
-function emptyDirectory(route) {
-  return route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({file: false, children: []})
-  });
-}
-
 test('serves and initializes the pinned Ace modules without external requests', async ({
   baseURL,
   page,
@@ -29,12 +22,10 @@ test('serves and initializes the pinned Ace modules without external requests', 
 }) => {
   const requested = [];
   page.on('request', (item) => requested.push(item.url()));
-  await page.route('**/apps/graph-viz/file/*/browse', emptyDirectory);
-  await page.route('**/apps/graph-viz/render', (route) => route.fulfill({
-    status: 200,
-    contentType: 'image/svg+xml',
-    body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'
-  }));
+  await installBackend(page, {
+    browse: true,
+    render: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'
+  });
 
   for (const asset of javascriptAssets) {
     const response = await request.get(asset);

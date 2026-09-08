@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend, DEFER} = require('./fixtures/backend.js');
 
 const starter = [
   'digraph flow {',
@@ -25,21 +26,12 @@ function renderedSvg(title) {
   ].join('');
 }
 
-async function installCommonRoutes(page, render = async (route) => {
-  await route.fulfill({
-    status: 200,
-    contentType: 'image/svg+xml',
-    body: renderedSvg('Rendered')
+async function installCommonRoutes(page, options = {}) {
+  await installBackend(page, {
+    browse: true,
+    render: renderedSvg('Rendered'),
+    ...options
   });
-}) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: false, children: []})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', render);
 }
 
 test.beforeEach(async ({context}) => {
@@ -137,52 +129,27 @@ test('DOT explorer opens reset history and SVG opens preserve DOT', async ({
   page
 }) => {
   let renderCount = 0;
-  await installCommonRoutes(page, async (route) => {
-    renderCount += 1;
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: renderedSvg(`Render ${renderCount}`)
-    });
-  });
-  await page.unroute('**/apps/graph-viz/file/*/browse');
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    const request = route.request();
-    const kind = request.url().includes('/dot/') ? 'dot' : 'svg';
-    const path = request.headers()['x-graph-viz-path'] || '';
-    const children = path === ''
-      ? (kind === 'dot' ? ['left', 'menu'] : ['preview'])
-      : path.endsWith('/txt') || path.endsWith('/svg')
-        ? []
-        : [kind === 'dot' ? 'txt' : 'svg'];
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        file: path.endsWith('/txt') || path.endsWith('/svg'),
-        children
-      })
-    });
-  });
   const dotSources = {
     'left/txt': 'digraph left {\n  A -> B\n}\n',
     'menu/txt': 'digraph menu {\n  C -> D\n}\n'
   };
-  await page.route('**/apps/graph-viz/file/dot/load', async (route) => {
-    const path = route.request().headers()['x-graph-viz-path'];
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/plain',
-      body: dotSources[path]
-    });
-  });
   const loadedSvg = renderedSvg('Loaded SVG');
-  await page.route('**/apps/graph-viz/file/svg/load', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: loadedSvg
-    });
+  await installCommonRoutes(page, {
+    render: () => {
+      renderCount += 1;
+      return renderedSvg(`Render ${renderCount}`);
+    },
+    browse: ({kind, path}) => {
+      const leaf = path.endsWith('/txt') || path.endsWith('/svg');
+      const children = path === ''
+        ? (kind === 'dot' ? ['left', 'menu'] : ['preview'])
+        : leaf
+          ? []
+          : [kind === 'dot' ? 'txt' : 'svg'];
+      return {file: leaf, children};
+    },
+    dotLoad: (path) => dotSources[path],
+    svgLoad: loadedSvg
   });
   await page.goto('/apps/graph-viz/');
   await expect(page.locator('[data-path="left/txt"]')).toBeVisible();
@@ -233,27 +200,17 @@ test('DOT and SVG save retries preserve exact action-time bodies', async ({
   page
 }) => {
   const previewSource = renderedSvg('Exact preview');
-  await installCommonRoutes(page, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: previewSource
-    });
-  });
   const saves = {dot: [], svg: []};
-  for (const kind of ['dot', 'svg']) {
-    await page.route(`**/apps/graph-viz/file/${kind}/save`, async (route) => {
-      saves[kind].push({
-        body: route.request().postData(),
-        headers: route.request().headers()
-      });
-      await route.fulfill({
+  await installCommonRoutes(page, {
+    render: previewSource,
+    save: ({kind, body, request}) => {
+      saves[kind].push({body, headers: request.headers()});
+      return {
         status: saves[kind].length === 1 ? 409 : 200,
-        contentType: 'text/plain',
         body: saves[kind].length === 1 ? 'exists' : 'saved'
-      });
-    });
-  }
+      };
+    }
+  });
   page.on('dialog', async (dialog) => {
     if (dialog.type() === 'prompt') {
       await dialog.accept(dialog.message().startsWith('DOT')
@@ -292,17 +249,15 @@ test('Auto-render debounces, cancels, and suppresses stale responses', async ({
 }) => {
   const pending = [];
   let initial = true;
-  await installCommonRoutes(page, async (route) => {
-    if (initial) {
-      initial = false;
-      await route.fulfill({
-        status: 200,
-        contentType: 'image/svg+xml',
-        body: renderedSvg('Initial')
-      });
-      return;
+  await installCommonRoutes(page, {
+    render: (source, request, route) => {
+      if (initial) {
+        initial = false;
+        return renderedSvg('Initial');
+      }
+      pending.push(route);
+      return DEFER;
     }
-    pending.push(route);
   });
   await page.goto('/apps/graph-viz/');
   await page.evaluate(() => {

@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 function renderedSvg(source) {
   const nodes = ['Alpha', 'Beta', 'Delta']
@@ -16,21 +17,12 @@ function renderedSvg(source) {
 }
 
 async function installRoutes(page, observations) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: false, children: []})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    observations.renderBodies.push(source);
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: renderedSvg(source)
-    });
+  await installBackend(page, {
+    browse: true,
+    render: (source) => {
+      observations.renderBodies.push(source);
+      return renderedSvg(source);
+    }
   });
 }
 
