@@ -74,9 +74,10 @@
   $:  base=@t
       global=@t
       version=@t
+      mode=@t
       light=@t
       dark=@t
-      exts=(list @t)
+      exts=(list @t)  ::  Full module ids, e.g. 'ace/ext/searchbox'.
       use-worker=?
   ==
 ::

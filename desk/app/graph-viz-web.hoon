@@ -4,7 +4,6 @@
 /+  clay=gviz-clay, dbug, default-agent, lib=gviz, server, web=gviz-web
 /+  uhttp=urui-http
 /*  ace-core     %js   /web/ace/ace/js
-/*  ace-config   %js   /web/ace/graph-viz-config/js
 /*  ace-dot      %js   /web/ace/mode-dot/js
 /*  ace-light    %js   /web/ace/theme-github/js
 /*  ace-dark     %js   /web/ace/theme-monokai/js
@@ -36,7 +35,7 @@
         ['/app.js' js javascript:web]
         ['/doc.toc' text docs-toc]
         ['/ace/ace.js' js ace-core]
-        ['/ace/graph-viz-config.js' js ace-config]
+        ['/ace/graph-viz-config.js' js ace-config-js:web]
         ['/ace/mode-dot.js' js ace-dot]
         ['/ace/theme-github.js' js ace-light]
         ['/ace/theme-monokai.js' js ace-dark]

@@ -1,10 +1,19 @@
 {
-  "desk/lib/urui-ace.hoon": "9090e4606df2981d012c71eee2f1932e019b5d82786f06b2e4053f3db5c46e0e",
+  "desk/lib/urui-ace.hoon": "cccc2a156342eb4beeb276169230baa80f9c681db917e16f2d97840682166ce0",
   "desk/lib/urui-clay.hoon": "fe3f971a9d251eec7672c1b0be576bdfefc82438767c6710a96e1b4bddbf08d9",
   "desk/lib/urui-config.hoon": "c357a4d489226b89e3e201a7401abd19d120b1229b693fb437f927039c23115b",
   "desk/lib/urui-css.hoon": "707a3f6f1da690575a00178352323ec155a224bc9462a927edf627c5584eb60f",
   "desk/lib/urui-http.hoon": "31f8c26fb7e8a8f4b089e583e69ec7bd558be28fdf98a69f87774fa70ac77a67",
   "desk/lib/urui-js.hoon": "b69eecc3cb58dc9510d467b3fe974fd3e1e999d6126263d6d115882f21d23aa8",
   "desk/lib/urui-shell.hoon": "d25a82431ab3a0c67e01e8fba2764de45f7e48ec942db022b3179f1731373107",
-  "desk/sur/urui.hoon": "e2d114e13c6c40c89072d15650f1bf027cf83132fd2ddf82c33371417de57a09"
+  "desk/sur/urui.hoon": "2e862515a6f2e9ad5ff78b5babffe67ed2f88f780626ab9ed9227d67f35124d7",
+  "desk/web/ace/README.md": "3207cea26fe05dbcf519f97f38436b28a80be3ec00b180e3916babdef045f077",
+  "desk/web/ace/ace.js": "d084df9052068e8b2d67ec692628005720370b43c26be7a81d86d4e92ce17297",
+  "desk/web/ace/ext-beautify.js": "5a6edf6f236f0b633b600ecafefc7ed9374945c6165beb6f8ff4703e2cf32371",
+  "desk/web/ace/ext-prompt.js": "62da2b859e0820645aac0151684de396373646b3087454e2782523658f176dd2",
+  "desk/web/ace/ext-searchbox.js": "468f2641eaa626d2fd556d622f76a66db61e87f6594d67fc45c26abfde014413",
+  "desk/web/ace/ext-settings-menu.js": "802b083bf50010f2fb48dfe5ca618e00e9f1b6c6b7c5641707fce9e7330dd422",
+  "desk/web/ace/license.txt": "a8b0af9a37e6f9a558daf7eb0ef74e73204b94260e7e750736683d7cf80fab2d",
+  "desk/web/ace/theme-github.js": "1d90a51f71dadc7b1ae9d30aa8653f30e663b0e6c496e096313b2c980ed6bd13",
+  "desk/web/ace/theme-monokai.js": "1344ec08c6f1c15f92e12e82182ce33a43f3f2c98d874b377a94617f5090100f"
 }

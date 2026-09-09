@@ -1,7 +1,7 @@
 ::  Browser assets and JSON conversion for %graph-viz-web.
 ::
-/-  gviz
-/+  ucss=urui-css
+/-  gviz, urui
+/+  ucss=urui-css, uace=urui-ace
 |%
 ::
 ++  page
@@ -556,6 +556,21 @@
     root.style.colorScheme = effective;
   })();
   '''
+::
+++  ace-config-js
+  ^-  @t
+  %-  config-js:uace
+  :*  base='/apps/graph-viz/ace'
+      global='graphVizAceAssets'
+      version='1.44.0'
+      mode='ace/mode/dot'
+      light='ace/theme/github'
+      dark='ace/theme/monokai'
+      :~  'ace/ext/beautify'  'ace/ext/prompt'
+          'ace/ext/searchbox'  'ace/ext/settings_menu'
+      ==
+      use-worker=|
+  ==
 ::
 ++  css
   ^-  @t
