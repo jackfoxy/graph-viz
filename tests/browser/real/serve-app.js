@@ -110,6 +110,8 @@ async function compileAssetsOnce() {
     read('desk/sur/graph.hoon'),
     '=+  ^=  gviz',
     read('desk/sur/gviz.hoon'),
+    '=+  ^=  ucss',
+    read('desk/lib/urui-css.hoon'),
     '=+  ^=  web',
     read('desk/lib/gviz-web.hoon'),
     '[page:web javascript:web]'
