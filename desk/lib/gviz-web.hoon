@@ -1,8 +1,111 @@
 ::  Browser assets and JSON conversion for %graph-viz-web.
 ::
 /-  gviz, urui
-/+  ucss=urui-css, uace=urui-ace
+/+  ucss=urui-css, uace=urui-ace, ucfg=urui-config, ujs=urui-js
 |%
+::
+++  config
+  ^-  app-config:urui
+  :*  :*  name=%graph-viz
+          title='Graph Viz'
+          base='/apps/graph-viz'
+          storage-key='graph-viz.session.v1'
+          storage-version=1
+      ==
+      :~  :*  name=%dot
+              label='DOT'
+              untitled='Untitled'
+              ext=%dot
+              mime='text/vnd.graphviz; charset=utf-8'
+              tabs=&
+              refs=&
+          ==
+          :*  name=%svg
+              label='SVG'
+              untitled='Preview'
+              ext=%svg
+              mime='image/svg+xml; charset=utf-8'
+              tabs=&
+              refs=&
+          ==
+      ==
+      :*  transport=%header
+          path-header=`'x-graph-viz-path'
+          flag-header=`'x-graph-viz-overwrite'
+          browse='/apps/graph-viz/file/{kind}/browse'
+          load='/apps/graph-viz/file/{kind}/load'
+          save='/apps/graph-viz/file/{kind}/save'
+          delete='/apps/graph-viz/file/{kind}/delete'
+      ==
+      :*  render-debounce=350
+          save-debounce=150
+          min-explorer=180
+          divider=10
+          pane-min=25
+          pane-max=70
+          narrow=760
+          max-source=262.144
+      ==
+      slots
+      shortcuts
+      :~  [%ready 'Ready']
+          [%loading 'Loading']
+          [%empty 'Empty']
+          [%disconnected 'Disconnected']
+      ==
+      docs-root=`'/docs/d/graph-viz/'
+      share-param=`[name='dot' max=12.288 param-max=16.384]
+      :~  [%dot-files 'DOT Files']
+          [%svg-files 'SVG Files']
+      ==
+      ace-spec
+  ==
+::
+++  slots
+  ^-  (list slot:urui)
+  :~  ['source' %app %scalar ~]
+      ['paneWidth' %urui %scalar ~]
+      ['explorerWidth' %urui %scalar ~]
+      ['explorerOpen' %urui %scalar ~]
+      ['explorerView' %urui %scalar ~]
+      ['explorerOrder' %urui %scalar ~]
+      ['docsTabs' %urui %tabs ~]
+      ['nextDocs' %urui %next ~]
+      ['refTabs' %urui %tabs ~]
+      ['nextRef' %urui %next ~]
+      ['dotTabs' %urui %tabs `%dot]
+      ['activeDotTabId' %urui %active `%dot]
+      ['nextDotTab' %urui %next `%dot]
+      ['svgTabs' %urui %tabs `%svg]
+      ['activeSvgTabId' %urui %active `%svg]
+      ['nextSvgTab' %urui %next `%svg]
+      ['view' %app %record ~]
+      ['preferences.theme' %urui %scalar ~]
+      ['preferences.autoRender' %app %scalar ~]
+  ==
+::
+++  shortcuts
+  ^-  (list shortcut:urui)
+  :~  ['Ctrl-Enter' 'render' %always]
+      ['Ctrl-S' 'save-dot' %always]
+      ['Ctrl-Shift-S' 'save-svg' %always]
+      ['Ctrl-0' 'fit-view' %preview]
+      ['Ctrl-1' 'reset-view' %preview]
+  ==
+::
+++  ace-spec
+  ^-  ace-spec:urui
+  :*  base='/apps/graph-viz/ace'
+      global='graphVizAceAssets'
+      version='1.44.0'
+      mode='ace/mode/dot'
+      light='ace/theme/github'
+      dark='ace/theme/monokai'
+      :~  'ace/ext/beautify'  'ace/ext/prompt'
+          'ace/ext/searchbox'  'ace/ext/settings_menu'
+      ==
+      use-worker=|
+  ==
 ::
 ++  page
   ^-  @t
@@ -559,18 +662,7 @@
 ::
 ++  ace-config-js
   ^-  @t
-  %-  config-js:uace
-  :*  base='/apps/graph-viz/ace'
-      global='graphVizAceAssets'
-      version='1.44.0'
-      mode='ace/mode/dot'
-      light='ace/theme/github'
-      dark='ace/theme/monokai'
-      :~  'ace/ext/beautify'  'ace/ext/prompt'
-          'ace/ext/searchbox'  'ace/ext/settings_menu'
-      ==
-      use-worker=|
-  ==
+  (config-js:uace ace-spec)
 ::
 ++  css
   ^-  @t
@@ -845,6 +937,14 @@
 ::
 ++  javascript
   ^-  @t
+  %+  rap  3
+  :~  (emit:ucfg config)
+      core:ujs
+      app-js
+  ==
+::
+++  app-js
+  ^-  @t
   '''
   const templates = {
     flowchart: [
@@ -1080,272 +1180,23 @@
   let selectedItems = [];
   let inheritNewNodeShape = false;
 
-  function createAceEditorAdapter(host, options = {}) {
-    if (!window.ace || !window.graphVizAceAssets) {
-      throw new Error('Ace runtime or configuration did not load');
-    }
-    const assets = window.graphVizAceAssets;
-    const AceRange = window.ace.require('ace/range').Range;
-    const beautify = window.ace.require('ace/ext/beautify');
-    if (!Array.isArray(beautify?.commands)) {
-      throw new Error('Ace Beautify extension did not load');
-    }
-    const aceEditor = window.ace.edit(host);
-    const session = aceEditor.session;
-    const changeListeners = new Set();
-    const textInput = aceEditor.textInput.getElement();
-    let errorMarker;
-    let suppressChanges = 0;
-
-    aceEditor.setOptions({
-      displayIndentGuides: true,
-      fontSize: '0.9rem',
-      highlightActiveLine: true,
-      showPrintMargin: false,
-      tabSize: 2,
-      useSoftTabs: true,
-      wrap: true
-    });
-    aceEditor.setTheme(
-      document.documentElement.dataset.effectiveTheme === 'dark'
-        ? assets.darkTheme
-        : assets.lightTheme
-    );
-    session.setMode(options.mode || assets.mode);
-    session.setUseWorker(assets.useWorker);
-    if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
-      aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
-    }
-    aceEditor.commands.addCommands(beautify.commands);
-    aceEditor.commands.bindKey('Ctrl-T', 'transposeletters');
-    textInput.setAttribute(
-      'aria-label',
-      options.label || 'DOT source editor'
-    );
-    if (options.labelledBy) {
-      textInput.setAttribute('aria-labelledby', options.labelledBy);
-    }
-    textInput.setAttribute(
-      'aria-describedby',
-      options.describedBy || 'error editor-load-error'
-    );
-    textInput.setAttribute('aria-invalid', 'false');
-
-    function getSource() {
-      return aceEditor.getValue();
-    }
-
-    function clampOffset(offset) {
-      const numeric = Number.isFinite(offset) ? Math.trunc(offset) : 0;
-      return Math.max(0, Math.min(getSource().length, numeric));
-    }
-
-    function getSelection() {
-      const range = aceEditor.selection.getRange();
-      return {
-        start: positionToOffset(range.start),
-        end: positionToOffset(range.end)
-      };
-    }
-
-    function setSelection(start, end = start) {
-      const nextStart = clampOffset(start);
-      const nextEnd = Math.max(nextStart, clampOffset(end));
-      const first = offsetToPosition(nextStart);
-      const last = offsetToPosition(nextEnd);
-      aceEditor.selection.setSelectionRange(new AceRange(
-        first.row,
-        first.column,
-        last.row,
-        last.column
-      ));
-    }
-
-    function offsetToPosition(offset) {
-      return session.doc.indexToPosition(clampOffset(offset), 0);
-    }
-
-    function positionToOffset(position) {
-      const source = getSource();
-      const lines = source.split('\n');
-      const requestedRow = Number.isFinite(position?.row)
-        ? Math.trunc(position.row)
-        : 0;
-      const row = Math.max(0, Math.min(lines.length - 1, requestedRow));
-      const requestedColumn = Number.isFinite(position?.column)
-        ? Math.trunc(position.column)
-        : 0;
-      const column = Math.max(0, Math.min(lines[row].length, requestedColumn));
-      return session.doc.positionToIndex({row, column}, 0);
-    }
-
-    function notifyChange() {
-      for (const listener of changeListeners) listener();
-    }
-
-    function mutate(change, notify) {
-      suppressChanges += 1;
-      try {
-        change();
-      } finally {
-        suppressChanges -= 1;
-      }
-      if (notify !== false) notifyChange();
-    }
-
-    function isolateUndo(change) {
-      const undoManager = session.getUndoManager();
-      undoManager.startNewGroup();
-      try {
-        change();
-      } finally {
-        undoManager.startNewGroup();
-      }
-    }
-
-    function setSource(source, options = {}) {
-      mutate(() => {
-        const history = options.history || 'undoable';
-        if (history === 'reset') {
-          session.setValue(source);
-          session.getUndoManager().reset();
-        } else if (history === 'undoable') {
-          const last = offsetToPosition(getSource().length);
-          isolateUndo(() => {
-            session.replace(new AceRange(
-              0,
-              0,
-              last.row,
-              last.column
-            ), source);
-          });
-        } else {
-          throw new Error(`Unsupported editor history mode: ${history}`);
-        }
-        const selection = options.selection || {
-          start: source.length,
-          end: source.length
-        };
-        setSelection(selection.start, selection.end);
-      }, options.notify);
-    }
-
-    function replaceRange(start, end, replacement, options = {}) {
-      const rangeStart = clampOffset(start);
-      const rangeEnd = Math.max(rangeStart, clampOffset(end));
-      const first = offsetToPosition(rangeStart);
-      const last = offsetToPosition(rangeEnd);
-      mutate(() => {
-        isolateUndo(() => {
-          session.replace(new AceRange(
-            first.row,
-            first.column,
-            last.row,
-            last.column
-          ), replacement);
-        });
-        const replacementEnd = rangeStart + replacement.length;
-        if (options.selection && typeof options.selection === 'object') {
-          setSelection(options.selection.start, options.selection.end);
-        } else if (options.selection === 'select') {
-          setSelection(rangeStart, replacementEnd);
-        } else if (options.selection === 'start') {
-          setSelection(rangeStart);
-        } else {
-          setSelection(replacementEnd);
-        }
-      }, options.notify);
-    }
-
-    function selectRange(start, end, options = {}) {
-      setSelection(start, end);
-      if (options.focus) aceEditor.focus();
-      if (options.reveal) {
-        const position = offsetToPosition(start);
-        aceEditor.scrollToLine(position.row, true, true);
-      }
-    }
-
-    function clearDiagnostic() {
-      session.clearAnnotations();
-      if (errorMarker !== undefined) session.removeMarker(errorMarker);
-      errorMarker = undefined;
-      textInput.setAttribute('aria-invalid', 'false');
-    }
-
-    function setDiagnostic(problem) {
-      clearDiagnostic();
-      if (!problem) return;
-      const requestedLine = Number(problem.line);
-      if (!Number.isFinite(requestedLine) || requestedLine < 1) return;
-      const lines = getSource().split('\n');
-      const row = Math.min(lines.length - 1, Math.trunc(requestedLine) - 1);
-      const requestedColumn = Number(problem.column);
-      const column = Math.max(0, Math.min(
-        lines[row].length,
-        Number.isFinite(requestedColumn)
-          ? Math.trunc(requestedColumn) - 1
-          : 0
-      ));
-      const endColumn = Math.min(lines[row].length, column + 1);
-      const markerEnd = endColumn > column ? endColumn : column + 1;
-      const message = problem.message || 'syntax error';
-      session.setAnnotations([{row, column, text: message, type: 'error'}]);
-      errorMarker = session.addMarker(
-        new AceRange(row, column, row, markerEnd),
-        'ace-error-marker',
-        'text',
-        false
-      );
-      aceEditor.selection.moveCursorTo(row, column);
-      aceEditor.clearSelection();
-      aceEditor.scrollToLine(row, true, true);
-      textInput.setAttribute('aria-invalid', 'true');
-    }
-
-    session.on('change', () => {
-      if (!suppressChanges) notifyChange();
-    });
-
-    return {
-      getSource,
-      setSource,
-      replaceRange,
-      getSelection,
-      setSelection,
-      selectRange,
-      offsetToPosition,
-      positionToOffset,
-      focus: () => aceEditor.focus(),
-      onChange(listener) {
-        changeListeners.add(listener);
-        return () => changeListeners.delete(listener);
-      },
-      isFocused(target) {
-        const active = document.activeElement;
-        return target === host || host.contains(target)
-          || active === host || host.contains(active)
-          || Boolean(aceEditor.isFocused?.());
-      },
-      setDiagnostic,
-      setTheme(effective) {
-        aceEditor.setTheme(
-          effective === 'dark' ? assets.darkTheme : assets.lightTheme
-        );
-      },
-      refresh: () => aceEditor.resize(true)
-    };
-  }
-
+  const createAceEditorAdapter = window.urui.editor.adapter;
   let editor;
   let svgEditor;
   try {
     editor = createAceEditorAdapter(dot, {
-      labelledBy: 'dot-source-heading'
+      assets: window.graphVizAceAssets,
+      label: 'DOT source editor',
+      labelledBy: 'dot-source-heading',
+      describedBy: 'error editor-load-error',
+      platform: window.__GVIZ_BROWSER_TEST__?.acePlatform
     });
     svgEditor = createAceEditorAdapter(svgSource, {
+      assets: window.graphVizAceAssets,
       label: 'SVG source editor',
-      mode: 'ace/mode/text'
+      mode: 'ace/mode/text',
+      describedBy: 'error editor-load-error',
+      platform: window.__GVIZ_BROWSER_TEST__?.acePlatform
     });
   } catch (cause) {
     dot.hidden = true;
@@ -4761,6 +4612,7 @@
     }
   }
 
+  function bootGraphViz() {
   button.addEventListener('click', renderNow);
   addDotRef.addEventListener('click', () => {
     addRef('dot', activeDotTabId);
@@ -5061,6 +4913,54 @@
   if (autoRender.checked) render();
   refreshHelpVariant();
   if (initialProblem) showClientProblem(initialProblem);
+  }
+
+  window.urui.boot({
+    onReady: bootGraphViz,
+    status: (_area, label) => setState(_area, label),
+    tabs: {
+      create: (kind, ...args) => kind === 'dot'
+        ? createDotTab(...args) : createSvgTab(...args),
+      close: (kind, id) => kind === 'dot'
+        ? closeDotTab(id) : closeSvgTab(id),
+      select: (kind, id, focus = false) => kind === 'dot'
+        ? selectDotTab(id, focus) : selectSvgTab(id, focus),
+      update: renderDocumentTabs,
+      list: documentTabs,
+      active: (kind) => kind === 'dot' ? activeDotTab() : activeSvgTab()
+    },
+    editor: {primary: () => editor, secondary: () => svgEditor},
+    explorer: {
+      show: setExplorerView,
+      refreshTree: refreshFileTree,
+      addRef,
+      openDocs: openDocsTab
+    },
+    dialog: {
+      help: setHelpOpen,
+      error: showClayError,
+      confirm: (...args) => window.confirm(...args),
+      prompt: (...args) => window.prompt(...args)
+    },
+    session: {
+      save: saveSession,
+      queue: queueSaveSession,
+      get: loadSession,
+      set: saveSession
+    },
+    files: {
+      browse: refreshFileTree,
+      load: requestClayPath,
+      save: requestClayPath,
+      delete: requestClayPath
+    },
+    shortcuts: {register: () => undefined},
+    layout: {
+      paneWidth: currentPaneWidth,
+      explorerWidth: currentExplorerWidth
+    },
+    problem: {show: showProblem, clear: setEditorProblem}
+  });
   '''
 ::
 ++  error-json
