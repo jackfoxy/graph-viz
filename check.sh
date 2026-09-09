@@ -23,6 +23,11 @@
 #
 set -euo pipefail
 cd "$(dirname "$0")"
+if [[ -x "$PWD/../urui/bin/verify-sync.sh" ]]; then
+  "$PWD/../urui/bin/verify-sync.sh" --dest "$PWD" --quiet || true
+else
+  echo 'urui checkout not found at ../urui — clone it beside this repo to check sync status' >&2
+fi
 
 VERE="${VERE:-$HOME/piers/vere-v4.5-linux-x86_64}"
 DESK=desk
