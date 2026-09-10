@@ -120,6 +120,8 @@ async function compileAssetsOnce() {
     read('desk/lib/urui-config.hoon'),
     '=+  ^=  ujs',
     read('desk/lib/urui-js.hoon'),
+    '=+  ^=  shell',
+    read('desk/lib/urui-shell.hoon'),
     '=+  ^=  web',
     read('desk/lib/gviz-web.hoon'),
     '[page:web javascript:web ace-config-js:web]'

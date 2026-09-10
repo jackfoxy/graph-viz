@@ -1,7 +1,8 @@
 ::  Browser assets and JSON conversion for %graph-viz-web.
 ::
 /-  gviz, urui
-/+  ucss=urui-css, uace=urui-ace, ucfg=urui-config, ujs=urui-js
+/+  shell=urui-shell, ucss=urui-css, uace=urui-ace
+/+  ucfg=urui-config, ujs=urui-js
 |%
 ::
 ++  config
@@ -109,556 +110,453 @@
 ::
 ++  page
   ^-  @t
-  %-  crip
-  %-  en-xml:html
-  ;html
-    ;head
-      ;meta(charset "utf-8");
-      ;meta(name "viewport", content "width=device-width, initial-scale=1");
-      ;title: Graph Viz
-      ;script
-        ;+  ;/  (trip theme-bootstrap)
+  (crip (en-xml:html (build:shell spec)))
+::
+++  spec
+  ^-  shell-spec:urui
+  :*  config
+      brand
+      toolbar
+      [reference-area editor-area result-area]
+      help
+      dialogs=~
+      styles=~[css]
+      :~  '/apps/graph-viz/ace/ace.js'
+          '/apps/graph-viz/ace/graph-viz-config.js'
+          '/apps/graph-viz/ace/mode-dot.js'
+          '/apps/graph-viz/ace/theme-github.js'
+          '/apps/graph-viz/ace/ext-beautify.js'
+          '/apps/graph-viz/app.js'
       ==
-      ;style
-        ;+  ;/  (trip css)
-      ==
-    ==
-    ;body
-      ;header.app-header
-        ;div.brand
-          ;h1: Graph Viz
-        ==
-        ;nav.toolbar(aria-label "Graph controls")
-          ;label.theme-control
-            ;span: Theme
-            ;select#theme(aria-label "Theme")
-              ;option(value "system"): System
-              ;option(value "light"): Light
-              ;option(value "dark"): Dark
-            ==
-          ==
-          ;button#help(type "button", aria-expanded "false"): Help
-        ==
-      ==
-      ;main#workbench.workbench
-        ;aside#explorer-pane.explorer-pane
-          =aria-label  "Graph Viz explorer"
-          ;div.explorer-header
-            ;div#explorer-tabs.explorer-tabs
-              =role        "tablist"
-              =aria-label  "Graph Viz explorer"
-              ;div.explorer-tab-control.active(role "presentation")
-                ;button#dot-files-tab.explorer-tab.active
-                  =type                "button"
-                  =role                "tab"
-                  =data-explorer-view  "dot-files"
-                  =aria-selected       "true"
-                  =aria-controls       "dot-files-panel"
-                  DOT Files
-                ==
-              ==
-              ;div.explorer-tab-control(role "presentation")
-                ;button#svg-files-tab.explorer-tab
-                  =type                "button"
-                  =role                "tab"
-                  =data-explorer-view  "svg-files"
-                  =aria-selected       "false"
-                  =aria-controls       "svg-files-panel"
-                  =tabindex            "-1"
-                  SVG Files
-                ==
-              ==
-            ==
-            ;button#explorer-collapse.icon-button.explorer-collapse
-              =type           "button"
-              =aria-label     "Collapse explorer"
-              =aria-expanded  "true"
-              ‹
-            ==
-          ==
-          ;div#dot-files-panel.explorer-panel
-            =role              "tabpanel"
-            =aria-labelledby   "dot-files-tab"
-            ;div#dot-files-tree.explorer-file-tree
-              =role       "tree"
-              =aria-label  "DOT files"
-              =aria-busy   "true"
-              ;p: Loading…
-            ==
-          ==
-          ;div#svg-files-panel.explorer-panel(hidden "")
-            =role              "tabpanel"
-            =aria-labelledby   "svg-files-tab"
-            ;div#svg-files-tree.explorer-file-tree
-              =role       "tree"
-              =aria-label  "SVG files"
-              =aria-busy   "true"
-              ;p: Loading…
-            ==
-          ==
-        ==
-        ;button#explorer-resizer.explorer-resizer
-          =type              "button"
-          =role              "separator"
-          =aria-orientation  "vertical"
-          =aria-label        "Resize explorer"
-          ;span.sr-only: Resize explorer
-        ==
-        ;section#workspace.workspace
-        ;section#editor-pane.pane.editor-pane
-          ;div.pane-header
-            ;h2#dot-source-heading: DOT source
-            ;span#source-status.status: Ready
-            ;div.file-actions(aria-label "DOT file controls")
-              ;select#template
-                =title       "Insert starter template"
-                =aria-label  "Starter template"
-                ;option(value "", disabled "", hidden ""): Select template…
-                ;option(value "flowchart"): Flowchart
-                ;option(value "strict-digraph"): Strict digraph
-                ;option(value "state-machine"): State machine
-                ;option(value "dependencies"): Dependencies
-                ;option(value "clusters"): Clusters
-              ==
-              ;button#add-dot-ref(type "button", disabled ""): Add Ref
-              ;button#browse-dot(type "button"): Browse
-              ;button#load-dot(type "button"): Load DOT
-              ;button#save-dot(type "button"): Save DOT
-            ==
-            ;label.preference.source-auto-render
-              ;input#auto-render(type "checkbox", checked "");
-              ;span: Auto-render
-            ==
-          ==
-          ;div#dot-document-tabs.document-tabs
-            =role        "tablist"
-            =aria-label  "Open DOT documents"
-            ;span(hidden "");
-          ==
-          ;div.visual-tools(aria-label "Visual editing tools")
-            ;label.control
-              ;span: Node name
-              ;input#new-node-name(type "text", placeholder "new_node");
-            ==
-            ;label.control
-              ;span: Category
-              ;select#new-node-category
-                ;option(value "basic-shapes"): Basic shapes
-                ;option(value "basic-symbols"): Basic symbols
-                ;option(value "special-shapes"): Special shapes
-                ;option(value "gene-expression-symbols"): Gene expression symbols
-                ;option(value "dna-construction-symbols"): DNA construction symbols
-                ;option(value "other-shapes"): Other shapes
-              ==
-            ==
-            ;label.control
-              ;span: Shape
-              ;select#new-node-shape;
-            ==
-            ;button#add-node(type "button"): Add node
-            ;button#draw-edge
-              =type      "button"
-              =disabled  ""
-              =title     "Shift-click two nodes, then draw an edge"
-              ;span: Draw edge
-            ==
-          ==
-          ;div.editor-body
-            ;div#editor-load-error.editor-load-error
-              =hidden  ""
-              =role    "alert"
-              ;strong: Source editors unavailable
-              ;span: Reload the page.
-              ;span: If the problem continues, verify the Ace assets are installed.
-            ==
-            ;div#dot.ace-editor-host
-              =role               "region"
-              =aria-labelledby    "dot-source-heading"
-              =aria-describedby   "error editor-load-error"
-              ;+  ;/  (trip 'digraph { a -> b }')
-            ==
-          ==
-        ==
-        ;div#splitter.splitter
-          =role              "separator"
-          =tabindex          "0"
-          =aria-orientation  "vertical"
-          =aria-label        "Resize editor and preview"
-          ;span.sr-only: Resize editor and preview
-        ==
-        ;section#preview-pane.pane.preview-pane
-          ;div.pane-header
-            ;h2: Preview
-            ;span#render-status.status: Empty
-            ;div.file-actions(aria-label "SVG file controls")
-              ;button#render.primary
-                =type   "button"
-                =title  "Render (Ctrl+Enter)"
-                ;span: Render
-              ==
-              ;div.zoom-controls(aria-label "Zoom controls")
-                ;button#zoom-in.icon-button
-                  =type        "button"
-                  =disabled    ""
-                  =title       "Zoom in"
-                  =aria-label  "Zoom in"
-                  ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
-                ==
-                ;button#zoom-out.icon-button
-                  =type        "button"
-                  =disabled    ""
-                  =title       "Zoom out"
-                  =aria-label  "Zoom out"
-                  ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
-                ==
-              ==
-              ;button#fit
-                =type      "button"
-                =disabled  ""
-                =title     "Fit graph (Ctrl+0)"
-                ;span: Fit
-              ==
-              ;button#reset-view
-                =type      "button"
-                =disabled  ""
-                =title     "Reset view (Ctrl+1)"
-                ;span: Reset
-              ==
-              ;button#add-svg-ref(type "button", disabled ""): Add Ref
-              ;button#browse-svg(type "button"): Browse
-              ;button#load-svg(type "button"): Load SVG
-              ;button#save-svg(type "button", disabled ""): Save SVG
-              ;button#toggle-svg-source
-                =type          "button"
-                =disabled      ""
-                =aria-pressed  "false"
-                ;span: Edit SVG
-              ==
-            ==
-          ==
-          ;div#svg-document-tabs.document-tabs
-            =role        "tablist"
-            =aria-label  "Open SVG documents"
-            ;span(hidden "");
-          ==
-          ;pre#error.error(hidden "", role "alert");
-          ;div#inspector.inspector(hidden "", aria-live "polite")
-            ;div.selection-summary
-              ;span#selection-kind.selection-kind;
-              ;code#selection-id;
-              ;button#delete-selection.danger-button(type "button")
-                Delete
-              ==
-              ;button#clear-selection
-                =type        "button"
-                =aria-label  "Clear graph selection"
-                ;span: Clear
-              ==
-            ==
-            ;form#attribute-form.attribute-form
-              ;label.control
-                ;span: Label
-                ;input#attr-label(type "text", maxlength "200");
-              ==
-              ;label#shape-control.control
-                ;span: Shape
-                ;select#attr-shape
-                  ;option(value ""): Default
-                  ;option(value "box"): Box
-                  ;option(value "ellipse"): Ellipse
-                  ;option(value "circle"): Circle
-                  ;option(value "diamond"): Diamond
-                  ;option(value "point"): Point
-                ==
-              ==
-              ;label.control
-                ;span: Color
-                ;input#attr-color(type "text", placeholder "#2563eb");
-              ==
-              ;label#fill-control.control
-                ;span: Fill color
-                ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
-              ==
-              ;label.control
-                ;span: Line style
-                ;select#attr-style
-                  ;option(value ""): Default
-                  ;option(value "solid"): Solid
-                  ;option(value "dashed"): Dashed
-                  ;option(value "dotted"): Dotted
-                  ;option(value "bold"): Bold
-                  ;option(value "invis"): Invisible
-                ==
-              ==
-              ;div#edge-controls.edge-controls(hidden "")
-                ;label.control
-                  ;span: Pen width
-                  ;input#attr-penwidth(type "number", min "0", step "any");
-                ==
-                ;label.control
-                  ;span: Arrowhead
-                  ;select#attr-arrowhead
-                    ;option(value ""): Default
-                    ;option(value "normal"): Normal
-                    ;option(value "empty"): Empty
-                    ;option(value "vee"): Vee
-                    ;option(value "dot"): Dot
-                    ;option(value "diamond"): Diamond
-                    ;option(value "none"): None
-                  ==
-                ==
-                ;label.control
-                  ;span: Arrowtail
-                  ;select#attr-arrowtail
-                    ;option(value ""): Default
-                    ;option(value "normal"): Normal
-                    ;option(value "empty"): Empty
-                    ;option(value "vee"): Vee
-                    ;option(value "dot"): Dot
-                    ;option(value "diamond"): Diamond
-                    ;option(value "none"): None
-                  ==
-                ==
-                ;label.control
-                  ;span: Arrow size
-                  ;input#attr-arrowsize(type "number", min "0", step "any");
-                ==
-                ;label.control
-                  ;span: Direction
-                  ;select#attr-dir
-                    ;option(value ""): Default
-                    ;option(value "forward"): Forward
-                    ;option(value "back"): Back
-                    ;option(value "both"): Both
-                    ;option(value "none"): None
-                  ==
-                ==
-                ;label.control
-                  ;span: Minimum length
-                  ;input#attr-minlen(type "number", min "0", step "1");
-                ==
-                ;label.control
-                  ;span: Weight
-                  ;input#attr-weight(type "number", min "0", step "1");
-                ==
-                ;label.control
-                  ;span: Font name
-                  ;input#attr-fontname(type "text", maxlength "80");
-                ==
-                ;label.control
-                  ;span: Font size
-                  ;input#attr-fontsize(type "number", min "0", step "any");
-                ==
-                ;label.control
-                  ;span: Font color
-                  ;input#attr-fontcolor(type "text", placeholder "#18181b");
-                ==
-              ==
-              ;div.attribute-actions
-                ;label.preference
-                  ;input#attr-change-all(type "checkbox");
-                  ;span: Change all
-                ==
-                ;label.preference
-                  ;input#attr-use-default(type "checkbox");
-                  ;span: Use as default
-                ==
-                ;button#apply-attributes(type "submit"): Apply
-              ==
-            ==
-          ==
-          ;div#preview-shell.preview-shell(data-state "empty")
-            ;div.preview-actions(aria-label "Preview controls")
-              ;button#copy-svg.preview-action
-                =type        "button"
-                =disabled    ""
-                =title       "Copy SVG source"
-                =aria-label  "Copy SVG source to clipboard"
-                ;span.copy-icon(aria-hidden "true");
-              ==
-              ;button#fullscreen-svg.preview-action
-                =type          "button"
-                =disabled      ""
-                =hidden        ""
-                =title         "Expand SVG to fullscreen"
-                =aria-label    "Expand SVG to fullscreen"
-                =aria-pressed  "false"
-                ;span.fullscreen-icon(aria-hidden "true");
-              ==
-              ;button#fullscreen-zoom-out.preview-action.fullscreen-only
-                =type        "button"
-                =disabled    ""
-                =title       "Zoom out"
-                =aria-label  "Zoom out"
-                ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
-              ==
-              ;button#fullscreen-zoom-in.preview-action.fullscreen-only
-                =type        "button"
-                =disabled    ""
-                =title       "Zoom in"
-                =aria-label  "Zoom in"
-                ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
-              ==
-            ==
-            ;div#empty-state.state-panel
-              ;p.state-title: Nothing rendered yet
-              ;p: Select Render to preview the current DOT source.
-            ==
-            ;div#loading-state.state-panel
-              ;span.spinner(aria-hidden "true");
-              ;p.state-title: Rendering graph
-            ==
-            ;div#disconnected-state.state-panel
-              ;p.state-title: Renderer unavailable
-              ;p: Check the ship connection, then try again.
-            ==
-            ;div#preview.preview(aria-live "polite", tabindex "0");
-            ;div#svg-source.ace-editor-host
-              =hidden      ""
-              =role        "region"
-              =aria-label  "SVG source editor"
-              ;span(hidden "");
-            ==
-          ==
-        ==
-        ==
-      ==
-      ;aside#help-panel.help-panel
-        =hidden          ""
-        =role            "dialog"
-        =aria-modal      "true"
-        =aria-labelledby  "help-title"
-        ;div#editor-help-card.help-card.editor-help-card
-          ;div.pane-header
-            ;h2#help-title: Help
-            ;button#close-help.icon-button.help-close
-              =type        "button"
-              =title       "Close"
-              =aria-label  "Close help"
-              ;span.close-icon(aria-hidden "true");
-            ==
-          ==
-          ;div#fallback-help-content
-            ;nav.help-links(aria-label "Graph Viz documentation")
-              ;a
-                =href    "/docs/d/graph-viz/dot-language"
-                =target  "_blank"
-                =rel     "noopener noreferrer"
-                DOT Language Reference
-              ==
-            ==
-            ;p: Write DOT on the left and inspect the SVG on the right.
-            ;p: Drag the divider to resize the panes on larger screens.
-            ;h3: Keyboard shortcuts
-            ;ul.shortcut-list
-              ;li: Ctrl/Cmd + Enter: render now
-              ;li: Ctrl/Cmd + S: save DOT to Clay
-              ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
-              ;li: Ctrl/Cmd + 0: fit graph
-              ;li: Ctrl/Cmd + 1: reset graph view
-              ;li: Tab / Shift + Tab: indent / unindent
-              ;li: Shift-click: select two nodes for an edge
-              ;li: Delete: remove the selected node or edge
-            ==
-          ==
-          ;div#docs-help-content.docs-help-content(hidden "")
-            ;nav#docs-help-nav.docs-help-nav
-              =aria-label  "Graph Viz documentation"
-              =aria-busy  "true"
-              ;p.docs-help-loading: Loading documentation…
-            ==
-          ==
-          ;nav.help-links.help-skill-links
-            =aria-label  "Graph Viz LLM skill files"
-            ;a
-              =href
-                "https://github.com/jackfoxy/foxy-skills/tree/master/".
-                "gviz-dot-syntax"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              DOT Syntax LLM Skill
-            ==
-            ;a
-              =href
-                "https://github.com/jackfoxy/foxy-skills/tree/master/".
-                "gviz-gall-api"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              Gall API LLM Skill
-            ==
-            ;a
-              =href
-                "https://github.com/jackfoxy/foxy-skills/tree/master/".
-                "gviz-patterns"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              Common Patterns LLM Skill
-            ==
-          ==
-        ==
-      ==
-      ;div#file-context-menu.file-context-menu(hidden "", role "menu")
-        ;button#file-context-open(type "button", role "menuitem"): Open
-        ;button#file-context-delete.danger-button
-          =type  "button"
-          =role  "menuitem"
-          Delete
-        ==
-      ==
-      ;aside#clay-error-modal.help-panel
-        =hidden      ""
-        =role        "dialog"
-        =aria-modal  "true"
-        =aria-labelledby  "clay-error-title"
-        ;div.help-card
-          ;div.pane-header
-            ;h2#clay-error-title: Clay error
-            ;button#close-clay-error
-              =type        "button"
-              =aria-label  "Close Clay error"
-              ;span: Close
-            ==
-          ==
-          ;pre#clay-error-message.clay-error-message;
-        ==
-      ==
-      ;script(src "/apps/graph-viz/ace/ace.js");
-      ;script(src "/apps/graph-viz/ace/graph-viz-config.js");
-      ;script(src "/apps/graph-viz/ace/mode-dot.js");
-      ;script(src "/apps/graph-viz/ace/theme-github.js");
-      ;script(src "/apps/graph-viz/ace/ext-beautify.js");
-      ;script(src "/apps/graph-viz/app.js");
-    ==
   ==
 ::
-++  theme-bootstrap
-  ^-  @t
-  '''
-  (() => {
-    const key = 'graph-viz.session.v1';
-    const themes = ['system', 'light', 'dark'];
-    let selected = 'system';
-    try {
-      const saved = JSON.parse(localStorage.getItem(key));
-      const candidate = saved?.preferences?.theme;
-      if (saved?.version === 1 && themes.includes(candidate)) {
-        selected = candidate;
-      }
-    } catch (_) {
-      // Storage failures must not block first paint.
-    }
-    const systemDark = matchMedia(
-      '(prefers-color-scheme: dark)'
-    ).matches;
-    const effective = selected === 'system'
-      ? (systemDark ? 'dark' : 'light')
-      : selected;
-    const root = document.documentElement;
-    root.dataset.theme = selected;
-    root.dataset.effectiveTheme = effective;
-    root.style.colorScheme = effective;
-  })();
-  '''
+++  reference-area
+  ^-  area:urui
+  :*  role=%reference
+      id='explorer-pane'
+      label='Graph Viz explorer'
+      heading=~
+      status-id=~
+      kind=~
+      strip=|
+      controls=~
+      body=~
+      secondary=~
+  ==
+::
+++  editor-area
+  ^-  area:urui
+  :*  role=%editor
+      id='editor-pane'
+      label='DOT editor'
+      heading=`'DOT source'
+      status-id=`'source-status'
+      kind=`%dot
+      strip=&
+      controls=editor-controls
+      body=editor-body
+      secondary=~
+  ==
+::
+++  result-area
+  ^-  area:urui
+  :*  role=%result
+      id='preview-pane'
+      label='SVG preview'
+      heading=`'Preview'
+      status-id=`'render-status'
+      kind=`%svg
+      strip=&
+      controls=result-controls
+      body=result-body
+      secondary=~
+  ==
+::
+++  brand
+  ^-  marl
+  :~  ;div.brand
+        ;h1: Graph Viz
+      ==
+  ==
+::
+++  toolbar
+  ^-  marl
+  :~  ;nav.toolbar(aria-label "Graph controls")
+        ;label.theme-control
+          ;span: Theme
+          ;select#theme(aria-label "Theme")
+            ;option(value "system"): System
+            ;option(value "light"): Light
+            ;option(value "dark"): Dark
+          ==
+        ==
+        ;button#help(type "button", aria-expanded "false"): Help
+      ==
+  ==
+::
+++  editor-controls
+  ^-  marl
+  :~  ;div.file-actions(aria-label "DOT file controls")
+        ;select#template
+          =title       "Insert starter template"
+          =aria-label  "Starter template"
+          ;option(value "", disabled "", hidden ""): Select template…
+          ;option(value "flowchart"): Flowchart
+          ;option(value "strict-digraph"): Strict digraph
+          ;option(value "state-machine"): State machine
+          ;option(value "dependencies"): Dependencies
+          ;option(value "clusters"): Clusters
+        ==
+        ;button#add-dot-ref(type "button", disabled ""): Add Ref
+        ;button#browse-dot(type "button"): Browse
+        ;button#load-dot(type "button"): Load DOT
+        ;button#save-dot(type "button"): Save DOT
+      ==
+      ;label.preference.source-auto-render
+        ;input#auto-render(type "checkbox", checked "");
+        ;span: Auto-render
+      ==
+  ==
+::
+++  editor-body
+  ^-  marl
+  :~  ;div.visual-tools(aria-label "Visual editing tools")
+        ;label.control
+          ;span: Node name
+          ;input#new-node-name(type "text", placeholder "new_node");
+        ==
+        ;label.control
+          ;span: Category
+          ;select#new-node-category
+            ;option(value "basic-shapes"): Basic shapes
+            ;option(value "basic-symbols"): Basic symbols
+            ;option(value "special-shapes"): Special shapes
+            ;option(value "gene-expression-symbols"): Gene expression symbols
+            ;option(value "dna-construction-symbols"): DNA construction symbols
+            ;option(value "other-shapes"): Other shapes
+          ==
+        ==
+        ;label.control
+          ;span: Shape
+          ;select#new-node-shape;
+        ==
+        ;button#add-node(type "button"): Add node
+        ;button#draw-edge
+          =type      "button"
+          =disabled  ""
+          =title     "Shift-click two nodes, then draw an edge"
+          ;span: Draw edge
+        ==
+      ==
+      ;div.editor-body
+        ;div#editor-load-error.editor-load-error
+          =hidden  ""
+          =role    "alert"
+          ;strong: Source editors unavailable
+          ;span: Reload the page.
+          ;span: If the problem continues, verify the Ace assets are installed.
+        ==
+        ;div#dot.ace-editor-host
+          =role               "region"
+          =aria-labelledby    "dot-source-heading"
+          =aria-describedby   "error editor-load-error"
+          ;+  ;/  (trip 'digraph { a -> b }')
+        ==
+      ==
+  ==
+::
+++  result-controls
+  ^-  marl
+  :~  ;div.file-actions(aria-label "SVG file controls")
+        ;button#render.primary
+          =type   "button"
+          =title  "Render (Ctrl+Enter)"
+          ;span: Render
+        ==
+        ;div.zoom-controls(aria-label "Zoom controls")
+          ;button#zoom-in.icon-button
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom in"
+            =aria-label  "Zoom in"
+            ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+          ==
+          ;button#zoom-out.icon-button
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom out"
+            =aria-label  "Zoom out"
+            ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+          ==
+        ==
+        ;button#fit
+          =type      "button"
+          =disabled  ""
+          =title     "Fit graph (Ctrl+0)"
+          ;span: Fit
+        ==
+        ;button#reset-view
+          =type      "button"
+          =disabled  ""
+          =title     "Reset view (Ctrl+1)"
+          ;span: Reset
+        ==
+        ;button#add-svg-ref(type "button", disabled ""): Add Ref
+        ;button#browse-svg(type "button"): Browse
+        ;button#load-svg(type "button"): Load SVG
+        ;button#save-svg(type "button", disabled ""): Save SVG
+        ;button#toggle-svg-source
+          =type          "button"
+          =disabled      ""
+          =aria-pressed  "false"
+          ;span: Edit SVG
+        ==
+      ==
+  ==
+::
+++  result-body
+  ^-  marl
+  :~  ;pre#error.error(hidden "", role "alert");
+      ;div#inspector.inspector(hidden "", aria-live "polite")
+        ;div.selection-summary
+          ;span#selection-kind.selection-kind;
+          ;code#selection-id;
+          ;button#delete-selection.danger-button(type "button")
+            Delete
+          ==
+          ;button#clear-selection
+            =type        "button"
+            =aria-label  "Clear graph selection"
+            ;span: Clear
+          ==
+        ==
+        ;form#attribute-form.attribute-form
+          ;label.control
+            ;span: Label
+            ;input#attr-label(type "text", maxlength "200");
+          ==
+          ;label#shape-control.control
+            ;span: Shape
+            ;select#attr-shape
+              ;option(value ""): Default
+              ;option(value "box"): Box
+              ;option(value "ellipse"): Ellipse
+              ;option(value "circle"): Circle
+              ;option(value "diamond"): Diamond
+              ;option(value "point"): Point
+            ==
+          ==
+          ;label.control
+            ;span: Color
+            ;input#attr-color(type "text", placeholder "#2563eb");
+          ==
+          ;label#fill-control.control
+            ;span: Fill color
+            ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
+          ==
+          ;label.control
+            ;span: Line style
+            ;select#attr-style
+              ;option(value ""): Default
+              ;option(value "solid"): Solid
+              ;option(value "dashed"): Dashed
+              ;option(value "dotted"): Dotted
+              ;option(value "bold"): Bold
+              ;option(value "invis"): Invisible
+            ==
+          ==
+          ;div#edge-controls.edge-controls(hidden "")
+            ;label.control
+              ;span: Pen width
+              ;input#attr-penwidth(type "number", min "0", step "any");
+            ==
+            ;label.control
+              ;span: Arrowhead
+              ;select#attr-arrowhead
+                ;option(value ""): Default
+                ;option(value "normal"): Normal
+                ;option(value "empty"): Empty
+                ;option(value "vee"): Vee
+                ;option(value "dot"): Dot
+                ;option(value "diamond"): Diamond
+                ;option(value "none"): None
+              ==
+            ==
+            ;label.control
+              ;span: Arrowtail
+              ;select#attr-arrowtail
+                ;option(value ""): Default
+                ;option(value "normal"): Normal
+                ;option(value "empty"): Empty
+                ;option(value "vee"): Vee
+                ;option(value "dot"): Dot
+                ;option(value "diamond"): Diamond
+                ;option(value "none"): None
+              ==
+            ==
+            ;label.control
+              ;span: Arrow size
+              ;input#attr-arrowsize(type "number", min "0", step "any");
+            ==
+            ;label.control
+              ;span: Direction
+              ;select#attr-dir
+                ;option(value ""): Default
+                ;option(value "forward"): Forward
+                ;option(value "back"): Back
+                ;option(value "both"): Both
+                ;option(value "none"): None
+              ==
+            ==
+            ;label.control
+              ;span: Minimum length
+              ;input#attr-minlen(type "number", min "0", step "1");
+            ==
+            ;label.control
+              ;span: Weight
+              ;input#attr-weight(type "number", min "0", step "1");
+            ==
+            ;label.control
+              ;span: Font name
+              ;input#attr-fontname(type "text", maxlength "80");
+            ==
+            ;label.control
+              ;span: Font size
+              ;input#attr-fontsize(type "number", min "0", step "any");
+            ==
+            ;label.control
+              ;span: Font color
+              ;input#attr-fontcolor(type "text", placeholder "#18181b");
+            ==
+          ==
+          ;div.attribute-actions
+            ;label.preference
+              ;input#attr-change-all(type "checkbox");
+              ;span: Change all
+            ==
+            ;label.preference
+              ;input#attr-use-default(type "checkbox");
+              ;span: Use as default
+            ==
+            ;button#apply-attributes(type "submit"): Apply
+          ==
+        ==
+      ==
+      ;div#preview-shell.preview-shell(data-state "empty")
+        ;div.preview-actions(aria-label "Preview controls")
+          ;button#copy-svg.preview-action
+            =type        "button"
+            =disabled    ""
+            =title       "Copy SVG source"
+            =aria-label  "Copy SVG source to clipboard"
+            ;span.copy-icon(aria-hidden "true");
+          ==
+          ;button#fullscreen-svg.preview-action
+            =type          "button"
+            =disabled      ""
+            =hidden        ""
+            =title         "Expand SVG to fullscreen"
+            =aria-label    "Expand SVG to fullscreen"
+            =aria-pressed  "false"
+            ;span.fullscreen-icon(aria-hidden "true");
+          ==
+          ;button#fullscreen-zoom-out.preview-action.fullscreen-only
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom out"
+            =aria-label  "Zoom out"
+            ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+          ==
+          ;button#fullscreen-zoom-in.preview-action.fullscreen-only
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom in"
+            =aria-label  "Zoom in"
+            ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+          ==
+        ==
+        ;div#empty-state.state-panel
+          ;p.state-title: Nothing rendered yet
+          ;p: Select Render to preview the current DOT source.
+        ==
+        ;div#loading-state.state-panel
+          ;span.spinner(aria-hidden "true");
+          ;p.state-title: Rendering graph
+        ==
+        ;div#disconnected-state.state-panel
+          ;p.state-title: Renderer unavailable
+          ;p: Check the ship connection, then try again.
+        ==
+        ;div#preview.preview(aria-live "polite", tabindex "0");
+        ;div#svg-source.ace-editor-host
+          =hidden      ""
+          =role        "region"
+          =aria-label  "SVG source editor"
+          ;span(hidden "");
+        ==
+      ==
+  ==
+::
+++  help
+  ^-  marl
+  :~  ;div#fallback-help-content
+        ;nav.help-links(aria-label "Graph Viz documentation")
+          ;a
+            =href    "/docs/d/graph-viz/dot-language"
+            =target  "_blank"
+            =rel     "noopener noreferrer"
+            DOT Language Reference
+          ==
+        ==
+        ;p: Write DOT on the left and inspect the SVG on the right.
+        ;p: Drag the divider to resize the panes on larger screens.
+        ;h3: Keyboard shortcuts
+        ;ul.shortcut-list
+          ;li: Ctrl/Cmd + Enter: render now
+          ;li: Ctrl/Cmd + S: save DOT to Clay
+          ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
+          ;li: Ctrl/Cmd + 0: fit graph
+          ;li: Ctrl/Cmd + 1: reset graph view
+          ;li: Tab / Shift + Tab: indent / unindent
+          ;li: Shift-click: select two nodes for an edge
+          ;li: Delete: remove the selected node or edge
+        ==
+      ==
+      ;div#docs-help-content.docs-help-content(hidden "")
+        ;nav#docs-help-nav.docs-help-nav
+          =aria-label  "Graph Viz documentation"
+          =aria-busy  "true"
+          ;p.docs-help-loading: Loading documentation…
+        ==
+      ==
+      ;nav.help-links.help-skill-links
+        =aria-label  "Graph Viz LLM skill files"
+        ;a
+          =href
+            "https://github.com/jackfoxy/foxy-skills/tree/master/".
+            "gviz-dot-syntax"
+          =target  "_blank"
+          =rel     "noopener noreferrer"
+          DOT Syntax LLM Skill
+        ==
+        ;a
+          =href
+            "https://github.com/jackfoxy/foxy-skills/tree/master/".
+            "gviz-gall-api"
+          =target  "_blank"
+          =rel     "noopener noreferrer"
+          Gall API LLM Skill
+        ==
+        ;a
+          =href
+            "https://github.com/jackfoxy/foxy-skills/tree/master/".
+            "gviz-patterns"
+          =target  "_blank"
+          =rel     "noopener noreferrer"
+          Common Patterns LLM Skill
+        ==
+      ==
+  ==
 ::
 ++  ace-config-js
   ^-  @t
