@@ -6,10 +6,19 @@ const vm = require('node:vm');
 const {spawn} = require('node:child_process');
 
 const root = path.resolve(__dirname, '../../..');
+const uruiAssembler = path.resolve(
+  root, '../urui/tests/browser/serve-app.js'
+);
+const missingUrui = [
+  'urui checkout not found at ../urui',
+  'clone it beside this repo to check sync status'
+].join(' — ');
 
-function read(relative) {
-  return fs.readFileSync(path.join(root, relative), 'utf8')
-    .replace(/^\/[+-].*\n/gm, '');
+function assemble(bindings, expression) {
+  if (!fs.existsSync(uruiAssembler)) {
+    throw new Error(missingUrui);
+  }
+  return require(uruiAssembler).assemble(bindings, expression, root);
 }
 
 function findVere() {
@@ -105,27 +114,17 @@ function evaluate(source) {
 }
 
 async function compileAssetsOnce() {
-  const source = [
-    '=+  ^=  gg',
-    read('desk/sur/graph.hoon'),
-    '=+  ^=  gviz',
-    read('desk/sur/gviz.hoon'),
-    '=+  ^=  urui',
-    read('desk/sur/urui.hoon'),
-    '=+  ^=  uace',
-    read('desk/lib/urui-ace.hoon'),
-    '=+  ^=  ucss',
-    read('desk/lib/urui-css.hoon'),
-    '=+  ^=  ucfg',
-    read('desk/lib/urui-config.hoon'),
-    '=+  ^=  ujs',
-    read('desk/lib/urui-js.hoon'),
-    '=+  ^=  shell',
-    read('desk/lib/urui-shell.hoon'),
-    '=+  ^=  web',
-    read('desk/lib/gviz-web.hoon'),
-    '[page:web javascript:web ace-config-js:web]'
-  ].join('\n');
+  const source = assemble([
+    ['gg', 'desk/sur/graph.hoon'],
+    ['gviz', 'desk/sur/gviz.hoon'],
+    ['urui', 'desk/sur/urui.hoon'],
+    ['uace', 'desk/lib/urui-ace.hoon'],
+    ['ucss', 'desk/lib/urui-css.hoon'],
+    ['ucfg', 'desk/lib/urui-config.hoon'],
+    ['ujs', 'desk/lib/urui-js.hoon'],
+    ['shell', 'desk/lib/urui-shell.hoon'],
+    ['web', 'desk/lib/gviz-web.hoon']
+  ], '[page:web javascript:web ace-config-js:web]');
   return parseCords(await evaluate(source));
 }
 
