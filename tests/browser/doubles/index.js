@@ -1,13 +1,12 @@
 'use strict';
 
-const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
 const {createDom} = require('./dom.js');
 const {createAce} = require('./ace.js');
 const {createFetch, response, docsResponse, tocResponse} =
   require('./fetch.js');
-const {createStorage, defaultSession, SESSION_KEY} = require('./storage.js');
+const {createStorage, defaultSession} = require('./storage.js');
 const {createMedia} = require('./media.js');
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -15,11 +14,28 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 // Install one scenario's doubles as process globals.  One environment per
 // process: the application is a plain script and owns the global scope.
 
-function createEnvironment({session = defaultSession} = {}) {
+function createEnvironment(options = {}) {
+  const profile = options.profile || 'fixture';
   const dom = createDom();
-  const {ace, graphVizAceAssets} = createAce();
+  const graphViz = profile === 'graph-viz';
+  const graphVizSession = {
+    version: 1,
+    source: 'digraph saved { Alpha -> Beta }',
+    paneWidth: 62,
+    view: {scale: 2, x: 20, y: 30},
+    preferences: {autoRender: false}
+  };
+  const session = Object.hasOwn(options, 'session')
+    ? options.session
+    : (graphViz ? graphVizSession : defaultSession);
+  const aceGlobal = graphViz ? 'graphVizAceAssets' : 'uruiFixtureAceAssets';
+  const sessionKey = graphViz
+    ? 'graph-viz.session.v1' : 'urui-fixture.session.v1';
+  const {ace, aceAssets} = createAce(
+    graphViz ? 'ace/mode/dot' : 'ace/mode/text'
+  );
   const {requests, fetch} = createFetch();
-  const {saved, localStorage} = createStorage(session);
+  const {saved, localStorage} = createStorage(session, sessionKey);
   const {themeMedia, matchMedia} = createMedia();
 
   const documentListeners = dom.documentListeners;
@@ -33,7 +49,9 @@ function createEnvironment({session = defaultSession} = {}) {
     innerWidth: 1_024,
     innerHeight: 768,
     location: {
-      href: 'http://localhost:18080/apps/graph-viz/',
+      href: graphViz
+        ? 'http://localhost:18080/apps/graph-viz/'
+        : 'http://localhost:18080/apps/urui-fixture/',
       origin: 'http://localhost:18080'
     },
     addEventListener: (name, callback) => { windowListeners[name] = callback; },
@@ -41,11 +59,15 @@ function createEnvironment({session = defaultSession} = {}) {
     confirm: (message) => {
       confirmations.push(message);
       return confirmationAnswers.shift();
-    },
-    __GVIZ_BROWSER_TEST__: {acePlatform: 'win', keyboardLayout: 'en-US'}
+    }
   };
   window.ace = ace;
-  window.graphVizAceAssets = graphVizAceAssets;
+  window[aceGlobal] = aceAssets;
+  if (graphViz) {
+    window.__GVIZ_BROWSER_TEST__ = {
+      acePlatform: 'win', keyboardLayout: 'en-US'
+    };
+  }
 
   global.document = dom.document;
   global.DOMParser = dom.DOMParser;
@@ -88,37 +110,23 @@ function createEnvironment({session = defaultSession} = {}) {
     confirmations,
     confirmationAnswers,
     clipboardWrites,
-    sessionKey: SESSION_KEY,
+    sessionKey,
+    aceAssets,
     response,
     docsResponse,
     tocResponse,
     tick
   };
 
-  env.resolveBrowse = async (path, file, children) => {
-    const request = requests.at(-1);
-    assert.equal(request.options.headers['x-graph-viz-path'],
-      path || undefined);
-    request.resolve(response(true, JSON.stringify({file, children})));
-    await tick();
-  };
-
   return env;
 }
 
-// Run the application against an installed environment and expose the
-// editor handles the scenarios drive.
+// Run the application against an installed environment.
 
 function bootApplication(env, applicationSource, filename) {
   vm.runInThisContext(applicationSource, {filename});
-  env.editor = global.window.__GVIZ_EDITOR_TEST__;
-  env.svgEditor = global.window.__GVIZ_SVG_EDITOR_TEST__;
-  env.getDotSource = () => env.editor.getSource();
-  env.getSvgSource = () => env.svgEditor.getSource();
-  env.setDotSource = (source, notify = false) => {
-    env.editor.setSource(source, {history: 'reset', notify});
-  };
-  env.getDotSelection = () => env.editor.getSelection();
+  env.api = global.window.urui;
+  env.fixture = global.window.uruiFixture;
   return env;
 }
 

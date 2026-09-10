@@ -17,8 +17,16 @@ const applicationSource = fs.readFileSync(application, 'utf8');
 const scenario = require(`./scenarios/${name}.js`);
 
 (async () => {
-  const env = createEnvironment();
+  const env = createEnvironment({profile: 'graph-viz'});
   bootApplication(env, applicationSource, application);
+  env.editor = global.window.__GVIZ_EDITOR_TEST__;
+  env.svgEditor = global.window.__GVIZ_SVG_EDITOR_TEST__;
+  env.getDotSource = () => env.editor.getSource();
+  env.getSvgSource = () => env.svgEditor.getSource();
+  env.setDotSource = (source, notify = false) => {
+    env.editor.setSource(source, {history: 'reset', notify});
+  };
+  env.getDotSelection = () => env.editor.getSelection();
   await scenario(env);
 })().then(() => {
   process.exit(0);

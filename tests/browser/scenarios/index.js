@@ -1,9 +1,7 @@
 'use strict';
 
-// Scenario inventory.  `shell` ones exercise the reusable application
-// shell; `app` ones exercise graph-viz's own surfaces.
+// Graph-viz owns only application behavior. Shared scenarios live in urui.
 
-const shell = ['shell', 'explorer', 'docs', 'dialogs', 'files', 'session'];
 const app = ['render', 'preview-view', 'dot-parse', 'visual-editing'];
 
-module.exports = {shell, app, all: [...shell, ...app]};
+module.exports = {app, all: [...app]};

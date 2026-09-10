@@ -121,7 +121,7 @@ function createFakeAceEditor(host) {
   };
 }
 
-function createAce() {
+function createAce(mode = 'ace/mode/text') {
   const fakeAceEditors = new WeakMap();
   const ace = {
     edit: (host) => {
@@ -136,13 +136,13 @@ function createAce() {
       return {commands: [{name: 'beautify'}]};
     }
   };
-  const graphVizAceAssets = {
-    mode: 'ace/mode/dot',
+  const aceAssets = {
+    mode,
     lightTheme: 'ace/theme/github',
     darkTheme: 'ace/theme/monokai',
     useWorker: false
   };
-  return {ace, graphVizAceAssets, FakeAceRange, fakeAceEditors};
+  return {ace, aceAssets, FakeAceRange, fakeAceEditors};
 }
 
 module.exports = {
