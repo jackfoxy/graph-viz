@@ -10,7 +10,8 @@ function descendants(element) {
 }
 
 const selectors = [
-  '#dot', '#editor-load-error', '#template', '#render', '#error', '#preview',
+  '#dot', '#editor', '#result-editor', '#editor-load-error', '#template',
+  '#render', '#echo', '#error', '#preview', '#fixture-result',
   '#dot-document-tabs', '#svg-document-tabs',
   '#text-document-tabs', '#note-document-tabs',
   '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',

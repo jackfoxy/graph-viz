@@ -18,9 +18,9 @@
   "desk/web/ace/theme-monokai.js": "1344ec08c6f1c15f92e12e82182ce33a43f3f2c98d874b377a94617f5090100f",
   "tests/browser/doubles/README.md": "1557293200c7d9ed76e81dbc8838162a88a5556bb4d803156f7fa00aea922829",
   "tests/browser/doubles/ace.js": "b9070d7c4ca9a38bb30f2fe2ebc64ef59b8f329880204ee3937511015511cef6",
-  "tests/browser/doubles/dom.js": "8e9de688d2c490df8e319101d1f274de77b712bf351bb41c432f2d81d08a1d35",
+  "tests/browser/doubles/dom.js": "a872463e860e1e3584edea33f50a84069bd2c23492d387f72caa6aabe540a059",
   "tests/browser/doubles/fetch.js": "ae77ad5cb3f76a8136f75f5ca8fd085ea6ccaf55ff6723ecc4d1685787ba1116",
-  "tests/browser/doubles/index.js": "2330718c255f234417f231f3c727ce7ffb3f84d83839574dc7c6163e55b1316a",
+  "tests/browser/doubles/index.js": "c180dfe48bf476a528e03245cc4873c7bad477d594bc74644fa855a5aa7f19ae",
   "tests/browser/doubles/media.js": "0972bfcf52458071d28f630f6d8242723c25fa24329888da6372b1757d0561a2",
   "tests/browser/doubles/storage.js": "eb87db0356de96aeb764011f21951ca9bcd7a52dc9e42e422cb99d8099314a5c"
 }

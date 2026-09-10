@@ -62,6 +62,7 @@ function createEnvironment(options = {}) {
     }
   };
   window.ace = ace;
+  window.__URUI_DOUBLES_TEST__ = true;
   window[aceGlobal] = aceAssets;
   if (graphViz) {
     window.__GVIZ_BROWSER_TEST__ = {
