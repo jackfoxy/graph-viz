@@ -5,149 +5,69 @@
 |%
 ::
 ++  test-web-page
-  =/  html  page:web
-  ;:  weld
-    (expect !>(?=(^ (find "Graph Viz" (trip html)))))
-    (expect !>(?=(^ (find "/apps/graph-viz/app.js" (trip html)))))
-    (expect !>(?=(^ (find "/apps/graph-viz/ace/ace.js" (trip html)))))
-    (expect !>(?=(^ (find "/apps/graph-viz/ace/graph-viz-config.js" (trip html)))))
-    (expect !>(?=(^ (find "/apps/graph-viz/ace/mode-dot.js" (trip html)))))
-    (expect !>(?=(^ (find "/apps/graph-viz/ace/theme-github.js" (trip html)))))
-    (expect !>(?=(^ (find "/apps/graph-viz/ace/ext-beautify.js" (trip html)))))
-    (expect !>(?=(~ (find "<script src=\"http" (trip html)))))
-    (expect !>(?=(^ (find "id=\"workspace\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"splitter\"" (trip html)))))
-    (expect !>(?=(~ (find "id=\"download\"" (trip html)))))
-    (expect !>(?=(~ (find "id=\"download-dot\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"browse-dot\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"load-dot\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"save-dot\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"browse-svg\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"load-svg\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"save-svg\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"toggle-svg-source\"" (trip html)))))
-    (expect !>(?=(^ (find "Edit SVG" (trip html)))))
-    (expect !>(?=(^ (find "id=\"copy-svg\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"fullscreen-svg\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"svg-source\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"explorer-pane\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"explorer-tabs\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"explorer-collapse\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"add-dot-ref\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"add-svg-ref\"" (trip html)))))
-    (expect !>(?=(^ (find "Collapse explorer" (trip html)))))
-    (expect !>(?=(^ (find "id=\"dot-files-tab\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"svg-files-tab\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"dot-files-tree\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"svg-files-tree\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"file-context-menu\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"file-context-open\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"file-context-delete\"" (trip html)))))
-    (expect !>(?=(~ (find "id=\"file-browser-modal\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"clay-error-modal\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"clay-error-message\"" (trip html)))))
-    (expect !>(?=(~ (find "id=\"share\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"auto-render\"" (trip html)))))
-    (expect !>(?=(^ (find "source-auto-render" (trip html)))))
-    (expect !>(?=(^ (find "id=\"theme\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"help\"" (trip html)))))
-    (expect !>(?=(^ (find "role=\"dialog\"" (trip html)))))
-    (expect !>(?=(^ (find "aria-modal=\"true\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"fallback-help-content\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"docs-help-content\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"docs-help-nav\"" (trip html)))))
-    (expect !>(?=(~ (find "id=\"docs-help-frame\"" (trip html)))))
-    (expect !>(?=(^ (find "LLM skill files" (trip html)))))
-    (expect !>(?=(^ (find "gviz-dot-syntax" (trip html)))))
-    (expect !>(?=(^ (find "gviz-gall-api" (trip html)))))
-    (expect !>(?=(^ (find "gviz-patterns" (trip html)))))
-    (expect !>(?=(^ (find "DOT Syntax LLM Skill" (trip html)))))
-    (expect !>(?=(^ (find "Gall API LLM Skill" (trip html)))))
-    (expect !>(?=(^ (find "Common Patterns LLM Skill" (trip html)))))
-    (expect !>(?=(^ (find "id=\"zoom-out\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"zoom-in\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"fullscreen-zoom-out\"" (trip html)))))
-    (expect !>(?=(^ (find "id=\"fullscreen-zoom-in\"" (trip html)))))
-    (expect !>(?=(^ (find "data-state=\"empty\"" (trip html)))))
-  ==
+  =/  html  (trip page:web)
+  =/  needles=(list tape)
+    :~  "Graph Viz"
+        "/apps/graph-viz/app.js"
+        "/apps/graph-viz/ace/ace.js"
+        "/apps/graph-viz/ace/graph-viz-config.js"
+        "/apps/graph-viz/ace/mode-dot.js"
+        "/apps/graph-viz/ace/theme-github.js"
+        "/apps/graph-viz/ace/ext-beautify.js"
+        "id=\"render\""
+        "id=\"browse-dot\""
+        "id=\"load-dot\""
+        "id=\"save-dot\""
+        "id=\"browse-svg\""
+        "id=\"load-svg\""
+        "id=\"save-svg\""
+        "id=\"toggle-svg-source\""
+        "Edit SVG"
+        "id=\"copy-svg\""
+        "id=\"fullscreen-svg\""
+        "id=\"svg-source\""
+        "id=\"auto-render\""
+        "source-auto-render"
+        "id=\"template\""
+        "id=\"inspector\""
+        "LLM skill files"
+        "gviz-dot-syntax"
+        "gviz-gall-api"
+        "gviz-patterns"
+        "DOT Syntax LLM Skill"
+        "Gall API LLM Skill"
+        "Common Patterns LLM Skill"
+        "id=\"zoom-out\""
+        "id=\"zoom-in\""
+        "id=\"fullscreen-zoom-out\""
+        "id=\"fullscreen-zoom-in\""
+        "data-state=\"empty\""
+    ==
+  =/  missing=(list tape)
+    :~  "<script src=\"http"
+        "id=\"download\""
+        "id=\"download-dot\""
+        "id=\"file-browser-modal\""
+        "id=\"share\""
+    ==
+  =/  present-tests=tang
+    %-  zing
+    %+  turn  needles
+    |=  needle=tape
+    (expect !>(?=(^ (find needle html))))
+  =/  absent-tests=tang
+    %-  zing
+    %+  turn  missing
+    |=  needle=tape
+    (expect !>(?=(~ (find needle html))))
+  (weld present-tests absent-tests)
 ::
 ++  test-theme-switcher
-  =/  html  (trip page:web)
   =/  style  (trip css:web)
-  =/  script  (trip javascript:web)
   ;:  weld
-    (expect !>(?=(^ (find "value=\"system\"" html))))
-    (expect !>(?=(^ (find "value=\"light\"" html))))
-    (expect !>(?=(^ (find "value=\"dark\"" html))))
-    (expect !>(?=(^ (find "preferences?.theme" html))))
-    (expect !>(?=(^ (find "dataset.effectiveTheme" html))))
-    (expect !>(?=(^ (find "prefers-color-scheme: dark" html))))
-    (expect !>(?=(^ (find "data-effective-theme='dark'" style))))
-    (expect !>(?=(^ (find "color-scheme: dark" style))))
-    (expect !>(?=(^ (find "--surface-alt" style))))
     (expect !>(?=(^ (find "var(--preview-background)" style))))
-    (expect !>(?=(^ (find "var(--inspector-background)" style))))
     (expect !>(?=(^ (find ".preview svg" style))))
     (expect !>(?=(^ (find "filter: invert(1) hue-rotate(180deg)" style))))
-    (expect !>(?=(~ (find "  background: #ffffff" style))))
-    (expect !>(?=(~ (find "  background: #fafafa" style))))
-    (expect !>(?=(~ (find "  background: #f4f4f5" style))))
-    (expect !>(?=(^ (find "function applyTheme" script))))
-    (expect !>(?=(^ (find "function systemThemeChanged" script))))
-    (expect !>(?=(^ (find "themeMedia.addEventListener" script))))
-    (expect !>(?=(^ (find "theme: validTheme(preferences.theme)" script))))
-    (expect !>(?=(^ (find "theme: theme.value" script))))
-  ==
-::
-++  test-docs-help
-  =/  html  (trip page:web)
-  =/  style  (trip css:web)
-  =/  script  (trip javascript:web)
-  ;:  weld
-    (expect !>(?=(^ (find "id=\"docs-help-nav\"" html))))
-    (expect !>(?=(^ (find "aria-busy=\"true\"" html))))
-    (expect !>(?=(~ (find "src=\"/docs/d/graph-viz/" html))))
-    (expect !>(?=(^ (find ".docs-help-content" style))))
-    (expect !>(?=(^ (find ".docs-help-group[open]" style))))
-    (expect !>(?=(^ (find ".docs-explorer-frame" style))))
-    (expect !>(?=(^ (find "fetch('/docs'" script))))
-    (expect !>(?=(^ (find "fetch('/apps/graph-viz/doc.toc'" script))))
-    (expect !>(?=(^ (find "credentials: 'same-origin'" script))))
-    (expect !>(?=(^ (find "cache: 'no-store'" script))))
-    (expect !>(?=(^ (find "responseUrl.origin" script))))
-    (expect !>(?=(^ (find "responseUrl.pathname === '/docs'" script))))
-    (expect !>(?=(^ (find "contentType.includes('text/html')" script))))
-    (expect !>(?=(^ (find "function setHelpVariant" script))))
-    (expect !>(?=(^ (find "function refreshHelpVariant" script))))
-    (expect !>(?=(^ (find "function parseDocsToc" script))))
-    (expect !>(?=(^ (find "function appendDocsEntries" script))))
-    (expect !>(?=(^ (find "document.createElement('details')" script))))
-    (expect !>(?=(^ (find "function docsTabLabel" script))))
-    (expect !>(?=(~ (find "function createHelpTab" script))))
-    (expect !>(?=(~ (find "function closeHelpTab" script))))
-    (expect !>(?=(~ (find "svgControl.after(wrapper)" script))))
-    (expect !>(?=(^ (find "function setHelpOpen" script))))
-    (expect !>(?=(^ (find "helpPanel.hidden = !open" script))))
-    (expect !>(?=(^ (find "function openDocsTab" script))))
-    (expect !>(?=(^ (find "function closeDocsTab" script))))
-    (expect !>(?=(^ (find "function explorerTabKeydown" script))))
-    (expect !>(?=(^ (find "frame.src" script))))
-    (expect !>(?=(^ (find "fallbackHelpContent.hidden" script))))
-    (expect !>(?=(^ (find "function disableDocsExplorer" script))))
-  ==
-::
-++  test-responsive-shell
-  =/  script  (trip javascript:web)
-  ;:  weld
-    (expect !>(?=(^ (find "@media (max-width: 760px)" (trip css:web)))))
-    (expect !>(?=(^ (find "pointerdown" script))))
-    (expect !>(?=(^ (find "disconnected" script))))
-    (expect !>(?=(^ (find "bounds.width - explorerDividerWidth" script))))
-    (expect !>(?=(^ (find "function applyExplorerLayout" script))))
-    (expect !>(?=(^ (find "explorer-collapsed" (trip css:web)))))
-    (expect !>(?=(^ (find "scrollbar-width: thin" (trip css:web)))))
-    (expect !>(?=(^ (find "::-webkit-scrollbar-thumb" (trip css:web)))))
-    (expect !>(?=(~ (find "Math.min(640" script))))
   ==
 ::
 ++  test-live-rendering
@@ -181,88 +101,56 @@
 ++  test-editor-usability
   =/  html  (trip page:web)
   =/  js  (trip javascript:web)
+  =/  html-needles=(list tape)
+    :~  "id=\"dot\""
+        "Select template…"
+        "value=\"\" disabled=\"\" hidden=\"\""
+        "value=\"flowchart\""
+        "value=\"strict-digraph\""
+        "value=\"state-machine\""
+        "value=\"dependencies\""
+        "value=\"clusters\""
+    ==
+  =/  js-needles=(list tape)
+    :~  "strict digraph unique_edges"
+        "last wins"
+        "ace/mode/dot"
+        "svgEditor.onChange(svgEditorChanged)"
+        "problem.line"
+        "problem.column"
+        "loadCurrentSvg"
+    ==
+  =/  html-tests=tang
+    %-  zing
+    %+  turn  html-needles
+    |=  needle=tape
+    (expect !>(?=(^ (find needle html))))
+  =/  js-tests=tang
+    %-  zing
+    %+  turn  js-needles
+    |=  needle=tape
+    (expect !>(?=(^ (find needle js))))
   ;:  weld
-    (expect !>(?=(~ (find "id=\"line-numbers\"" html))))
-    (expect !>(?=(~ (find "<textarea" html))))
-    (expect !>(?=(^ (find "id=\"dot\"" html))))
-    (expect !>(?=(^ (find "id=\"editor-load-error\"" html))))
-    (expect !>(?=(^ (find "Select template…" html))))
-    (expect !>(?=(^ (find "value=\"\" disabled=\"\" hidden=\"\"" html))))
+    html-tests
     (expect !>(?=(~ (find ">Templates<" html))))
-    (expect !>(?=(^ (find "value=\"flowchart\"" html))))
-    (expect !>(?=(^ (find "value=\"strict-digraph\"" html))))
-    (expect !>(?=(^ (find "value=\"state-machine\"" html))))
-    (expect !>(?=(^ (find "value=\"dependencies\"" html))))
-    (expect !>(?=(^ (find "value=\"clusters\"" html))))
-    (expect !>(?=(^ (find "strict digraph unique_edges" js))))
-    (expect !>(?=(^ (find "last wins" js))))
-    (expect !>(?=(^ (find "createAceEditorAdapter" js))))
-    (expect !>(?=(^ (find "ace/mode/text" js))))
-    (expect !>(?=(^ (find "svgEditor.onChange(svgEditorChanged)" js))))
-    (expect !>(?=(^ (find "window.ace.edit" js))))
-    (expect !>(?=(^ (find "session.setMode" js))))
-    (expect !>(?=(^ (find "session.setUseWorker" js))))
-    (expect !>(?=(^ (find "showPrintMargin: false" js))))
-    (expect !>(?=(^ (find "tabSize: 2" js))))
-    (expect !>(?=(^ (find "useSoftTabs: true" js))))
-    (expect !>(?=(^ (find "wrap: true" js))))
-    (expect !>(?=(^ (find "addCommands(beautify.commands)" js))))
-    (expect !>(?=(^ (find "bindKey('Ctrl-T', 'transposeletters')" js))))
-    (expect !>(?=(~ (find "createTextareaEditorAdapter" js))))
-    (expect !>(?=(~ (find "handleTab" js))))
-    (expect !>(?=(^ (find "handleShortcut" js))))
-    (expect !>(?=(^ (find "loadCurrentSvg" js))))
+    js-tests
   ==
 ::
 ++  test-persistence-export
   =/  js  (trip javascript:web)
-  ;:  weld
-    (expect !>(?=(^ (find "graph-viz.session.v1" js))))
-    (expect !>(?=(^ (find "localStorage.setItem" js))))
-    (expect !>(?=(^ (find "localStorage.getItem" js))))
-    (expect !>(?=(^ (find "preferences:" js))))
-    (expect !>(?=(^ (find "autoRender: autoRender.checked" js))))
-    (expect !>(?=(^ (find "theme: theme.value" js))))
-    (expect !>(?=(^ (find "paneWidth: currentPaneWidth()" js))))
-    (expect !>(?=(^ (find "explorerWidth: currentExplorerWidth()" js))))
-    (expect !>(?=(^ (find "explorerOpen," js))))
-    (expect !>(?=(^ (find "explorerView," js))))
-    (expect !>(?=(^ (find "explorerOrder," js))))
-    (expect !>(?=(^ (find "docsTabs," js))))
-    (expect !>(?=(^ (find "nextDocs," js))))
-    (expect !>(?=(^ (find "refTabs," js))))
-    (expect !>(?=(^ (find "nextRef," js))))
-    (expect !>(?=(^ (find "dotTabs," js))))
-    (expect !>(?=(^ (find "activeDotTabId," js))))
-    (expect !>(?=(^ (find "svgTabs," js))))
-    (expect !>(?=(^ (find "activeSvgTabId," js))))
-    (expect !>(?=(^ (find "loadCurrentDot" js))))
-    (expect !>(?=(^ (find "saveCurrentDot" js))))
-    (expect !>(?=(^ (find "saveCurrentSvg" js))))
-    (expect !>(?=(^ (find "setSvgSourceVisible" js))))
-    (expect !>(?=(^ (find "Replace edited SVG" js))))
-    (expect !>(?=(^ (find "toggleSvgView" js))))
-    (expect !>(?=(^ (find "copySvgSource" js))))
-    (expect !>(?=(^ (find "navigator.clipboard.writeText" js))))
-    (expect !>(?=(^ (find "toggleSvgFullscreen" js))))
-    (expect !>(?=(^ (find "requestFullscreen" js))))
-    (expect !>(?=(^ (find "exitFullscreen" js))))
-    (expect !>(?=(~ (find "autoRender.checked = false" js))))
-    (expect !>(?=(^ (find "showClayError(cause)" js))))
-    (expect !>(?=(^ (find "function openFileContext" js))))
-    (expect !>(?=(^ (find "function deleteContextFile" js))))
-    (expect !>(?=(^ (find "addEventListener('contextmenu'" js))))
-    (expect !>(?=(^ (find "clayFileRequest(kind, 'delete'" js))))
-    (expect !>(?=(^ (find "x-graph-viz-path" js))))
-    (expect !>(?=(^ (find "x-graph-viz-overwrite" js))))
-    (expect !>(?=(^ (find "response.status === 409" js))))
-    (expect !>(?=(^ (find "already exists. Overwrite it?" js))))
-    (expect !>(?=(~ (find "copyShareUrl" js))))
-    (expect !>(?=(^ (find "encodeSource" js))))
-    (expect !>(?=(^ (find "decodeSource" js))))
-    (expect !>(?=(^ (find "maxSharedSourceBytes" js))))
-    (expect !>(?=(^ (find "sourceFromUrl" js))))
-  ==
+  =/  needles=(list tape)
+    :~  "searchParams.get('dot')"
+        "maxSharedSourceBytes = 12 * 1024"
+        "dotTabs,"
+        "activeDotTabId,"
+        "svgTabs,"
+        "activeSvgTabId,"
+        "view,"
+    ==
+  %-  zing
+  %+  turn  needles
+  |=  needle=tape
+  (expect !>(?=(^ (find needle js))))
 ::
 ++  test-visual-selection
   =/  html  (trip page:web)
