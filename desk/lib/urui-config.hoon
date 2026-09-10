@@ -52,6 +52,7 @@
       ['label' s+label.kind]
       ['untitled' s+untitled.kind]
       ['ext' s+ext.kind]
+      ['leaf' s+leaf.kind]
       ['mime' s+mime.kind]
       ['tabs' b+tabs.kind]
       ['refs' b+refs.kind]

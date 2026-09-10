@@ -137,15 +137,19 @@
   ==
 ::
 ++  test-persistence-export
+  ::  Graph Viz's half of the session record is declared, not written:
+  ::  the shared runtime reads these slots out of the emitted config.
   =/  js  (trip javascript:web)
   =/  needles=(list tape)
-    :~  "searchParams.get('dot')"
-        "maxSharedSourceBytes = 12 * 1024"
-        "dotTabs,"
-        "activeDotTabId,"
-        "svgTabs,"
-        "activeSvgTabId,"
-        "view,"
+    :~  "\"storageKey\":\"graph-viz.session.v1\""
+        "\"shareParam\":\{\"name\":\"dot\",\"max\":12288"
+        "\"paramMax\":16384"
+        "\"key\":\"dotTabs\""
+        "\"key\":\"activeDotTabId\""
+        "\"key\":\"svgTabs\""
+        "\"key\":\"activeSvgTabId\""
+        "\"key\":\"view\",\"kind\":null,\"owner\":\"app\""
+        "\"key\":\"preferences.autoRender\",\"kind\":null"
     ==
   %-  zing
   %+  turn  needles

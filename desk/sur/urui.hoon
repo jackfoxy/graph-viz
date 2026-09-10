@@ -24,12 +24,16 @@
 +$  doc-kind
   ::  One class of document the application edits or displays.
   ::
-  ::  `ext` is the clay extension the document is stored under, `tabs`
-  ::  asks for a document tab strip, `refs` for the Add Ref control.
+  ::  `leaf` is the clay extension the document is stored under; `ext`
+  ::  is the suffix a tab label shows.  They differ whenever a mark is
+  ::  reused for a format that names itself differently — DOT stored as
+  ::  `%txt` and labelled `.dot` is the case that forced the split.
+  ::  `tabs` asks for a document tab strip, `refs` for the Add Ref control.
   $:  name=@tas
       label=@t
       untitled=@t
       ext=@ta
+      leaf=@ta
       mime=@t
       tabs=?
       refs=?

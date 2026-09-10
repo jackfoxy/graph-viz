@@ -17,6 +17,7 @@
               label='DOT'
               untitled='Untitled'
               ext=%dot
+              leaf=%txt
               mime='text/vnd.graphviz; charset=utf-8'
               tabs=&
               refs=&
@@ -25,6 +26,7 @@
               label='SVG'
               untitled='Preview'
               ext=%svg
+              leaf=%svg
               mime='image/svg+xml; charset=utf-8'
               tabs=&
               refs=&
@@ -988,46 +990,115 @@
   const closeClayError = document.querySelector('#close-clay-error');
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
+  const config = window.urui.config;
+  const runtime = window.urui.runtime({
+    elements: {
+      explorerPane,
+      editorPane: document.querySelector('#editor-pane'),
+      resultPane: document.querySelector('#preview-pane')
+    },
+    editors: () => [editor, svgEditor],
+    onChange: () => queueSaveSession(),
+    onResize: () => closeFileContext(),
+    browse: (kind) => browseClayNode(kind),
+    session: {
+      read: (key) => {
+        if (key === 'source') return validateSource(editor.getSource());
+        if (key === 'view') return view;
+        if (key === 'preferences.autoRender') return autoRender.checked;
+        return undefined;
+      },
+      validate: (key, value) => {
+        if (key === 'source') return validSavedSource(value) ?? starter;
+        if (key === 'view') return validView(value);
+        if (key === 'preferences.autoRender') return value !== false;
+        return undefined;
+      }
+    },
+    openFile: (kind, path) => {
+      return kind === 'dot' ? loadCurrentDot(path) : loadCurrentSvg(path);
+    },
+    tabs: {
+      dot: {
+        add: 'Add empty DOT tab',
+        validate: (candidate, base) => {
+          const start = Number(candidate.selection?.start);
+          const end = Number(candidate.selection?.end);
+          const selection = {
+            start: Number.isFinite(start)
+              ? clamp(Math.trunc(start), 0, base.source.length) : 0,
+            end: Number.isFinite(end)
+              ? clamp(Math.trunc(end), 0, base.source.length) : 0
+          };
+          selection.end = Math.max(selection.start, selection.end);
+          return {selection};
+        },
+        defaults: (options) => ({
+          selection: options.selection || {start: 0, end: 0}
+        }),
+        empty: () => createDotTab(),
+        onCapture: (tab) => {
+          if (!editor) return;
+          tab.source = editor.getSource();
+          tab.selection = editor.getSelection();
+          syncRefFromParent('dot', tab.id);
+        },
+        onActivate: (tab) => {
+          invalidateRender();
+          clearTimeout(renderTimer);
+          editor.setSource(tab.source, {
+            history: 'reset',
+            notify: false,
+            selection: tab.selection
+          });
+          clearVisualSelection();
+          error.hidden = true;
+          setEditorProblem();
+          sourceStatus.textContent = 'Ready';
+        },
+        afterActivate: (tab, choices) => {
+          if (choices.renderSelected !== false && autoRender.checked) {
+            renderNow();
+          }
+        }
+      },
+      svg: {
+        validate: (candidate, base, ids) => ({
+          editBaseSource: validSavedSource(candidate.editBaseSource)
+            ?? base.source,
+          view: validView(candidate.view),
+          showingSource: candidate.showingSource === true,
+          sourceDotId: ids.get('dot')?.has(candidate.sourceDotId)
+            ? candidate.sourceDotId
+            : undefined
+        }),
+        defaults: (options, source) => ({
+          editBaseSource: options.editBaseSource ?? source,
+          view: options.view,
+          showingSource: options.showingSource === true,
+          sourceDotId: options.sourceDotId
+        }),
+        empty: () => createSvgTab(),
+        onCapture: (tab) => {
+          if (showingSvgSource) tab.source = svgEditor.getSource();
+          else if (currentSvg) tab.source = lastSvgSource;
+          tab.view = {...view};
+          tab.showingSource = showingSvgSource;
+          syncRefFromParent('svg', tab.id);
+        },
+        onActivate: () => displayActiveSvgTab()
+      }
+    }
+  });
   const renderDelay = 350;
   const saveDelay = 150;
-  const minExplorerWidth = 180;
-  const explorerDividerWidth = 10;
   const minScale = 0.05;
   const maxScale = 32;
-  const maxSourceBytes = 256 * 1024;
-  const maxSharedSourceBytes = 12 * 1024;
-  const maxShareParamChars = 16 * 1024;
-  const storageKey = 'graph-viz.session.v1';
-  const themes = ['system', 'light', 'dark'];
-  const themeMedia = matchMedia('(prefers-color-scheme: dark)');
   const isMac = /Mac|iPhone|iPad|iPod/.test(
     navigator.platform || navigator.userAgent || ''
   );
   const docsRoot = '/docs/d/graph-viz/';
   const permanentExplorerViews = ['dot-files', 'svg-files'];
-  let docsAvailable = null;
-  let docsCheckPending = false;
-  let docsTreeLoaded = false;
-  let explorerOpen = true;
-  let docsTabs = [];
-  let nextDocs = 1;
-  let refTabs = [];
-  let nextRef = 1;
-  let explorerView = 'dot-files';
-  let explorerOrder = [...permanentExplorerViews];
-  let dotTabs = [];
-  let activeDotTabId;
-  let nextDotTab = 1;
-  let svgTabs = [];
-  let activeSvgTabId;
-  let nextSvgTab = 1;
-  let draggedTab;
-  let contextFileKind;
-  let contextFilePath;
-  let contextFileSource;
-  let clayErrorReturnFocus;
-  dotFilesTab.parentElement.dataset.explorerTabId = 'dot-files';
-  svgFilesTab.parentElement.dataset.explorerTabId = 'svg-files';
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1067,7 +1138,6 @@
   let requestUid = 0;
   let latestRequestUid = 0;
   let renderTimer;
-  let saveTimer;
   let currentSvg;
   let graphSize = {width: 1, height: 1};
   let view = {scale: 1, x: 0, y: 0};
@@ -1107,256 +1177,43 @@
     window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
   }
 
-  let editorResizeQueued = false;
-  function refreshEditor() {
-    if (editorResizeQueued) return;
-    editorResizeQueued = true;
-    requestAnimationFrame(() => {
-      editorResizeQueued = false;
-      editor.refresh();
-    });
-  }
+  const refreshEditor = runtime.refreshEditors;
 
-  function tabLabel(path, kind) {
-    if (!path) return kind === 'dot' ? 'Untitled' : 'Preview';
-    const parts = path.split('/');
-    const leaf = parts.at(-1);
-    if (kind === 'dot' && leaf === 'txt' && parts.length > 1) {
-      return `${parts.at(-2)}.dot`;
-    }
-    if (kind === 'svg' && leaf === 'svg' && parts.length > 1) {
-      return `${parts.at(-2)}.svg`;
-    }
-    return leaf;
-  }
-
-  function activeDotTab() {
-    return dotTabs.find((tab) => tab.id === activeDotTabId);
-  }
-
-  function activeSvgTab() {
-    return svgTabs.find((tab) => tab.id === activeSvgTabId);
-  }
-
-  function tabDirty(tab) {
-    return tab.source !== tab.cleanSource;
-  }
+  const dotTabs = runtime.tabs.list('dot');
+  const svgTabs = runtime.tabs.list('svg');
+  const tabLabel = (path, kind) => runtime.tabs.label(kind, path);
+  const activeDotTab = () => runtime.tabs.active('dot');
+  const activeSvgTab = () => runtime.tabs.active('svg');
+  const tabDirty = (tab) => tab.source !== tab.cleanSource;
+  const documentTabs = (kind) => runtime.tabs.list(kind);
+  const activeDocumentTabId = (kind) => runtime.tabs.activeId(kind);
+  const documentTabContainer = (kind) => runtime.tabs.container(kind);
+  const captureActiveDotTab = () => runtime.tabs.capture('dot');
+  const captureActiveSvgTab = () => runtime.tabs.capture('svg');
+  const createDotTab = (source = starter, options = {}) => {
+    return runtime.tabs.create('dot', source, options);
+  };
+  const createSvgTab = (source = '', options = {}) => {
+    return runtime.tabs.create('svg', source, options);
+  };
+  const renderDocumentTabs = (kind) => runtime.tabs.render(kind);
+  const moveTab = (kind, sourceId, targetId, after) => {
+    return runtime.tabs.move(kind, sourceId, targetId, after);
+  };
+  const enableTabDrag = (wrapper, kind, id) => {
+    return runtime.tabs.enableDrag(wrapper, kind, id);
+  };
+  const selectDotTab = (id, focus = false, renderSelected = true) => {
+    return runtime.tabs.select('dot', id, {focus, renderSelected});
+  };
+  const selectSvgTab = (id, focus = false, capture = true) => {
+    return runtime.tabs.select('svg', id, {focus, capture});
+  };
+  const closeDotTab = (id) => runtime.tabs.close('dot', id);
+  const closeSvgTab = (id) => runtime.tabs.close('svg', id);
 
   function svgTabEdited(tab) {
     return tab.source !== tab.editBaseSource;
-  }
-
-  function captureActiveDotTab() {
-    const tab = activeDotTab();
-    if (!tab || !editor) return;
-    tab.source = editor.getSource();
-    tab.selection = editor.getSelection();
-    syncRefFromParent('dot', tab.id);
-  }
-
-  function captureActiveSvgTab() {
-    const tab = activeSvgTab();
-    if (!tab) return;
-    if (showingSvgSource) tab.source = svgEditor.getSource();
-    else if (currentSvg) tab.source = lastSvgSource;
-    tab.view = {...view};
-    tab.showingSource = showingSvgSource;
-    syncRefFromParent('svg', tab.id);
-  }
-
-  function createDotTab(source = starter, options = {}) {
-    const tab = {
-      id: `dot-${nextDotTab++}`,
-      label: options.label || tabLabel(options.path, 'dot'),
-      path: options.path,
-      source,
-      cleanSource: options.cleanSource ?? source,
-      selection: options.selection || {start: 0, end: 0}
-    };
-    dotTabs.push(tab);
-    return tab;
-  }
-
-  function addEmptyDotTab() {
-    const tab = createDotTab('', {label: 'Untitled'});
-    selectDotTab(tab.id, true);
-  }
-
-  function createSvgTab(source = '', options = {}) {
-    const tab = {
-      id: `svg-${nextSvgTab++}`,
-      label: options.label || tabLabel(options.path, 'svg'),
-      path: options.path,
-      source,
-      cleanSource: options.cleanSource ?? source,
-      editBaseSource: options.editBaseSource ?? source,
-      view: options.view,
-      showingSource: options.showingSource === true,
-      sourceDotId: options.sourceDotId
-    };
-    svgTabs.push(tab);
-    return tab;
-  }
-
-  function documentTabs(kind) {
-    return kind === 'dot' ? dotTabs : svgTabs;
-  }
-
-  function activeDocumentTabId(kind) {
-    return kind === 'dot' ? activeDotTabId : activeSvgTabId;
-  }
-
-  function documentTabContainer(kind) {
-    return kind === 'dot' ? dotDocumentTabs : svgDocumentTabs;
-  }
-
-  function parentTab(kind, id) {
-    return documentTabs(kind).find((tab) => tab.id === id);
-  }
-
-  function refForParent(kind, parentId) {
-    return refTabs.find((tab) => {
-      return tab.kind === kind && tab.parentId === parentId;
-    });
-  }
-
-  function canAddRef(kind, id) {
-    const tab = parentTab(kind, id);
-    return Boolean(tab?.source.trim() && !refForParent(kind, id));
-  }
-
-  function updateRefActions() {
-    addDotRef.disabled = !canAddRef('dot', activeDotTabId);
-    addSvgRef.disabled = !canAddRef('svg', activeSvgTabId);
-  }
-
-  function documentTabKeydown(event, kind) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
-      .includes(event.key)) return;
-    event.preventDefault();
-    const tabs = documentTabs(kind);
-    const current = tabs.findIndex((tab) => {
-      return tab.id === event.currentTarget.dataset.documentTab;
-    });
-    let next = current;
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    else if (event.key === 'ArrowLeft') {
-      next = (current - 1 + tabs.length) % tabs.length;
-    } else {
-      next = (current + 1) % tabs.length;
-    }
-    if (kind === 'dot') selectDotTab(tabs[next].id, true);
-    else selectSvgTab(tabs[next].id, true);
-  }
-
-  function moveTab(kind, sourceId, targetId, after) {
-    const order = kind === 'explorer'
-      ? explorerOrder
-      : documentTabs(kind).map((tab) => tab.id);
-    const source = order.indexOf(sourceId);
-    const target = order.indexOf(targetId);
-    if (source < 0 || target < 0 || source === target) return;
-    order.splice(source, 1);
-    let insertion = order.indexOf(targetId) + (after ? 1 : 0);
-    insertion = Math.max(0, Math.min(order.length, insertion));
-    order.splice(insertion, 0, sourceId);
-    if (kind === 'explorer') {
-      explorerOrder = order;
-      syncExplorerTabOrder();
-    } else {
-      const byId = new Map(documentTabs(kind).map((tab) => [tab.id, tab]));
-      const reordered = order.map((id) => byId.get(id));
-      if (kind === 'dot') dotTabs = reordered;
-      else svgTabs = reordered;
-      renderDocumentTabs(kind);
-    }
-    queueSaveSession();
-  }
-
-  function enableTabDrag(wrapper, kind, id) {
-    if (wrapper.dataset.dragEnabled) return;
-    wrapper.dataset.dragEnabled = 'true';
-    wrapper.draggable = true;
-    wrapper.addEventListener('dragstart', (event) => {
-      draggedTab = {kind, id};
-      wrapper.classList.add('is-dragging');
-      event.dataTransfer?.setData('text/plain', id);
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copyMove';
-    });
-    wrapper.addEventListener('dragover', (event) => {
-      if (draggedTab?.kind !== kind) return;
-      event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    });
-    wrapper.addEventListener('drop', (event) => {
-      if (draggedTab?.kind !== kind) return;
-      event.preventDefault();
-      const bounds = wrapper.getBoundingClientRect();
-      const after = event.clientX > bounds.left + bounds.width / 2;
-      moveTab(kind, draggedTab.id, id, after);
-    });
-    wrapper.addEventListener('dragend', () => {
-      wrapper.classList.remove('is-dragging');
-      draggedTab = undefined;
-    });
-  }
-
-  function renderDocumentTabs(kind) {
-    const container = documentTabContainer(kind);
-    const activeId = activeDocumentTabId(kind);
-    container.replaceChildren();
-    for (const tab of documentTabs(kind)) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'document-tab-control';
-      wrapper.classList.toggle('active', tab.id === activeId);
-      const control = document.createElement('button');
-      control.type = 'button';
-      control.className = 'document-tab';
-      control.dataset.documentTab = tab.id;
-      control.setAttribute('role', 'tab');
-      control.setAttribute('aria-selected', String(tab.id === activeId));
-      control.tabIndex = tab.id === activeId ? 0 : -1;
-      control.textContent = tab.label;
-      control.title = tab.path || tab.label;
-      control.addEventListener('click', () => {
-        if (kind === 'dot') selectDotTab(tab.id);
-        else selectSvgTab(tab.id);
-      });
-      control.addEventListener('keydown', (event) => {
-        documentTabKeydown(event, kind);
-      });
-      const close = document.createElement('button');
-      close.type = 'button';
-      close.className = 'document-tab-close';
-      const dirty = tabDirty(tab);
-      close.textContent = dirty ? 'O' : 'X';
-      close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
-      close.setAttribute('aria-label', `Close ${tab.label}`);
-      close.addEventListener('click', (event) => {
-        event.stopPropagation?.();
-        if (kind === 'dot') closeDotTab(tab.id);
-        else closeSvgTab(tab.id);
-      });
-      wrapper.append(control, close);
-      enableTabDrag(wrapper, kind, tab.id);
-      container.append(wrapper);
-    }
-    if (kind === 'dot') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'document-tab-control document-tab-add-control';
-      wrapper.setAttribute('role', 'presentation');
-      const add = document.createElement('button');
-      add.type = 'button';
-      add.className = 'document-tab-add';
-      add.setAttribute('aria-label', 'Add empty DOT tab');
-      add.title = 'Add empty DOT tab';
-      add.textContent = '+';
-      add.addEventListener('click', addEmptyDotTab);
-      wrapper.append(add);
-      container.append(wrapper);
-    }
-    updateRefActions();
   }
 
   function clearSvgDocument() {
@@ -1401,107 +1258,6 @@
     setState('ready', tab.path ? 'Loaded' : 'Rendered');
   }
 
-  function selectDotTab(id, focus = false, renderSelected = true) {
-    const tab = dotTabs.find((item) => item.id === id);
-    if (!tab) return;
-    if (id === activeDotTabId) {
-      if (focus) {
-        dotDocumentTabs.querySelector(
-          `[data-document-tab="${id}"]`
-        )?.focus();
-      }
-      return;
-    }
-    captureActiveDotTab();
-    invalidateRender();
-    clearTimeout(renderTimer);
-    activeDotTabId = id;
-    editor.setSource(tab.source, {
-      history: 'reset',
-      notify: false,
-      selection: tab.selection
-    });
-    clearVisualSelection();
-    error.hidden = true;
-    setEditorProblem();
-    sourceStatus.textContent = 'Ready';
-    renderDocumentTabs('dot');
-    queueSaveSession();
-    if (renderSelected && autoRender.checked) renderNow();
-    if (focus) {
-      dotDocumentTabs.querySelector(
-        `[data-document-tab="${id}"]`
-      )?.focus();
-    }
-  }
-
-  function selectSvgTab(id, focus = false, capture = true) {
-    const tab = svgTabs.find((item) => item.id === id);
-    if (!tab) return;
-    if (capture && id === activeSvgTabId) {
-      if (focus) {
-        svgDocumentTabs.querySelector(
-          `[data-document-tab="${id}"]`
-        )?.focus();
-      }
-      return;
-    }
-    if (capture) captureActiveSvgTab();
-    activeSvgTabId = id;
-    displayActiveSvgTab();
-    renderDocumentTabs('svg');
-    queueSaveSession();
-    if (focus) {
-      svgDocumentTabs.querySelector(
-        `[data-document-tab="${id}"]`
-      )?.focus();
-    }
-  }
-
-  function closeDotTab(id) {
-    captureActiveDotTab();
-    const index = dotTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const tab = dotTabs[index];
-    if (tabDirty(tab)
-      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
-      return;
-    }
-    const wasActive = id === activeDotTabId;
-    dotTabs.splice(index, 1);
-    if (!dotTabs.length) createDotTab();
-    if (wasActive) {
-      activeDotTabId = undefined;
-      const next = dotTabs[Math.min(index, dotTabs.length - 1)];
-      selectDotTab(next.id, true);
-    } else {
-      renderDocumentTabs('dot');
-      queueSaveSession();
-    }
-  }
-
-  function closeSvgTab(id) {
-    captureActiveSvgTab();
-    const index = svgTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const tab = svgTabs[index];
-    if (tabDirty(tab)
-      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
-      return;
-    }
-    const wasActive = id === activeSvgTabId;
-    svgTabs.splice(index, 1);
-    if (!svgTabs.length) createSvgTab();
-    if (wasActive) {
-      activeSvgTabId = undefined;
-      const next = svgTabs[Math.min(index, svgTabs.length - 1)];
-      selectSvgTab(next.id, true, false);
-    } else {
-      renderDocumentTabs('svg');
-      queueSaveSession();
-    }
-  }
-
   if (typeof ResizeObserver === 'function') {
     const editorResizeObserver = new ResizeObserver(() => {
       refreshEditor();
@@ -1511,27 +1267,8 @@
     editorResizeObserver.observe(svgSource);
   }
 
-  function validTheme(candidate) {
-    return themes.includes(candidate) ? candidate : 'system';
-  }
-
-  function applyTheme(candidate, persist = true) {
-    const selected = validTheme(candidate);
-    const effective = selected === 'system'
-      ? (themeMedia.matches ? 'dark' : 'light')
-      : selected;
-    theme.value = selected;
-    document.documentElement.dataset.theme = selected;
-    document.documentElement.dataset.effectiveTheme = effective;
-    document.documentElement.style.colorScheme = effective;
-    editor.setTheme(effective);
-    svgEditor.setTheme(effective);
-    if (persist) queueSaveSession();
-  }
-
-  function systemThemeChanged() {
-    if (theme.value === 'system') applyTheme('system', false);
-  }
+  const validTheme = runtime.theme.valid;
+  const applyTheme = runtime.theme.apply;
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -1717,582 +1454,32 @@
     }
   }
 
-  function docsTabById(id) {
-    return docsTabs.find((tab) => tab.id === id);
-  }
+  const setHelpOpen = runtime.dialogs.setHelpOpen;
+  const explorer = runtime.explorer;
+  const setExplorerView = explorer.setView;
+  const syncExplorerTabOrder = explorer.syncOrder;
+  const docsTabs = explorer.docs.list();
+  const refTabs = explorer.refs.list();
+  const renderDocsTabs = explorer.docs.render;
+  const renderRefTabs = explorer.refs.render;
+  const openDocsTab = explorer.docs.open;
+  const refreshHelpVariant = explorer.docs.refreshVariant;
+  const setHelpVariant = explorer.docs.setVariant;
+  const addRef = explorer.refs.add;
+  const canAddRef = explorer.refs.can;
+  const syncRefFromParent = explorer.refs.syncFromParent;
+  const syncAllRefs = explorer.refs.syncAll;
+  const updateRefActions = explorer.refs.updateActions;
+  const normalizeClayPath = explorer.tree.normalize;
+  const refreshFileTree = explorer.tree.refresh;
+  const showFileExplorer = explorer.tree.show;
+  const closeFileContext = explorer.context.close;
 
-  function refTabById(id) {
-    return refTabs.find((tab) => tab.id === id);
-  }
-
-  function explorerTabButtons() {
-    return Array.from(explorerTabs.querySelectorAll('[role="tab"]'));
-  }
-
-  function validExplorerView(viewName) {
-    return permanentExplorerViews.includes(viewName) ||
-      Boolean(docsTabById(viewName)) || Boolean(refTabById(viewName));
-  }
-
-  function setExplorerView(viewName, focus = false) {
-    explorerView = validExplorerView(viewName)
-      ? viewName
-      : 'dot-files';
-    for (const tab of explorerTabButtons()) {
-      const active = tab.dataset.explorerView === explorerView;
-      tab.setAttribute('aria-selected', String(active));
-      tab.tabIndex = active ? 0 : -1;
-      tab.classList.toggle('active', active);
-      tab.parentElement?.classList.toggle('active', active);
-      const panelId = tab.getAttribute('aria-controls');
-      const panel = panelId ? document.getElementById(panelId) : undefined;
-      if (panel) panel.hidden = !active;
-    }
-    const selectedDocs = docsTabById(explorerView);
-    if (selectedDocs && docsAvailable === true) {
-      const frame = document.querySelector(
-        `#${selectedDocs.id}-panel iframe`
-      );
-      if (frame && !frame.getAttribute('src')) {
-        frame.src = `${docsRoot}${selectedDocs.path}`;
-      }
-    }
-    if (focus) {
-      explorerTabs.querySelector(
-        `[data-explorer-view="${explorerView}"]`
-      )?.focus();
-    }
-    refreshEditor();
-    queueSaveSession();
-  }
-
-  function explorerTabKeydown(event) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
-      .includes(event.key)) return;
-    event.preventDefault();
-    const tabs = explorerTabButtons();
-    const current = tabs.indexOf(event.currentTarget);
-    let next = current;
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    else if (event.key === 'ArrowLeft') {
-      next = (current - 1 + tabs.length) % tabs.length;
-    } else {
-      next = (current + 1) % tabs.length;
-    }
-    setExplorerView(tabs[next].dataset.explorerView, true);
-  }
-
-  function docsTabLabel(documentTitle) {
-    const ignored = new Set(['docs', 'graph viz']);
-    const names = String(documentTitle || '').split(/\s*(?:>|\/)\s*/)
-      .map((name) => name.trim())
-      .filter((name) => name && !ignored.has(name.toLowerCase()));
-    return names.length ? names[names.length - 1] : 'Docs';
-  }
-
-  function usefulDocsTitle(title) {
-    return docsTabLabel(title) !== 'Docs';
-  }
-
-  function syncDocsTab(tab, control, close, frame) {
-    try {
-      const title = frame.contentDocument?.title?.trim();
-      const pathname = frame.contentWindow?.location?.pathname || '';
-      if (usefulDocsTitle(title)) {
-        tab.title = title;
-        control.textContent = docsTabLabel(title);
-        control.title = title;
-        close.setAttribute(
-          'aria-label',
-          `Close ${docsTabLabel(title)}`
-        );
-      }
-      if (pathname.startsWith(docsRoot)) {
-        tab.path = pathname.slice(docsRoot.length);
-        control.dataset.docPath = tab.path;
-      }
-      queueSaveSession();
-      const titleNode = frame.contentDocument?.querySelector('title');
-      if (titleNode && typeof MutationObserver !== 'undefined') {
-        const observer = new MutationObserver(() => {
-          const nextTitle = frame.contentDocument?.title?.trim();
-          if (!usefulDocsTitle(nextTitle)) return;
-          tab.title = nextTitle;
-          control.textContent = docsTabLabel(nextTitle);
-          control.title = nextTitle;
-          close.setAttribute(
-            'aria-label',
-            `Close ${docsTabLabel(nextTitle)}`
-          );
-          queueSaveSession();
-        });
-        observer.observe(titleNode, {childList: true, characterData: true,
-          subtree: true});
-      }
-    } catch (_) {
-      // The docs frame remains usable if its title cannot be inspected.
-    }
-  }
-
-  function syncExplorerTabOrder() {
-    const available = [
-      ...permanentExplorerViews,
-      ...docsTabs.map((tab) => tab.id),
-      ...refTabs.map((tab) => tab.id)
-    ];
-    explorerOrder = explorerOrder.filter((id) => available.includes(id));
-    for (const id of available) {
-      if (!explorerOrder.includes(id)) explorerOrder.push(id);
-    }
-    const wrappers = new Map(
-      Array.from(explorerTabs.children).map((wrapper) => {
-        return [wrapper.dataset.explorerTabId, wrapper];
-      })
-    );
-    for (const id of explorerOrder) {
-      const wrapper = wrappers.get(id);
-      if (!wrapper) continue;
-      enableTabDrag(wrapper, 'explorer', id);
-      explorerTabs.append(wrapper);
-    }
-  }
-
-  function createDocsTab(tab) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'docs-tab-control';
-    wrapper.setAttribute('role', 'presentation');
-    wrapper.dataset.docsTab = tab.id;
-    wrapper.dataset.explorerTabId = tab.id;
-    const control = document.createElement('button');
-    control.type = 'button';
-    control.className = 'docs-tab';
-    control.id = `${tab.id}-tab`;
-    control.dataset.explorerView = tab.id;
-    control.dataset.docPath = tab.path;
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', 'false');
-    control.setAttribute('aria-controls', `${tab.id}-panel`);
-    control.tabIndex = -1;
-    control.textContent = docsTabLabel(tab.title);
-    control.title = tab.title;
-    control.addEventListener('click', () => setExplorerView(tab.id));
-    control.addEventListener('keydown', explorerTabKeydown);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'docs-tab-close';
-    close.setAttribute('aria-label', `Close ${tab.title}`);
-    close.textContent = 'X';
-    close.addEventListener('click', () => closeDocsTab(tab.id));
-    wrapper.append(control, close);
-    explorerTabs.append(wrapper);
-    const panel = document.createElement('div');
-    panel.className = 'explorer-panel docs-explorer-panel';
-    panel.id = `${tab.id}-panel`;
-    panel.hidden = true;
-    panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', control.id);
-    const frame = document.createElement('iframe');
-    frame.className = 'docs-explorer-frame';
-    frame.title = `${tab.title} documentation`;
-    frame.addEventListener(
-      'load',
-      () => syncDocsTab(tab, control, close, frame)
-    );
-    frame.addEventListener('error', disableDocsExplorer);
-    panel.append(frame);
-    explorerPane.append(panel);
-    syncExplorerTabOrder();
-  }
-
-  function renderDocsTabs() {
-    for (const node of explorerTabs.querySelectorAll('[data-docs-tab]')) {
-      node.remove();
-    }
-    for (const node of explorerPane.querySelectorAll(
-      '.docs-explorer-panel'
-    )) {
-      node.remove();
-    }
-    for (const tab of docsTabs) createDocsTab(tab);
-    syncExplorerTabOrder();
-  }
-
-  function updateRefContent(tab) {
-    const panel = document.getElementById(`${tab.id}-panel`);
-    if (!panel) return;
-    const source = document.createElement('pre');
-    source.className = 'ref-source';
-    source.textContent = tab.source;
-    panel.replaceChildren(source);
-  }
-
-  function createRefTabControl(tab) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'docs-tab-control ref-tab-control';
-    wrapper.setAttribute('role', 'presentation');
-    wrapper.dataset.refTab = tab.id;
-    wrapper.dataset.explorerTabId = tab.id;
-    const control = document.createElement('button');
-    control.type = 'button';
-    control.className = 'docs-tab ref-tab';
-    control.id = `${tab.id}-tab`;
-    control.dataset.explorerView = tab.id;
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', 'false');
-    control.setAttribute('aria-controls', `${tab.id}-panel`);
-    control.tabIndex = -1;
-    control.textContent = tab.label;
-    control.title = tab.label;
-    control.addEventListener('click', () => setExplorerView(tab.id));
-    control.addEventListener('keydown', explorerTabKeydown);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'docs-tab-close ref-tab-close';
-    close.setAttribute('aria-label', `Close ${tab.label} reference`);
-    close.textContent = 'X';
-    close.addEventListener('click', () => closeRefTab(tab.id));
-    wrapper.append(control, close);
-    explorerTabs.append(wrapper);
-    const panel = document.createElement('div');
-    panel.className = 'explorer-panel ref-explorer-panel';
-    panel.id = `${tab.id}-panel`;
-    panel.hidden = true;
-    panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', control.id);
-    explorerPane.append(panel);
-    updateRefContent(tab);
-  }
-
-  function renderRefTabs() {
-    for (const node of explorerTabs.querySelectorAll('[data-ref-tab]')) {
-      node.remove();
-    }
-    for (const node of explorerPane.querySelectorAll(
-      '.ref-explorer-panel'
-    )) {
-      node.remove();
-    }
-    for (const tab of refTabs) createRefTabControl(tab);
-    syncExplorerTabOrder();
-    updateRefActions();
-  }
-
-  function syncRefFromParent(kind, parentId) {
-    const ref = refForParent(kind, parentId);
-    const parent = parentTab(kind, parentId);
-    if (!ref || !parent) return;
-    ref.label = parent.label;
-    ref.source = parent.source;
-    const control = explorerTabs.querySelector(
-      `[data-explorer-view="${ref.id}"]`
-    );
-    if (control) {
-      control.textContent = ref.label;
-      control.title = ref.label;
-      control.parentElement?.querySelector('.ref-tab-close')
-        ?.setAttribute('aria-label', `Close ${ref.label} reference`);
-    }
-    updateRefContent(ref);
-    updateRefActions();
-  }
-
-  function syncAllRefs() {
-    for (const ref of refTabs) {
-      syncRefFromParent(ref.kind, ref.parentId);
-    }
-  }
-
-  function addRef(kind, parentId) {
-    if (kind === 'dot' && parentId === activeDotTabId) {
-      captureActiveDotTab();
-    }
-    if (kind === 'svg' && parentId === activeSvgTabId) {
-      captureActiveSvgTab();
-    }
-    if (!canAddRef(kind, parentId)) return;
-    const parent = parentTab(kind, parentId);
-    const tab = {
-      id: `ref-${nextRef++}`,
-      kind,
-      parentId,
-      label: parent.label,
-      source: parent.source
-    };
-    refTabs.push(tab);
-    explorerOrder.push(tab.id);
-    createRefTabControl(tab);
-    syncExplorerTabOrder();
-    if (!explorerOpen) {
-      explorerOpen = true;
-      applyExplorerLayout();
-    }
-    setExplorerView(tab.id, true);
-    renderDocumentTabs(kind);
-    queueSaveSession();
-  }
-
-  function closeRefTab(id) {
-    const index = refTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const tab = refTabs[index];
-    const wasActive = explorerView === id;
-    const orderIndex = explorerOrder.indexOf(id);
-    document.querySelector(`[data-ref-tab="${id}"]`)?.remove();
-    document.querySelector(`#${id}-panel`)?.remove();
-    refTabs.splice(index, 1);
-    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
-    if (wasActive) {
-      const neighbor = explorerOrder[
-        Math.min(orderIndex, explorerOrder.length - 1)
-      ];
-      setExplorerView(neighbor || '', true);
-    }
-    renderDocumentTabs(tab.kind);
-    queueSaveSession();
-  }
-
-  function openDocsTab(title, path) {
-    if (docsAvailable !== true) return;
-    if (!explorerOpen) {
-      explorerOpen = true;
-      applyExplorerLayout();
-    }
-    const existing = docsTabs.find((tab) => tab.path === path);
-    if (existing) {
-      setHelpOpen(false);
-      setExplorerView(existing.id, true);
-      return;
-    }
-    const tab = {id: `docs-${nextDocs++}`, title, path};
-    docsTabs.push(tab);
-    explorerOrder.push(tab.id);
-    createDocsTab(tab);
-    setHelpOpen(false);
-    setExplorerView(tab.id, true);
-  }
-
-  function closeDocsTab(id) {
-    const index = docsTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const wasActive = explorerView === id;
-    const orderIndex = explorerOrder.indexOf(id);
-    document.querySelector(`[data-docs-tab="${id}"]`)?.remove();
-    document.querySelector(`#${id}-panel`)?.remove();
-    docsTabs.splice(index, 1);
-    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
-    if (wasActive) {
-      const neighbor = explorerOrder[
-        Math.min(orderIndex, explorerOrder.length - 1)
-      ];
-      setExplorerView(neighbor || '', true);
-    } else {
-      queueSaveSession();
-    }
-  }
-
-  function parseDocsToc(source) {
-    const root = [];
-    const folders = [];
-    for (const line of source.split(/\r?\n/)) {
-      const match = line.match(
-        /^(\s*)(\/[^\s]+)(?:\s+(.*\S))?\s*$/
-      );
-      if (!match) continue;
-      const indentation = match[1].replace(/\t/g, '  ').length;
-      if (indentation % 2 !== 0) continue;
-      const level = indentation / 2;
-      const parts = match[2].slice(1).split('/').filter(Boolean);
-      if (parts.length < 1 || parts.length > 2 ||
-        !parts.every((part) => /^[A-Za-z0-9._~-]+$/.test(part))) {
-        continue;
-      }
-      const children = level === 0
-        ? root
-        : folders[level - 1]?.children;
-      if (!children) continue;
-      const folder = parts.length === 1;
-      const entry = {
-        children: folder ? [] : undefined,
-        folder,
-        slug: parts[0],
-        title: match[3] || parts[0]
-      };
-      children.push(entry);
-      folders.length = level;
-      if (folder) folders[level] = entry;
-    }
-    return root;
-  }
-
-  function appendDocsEntries(container, entries, parentPath = []) {
-    for (const entry of entries) {
-      const path = [...parentPath, entry.slug];
-      if (entry.folder) {
-        const group = document.createElement('details');
-        group.className = 'docs-help-group';
-        const summary = document.createElement('summary');
-        summary.className = 'docs-help-summary';
-        summary.textContent = entry.title;
-        const subnav = document.createElement('div');
-        subnav.className = 'docs-help-subnav';
-        appendDocsEntries(subnav, entry.children, path);
-        group.append(summary, subnav);
-        container.append(group);
-        continue;
-      }
-      const docPath = path.join('/');
-      const link = document.createElement('a');
-      link.className = 'docs-help-link';
-      link.href = `${docsRoot}${docPath}`;
-      link.dataset.docPath = docPath;
-      link.textContent = entry.title;
-      link.addEventListener('click', (event) => {
-        event.preventDefault();
-        openDocsTab(entry.title, docPath);
-      });
-      container.append(link);
-    }
-  }
-
-  async function loadDocsTree() {
-    if (docsTreeLoaded) return true;
-    try {
-      const response = await fetch('/apps/graph-viz/doc.toc', {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-      const contentType = response.headers.get('content-type') || '';
-      if (!response.ok || !contentType.includes('text/plain')) return false;
-      const entries = parseDocsToc(await response.text());
-      if (!entries.length) return false;
-      const tree = document.createDocumentFragment();
-      appendDocsEntries(tree, entries);
-      docsHelpNav.replaceChildren(tree);
-      docsHelpNav.setAttribute('aria-busy', 'false');
-      docsTreeLoaded = true;
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function disableDocsExplorer() {
-    docsAvailable = false;
-    const wasDocs = Boolean(docsTabById(explorerView));
-    docsTabs = [];
-    renderDocsTabs();
-    if (wasDocs) setExplorerView(explorerOrder[0] || '');
-    setHelpVariant(false);
-  }
-
-  function setHelpVariant(useDocs) {
-    fallbackHelpContent.hidden = useDocs;
-    docsHelpContent.hidden = !useDocs;
-    if (useDocs && docsTabById(explorerView)) {
-      setExplorerView(explorerView);
-    }
-  }
-
-  function setHelpOpen(open, restoreFocus = false) {
-    helpPanel.hidden = !open;
-    help.setAttribute('aria-expanded', String(open));
-    if (open) {
-      setHelpVariant(docsAvailable === true);
-      refreshHelpVariant();
-      closeHelp.focus();
-    }
-    if (!open && restoreFocus) help.focus();
-  }
-
-  async function refreshHelpVariant() {
-    if (docsCheckPending || docsAvailable === true) return;
-    docsCheckPending = true;
-    try {
-      const response = await fetch('/docs', {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-      const responseUrl = new URL(response.url, window.location.origin);
-      const contentType = response.headers.get('content-type') || '';
-      const docsPath = responseUrl.pathname === '/docs' ||
-        responseUrl.pathname.startsWith('/docs/');
-      docsAvailable = response.ok &&
-        responseUrl.origin === window.location.origin && docsPath &&
-        contentType.includes('text/html');
-      if (docsAvailable) docsAvailable = await loadDocsTree();
-    } catch (_) {
-      docsAvailable = false;
-    } finally {
-      docsCheckPending = false;
-    }
-    if (docsAvailable) setHelpVariant(true);
-    else disableDocsExplorer();
-  }
-
-  function showClayError(cause) {
-    if (!clayErrorModal.contains(document.activeElement)) {
-      clayErrorReturnFocus = document.activeElement;
-    }
-    clayErrorMessage.textContent = String(cause);
-    clayErrorModal.hidden = false;
-    closeClayError.focus();
-  }
-
-  function hideClayError() {
-    clayErrorModal.hidden = true;
-    clayErrorReturnFocus?.focus?.();
-    clayErrorReturnFocus = undefined;
-  }
-
-  function closeFileContext(restoreFocus = false) {
-    fileContextMenu.hidden = true;
-    if (contextFileSource) {
-      contextFileSource.setAttribute('aria-expanded', 'false');
-      if (restoreFocus) contextFileSource.focus();
-    }
-    contextFileKind = undefined;
-    contextFilePath = undefined;
-    contextFileSource = undefined;
-  }
-
-  function openFileContext(kind, path, source, event) {
-    event.preventDefault();
-    event.stopPropagation();
-    closeFileContext();
-    contextFileKind = kind;
-    contextFilePath = path;
-    contextFileSource = source;
-    source.setAttribute('aria-expanded', 'true');
-    fileContextMenu.style.left = '0px';
-    fileContextMenu.style.top = '0px';
-    fileContextMenu.hidden = false;
-    const menuRect = fileContextMenu.getBoundingClientRect();
-    const sourceRect = source.getBoundingClientRect();
-    const margin = 8;
-    const maximumLeft = window.innerWidth - menuRect.width - margin;
-    const maximumTop = window.innerHeight - menuRect.height - margin;
-    const pointer = event.type === 'contextmenu';
-    const left = clamp(
-      pointer ? event.clientX : sourceRect.right,
-      margin,
-      Math.max(margin, maximumLeft)
-    );
-    const top = clamp(
-      pointer ? event.clientY : sourceRect.top,
-      margin,
-      Math.max(margin, maximumTop)
-    );
-    fileContextMenu.style.left = `${left}px`;
-    fileContextMenu.style.top = `${top}px`;
-    fileContextOpen.focus();
-  }
+  const showClayError = runtime.dialogs.showError;
+  const hideClayError = runtime.dialogs.hideError;
 
   async function openContextFile() {
-    const kind = contextFileKind;
-    const path = contextFilePath;
+    const {kind, path} = explorer.context.target();
     closeFileContext();
     if (!kind || !path) return;
     if (kind === 'dot') await loadCurrentDot(path);
@@ -2300,9 +1487,7 @@
   }
 
   async function deleteContextFile() {
-    const kind = contextFileKind;
-    const path = contextFilePath;
-    const source = contextFileSource;
+    const {kind, path, source} = explorer.context.target();
     if (!kind || !path) return;
     if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
       closeFileContext();
@@ -2321,132 +1506,8 @@
     }
   }
 
-  function fileContextKeydown(event) {
-    const items = [fileContextOpen, fileContextDelete]
-      .filter((item) => !item.disabled);
-    const current = items.indexOf(document.activeElement);
-    let next = current;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      closeFileContext(true);
-      return;
-    }
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = items.length - 1;
-    else if (event.key === 'ArrowDown') {
-      next = (current + 1) % items.length;
-    } else if (event.key === 'ArrowUp') {
-      next = (current - 1 + items.length) % items.length;
-    } else {
-      return;
-    }
-    event.preventDefault();
-    items[next].focus();
-  }
-
-  function normalizeClayPath(value) {
-    const path = value.trim().replace(/^\/+/, '');
-    if (!path || path.split('/').some((part) => {
-      return !part || part === '.' || part === '..';
-    })) {
-      throw new Error('Enter a relative Clay path');
-    }
-    if (!/^[A-Za-z0-9._~/-]+$/.test(path)) {
-      throw new Error('Clay path contains unsupported characters');
-    }
-    return path;
-  }
-
-  function renderFileTree(paths, kind) {
-    const tree = kind === 'dot' ? dotFilesTree : svgFilesTree;
-    const root = new Map();
-    for (const rawPath of paths) {
-      if (typeof rawPath !== 'string') {
-        throw new Error('Invalid Clay file list');
-      }
-      const path = normalizeClayPath(rawPath);
-      const parts = path.split('/');
-      let branch = root;
-      for (const [index, name] of parts.entries()) {
-        if (!branch.has(name)) {
-          branch.set(name, {children: new Map(), path: undefined});
-        }
-        const node = branch.get(name);
-        if (index === parts.length - 1) node.path = path;
-        branch = node.children;
-      }
-    }
-    tree.replaceChildren();
-    tree.setAttribute('aria-busy', 'false');
-    if (!root.size) {
-      tree.textContent =
-        `No /${kind === 'dot' ? 'txt' : 'svg'} files found.`;
-      return;
-    }
-    function appendFile(item, label, path) {
-      const row = document.createElement('div');
-      row.className = 'explorer-file-row';
-      row.setAttribute('role', 'treeitem');
-      const file = document.createElement('button');
-      file.type = 'button';
-      file.className = 'file-tree-file';
-      file.dataset.path = path;
-      file.textContent = label;
-      file.title = path;
-      file.addEventListener('click', async () => {
-        closeFileContext();
-        if (kind === 'dot') {
-          await loadCurrentDot(path);
-        } else {
-          await loadCurrentSvg(path);
-        }
-      });
-      row.addEventListener('contextmenu', (event) => {
-        openFileContext(kind, path, file, event);
-      });
-      const actions = document.createElement('button');
-      actions.type = 'button';
-      actions.className = 'file-tree-actions';
-      actions.setAttribute('aria-label', `Actions for ${label}`);
-      actions.setAttribute('aria-haspopup', 'menu');
-      actions.setAttribute('aria-expanded', 'false');
-      actions.textContent = '…';
-      actions.addEventListener('click', (event) => {
-        openFileContext(kind, path, actions, event);
-      });
-      row.append(file, actions);
-      item.append(row);
-    }
-    function renderBranch(branch) {
-      const list = document.createElement('ul');
-      list.className = 'file-tree-list';
-      const entries = [...branch.entries()]
-        .sort(([left], [right]) => left.localeCompare(right));
-      for (const [name, node] of entries) {
-        const item = document.createElement('li');
-        const children = [...node.children.entries()];
-        const suffix = children.length === 1 ? children[0] : undefined;
-        if (!node.path && suffix && suffix[1].path
-          && !suffix[1].children.size) {
-          appendFile(item, `${name}/${suffix[0]}`, suffix[1].path);
-          list.append(item);
-          continue;
-        }
-        if (node.children.size) {
-          const directory = document.createElement('div');
-          directory.className = 'file-tree-directory';
-          directory.textContent = `${name}/`;
-          item.append(directory);
-        }
-        if (node.path) appendFile(item, name, node.path);
-        if (node.children.size) item.append(renderBranch(node.children));
-        list.append(item);
-      }
-      return list;
-    }
-    tree.append(renderBranch(root));
-  }
-
+  //  The recursive walk stays here until stage 5 owns the clay
+  //  endpoints; the runtime only asks for the resulting path list.
   async function browseClayNode(kind, path = '') {
     const headers = path ? {'x-graph-viz-path': path} : {};
     const response = await fetch(
@@ -2475,43 +1536,18 @@
     return paths;
   }
 
-  async function refreshFileTree(kind) {
-    const tree = kind === 'dot' ? dotFilesTree : svgFilesTree;
-    tree.replaceChildren();
-    tree.textContent = 'Loading…';
-    tree.setAttribute('aria-busy', 'true');
+  const validateSource = runtime.session.validateSource;
+  const validSavedSource = (source) => {
     try {
-      renderFileTree(await browseClayNode(kind), kind);
-    } catch (cause) {
-      tree.setAttribute('aria-busy', 'false');
-      tree.replaceChildren();
-      tree.textContent = `Unable to load files: ${String(cause)}`;
-      showClayError(cause);
+      return validateSource(source);
+    } catch (_) {
+      return undefined;
     }
-  }
-
-  function showFileExplorer(kind) {
-    const viewName = kind === 'dot' ? 'dot-files' : 'svg-files';
-    if (!explorerOpen) {
-      explorerOpen = true;
-      applyExplorerLayout();
-    }
-    setExplorerView(viewName, true);
-    refreshFileTree(kind);
-  }
-
-  function sourceByteLength(source) {
-    return new TextEncoder().encode(source).byteLength;
-  }
-
-  function validateSource(source, limit = maxSourceBytes) {
-    if (typeof source !== 'string') throw new Error('DOT must be text');
-    if (source.includes('\0')) throw new Error('DOT contains a null byte');
-    if (sourceByteLength(source) > limit) {
-      throw new Error(`DOT exceeds the ${limit}-byte limit`);
-    }
-    return source;
-  }
+  };
+  const saveSession = runtime.session.save;
+  const queueSaveSession = runtime.session.queue;
+  const loadSession = runtime.session.load;
+  const sourceFromUrl = runtime.session.sourceFromUrl;
 
   function validView(candidate) {
     if (!candidate || typeof candidate !== 'object') return undefined;
@@ -2525,380 +1561,6 @@
       x: candidate.x,
       y: candidate.y
     };
-  }
-
-  function validDocsTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^docs-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    if (typeof candidate.title !== 'string' || !candidate.title.trim()
-      || candidate.title.length > 200) return undefined;
-    if (typeof candidate.path !== 'string' || !candidate.path
-      || candidate.path.length > 1_024
-      || candidate.path.startsWith('/')
-      || candidate.path.split('/').some((part) => {
-        return !part || part === '.' || part === '..';
-      })) return undefined;
-    return {
-      id: candidate.id,
-      title: candidate.title.trim(),
-      path: candidate.path
-    };
-  }
-
-  function validTabPath(path) {
-    if (path === undefined) return undefined;
-    if (typeof path !== 'string' || path.length > 1_024) return undefined;
-    try {
-      return normalizeClayPath(path);
-    } catch (_) {
-      return undefined;
-    }
-  }
-
-  function validTabLabel(label, fallback) {
-    return typeof label === 'string' && label.trim()
-      && label.length <= 200
-      ? label.trim()
-      : fallback;
-  }
-
-  function validSavedSource(source) {
-    try {
-      return validateSource(source);
-    } catch (_) {
-      return undefined;
-    }
-  }
-
-  function validDotTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^dot-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    const source = validSavedSource(candidate.source);
-    if (source === undefined) return undefined;
-    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
-    const path = validTabPath(candidate.path);
-    const start = Number(candidate.selection?.start);
-    const end = Number(candidate.selection?.end);
-    const selection = {
-      start: Number.isFinite(start)
-        ? clamp(Math.trunc(start), 0, source.length)
-        : 0,
-      end: Number.isFinite(end)
-        ? clamp(Math.trunc(end), 0, source.length)
-        : 0
-    };
-    selection.end = Math.max(selection.start, selection.end);
-    return {
-      id: candidate.id,
-      label: validTabLabel(candidate.label, tabLabel(path, 'dot')),
-      path,
-      source,
-      cleanSource,
-      selection
-    };
-  }
-
-  function validSvgTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^svg-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    const source = validSavedSource(candidate.source);
-    if (source === undefined) return undefined;
-    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
-    const editBaseSource = validSavedSource(candidate.editBaseSource)
-      ?? source;
-    const path = validTabPath(candidate.path);
-    const sourceDotId = /^dot-[1-9][0-9]*$/.test(candidate.sourceDotId)
-      ? candidate.sourceDotId
-      : undefined;
-    return {
-      id: candidate.id,
-      label: validTabLabel(candidate.label, tabLabel(path, 'svg')),
-      path,
-      source,
-      cleanSource,
-      editBaseSource,
-      view: validView(candidate.view),
-      showingSource: candidate.showingSource === true,
-      sourceDotId
-    };
-  }
-
-  function validRefTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^ref-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    if (!['dot', 'svg'].includes(candidate.kind)) return undefined;
-    const parentPattern = candidate.kind === 'dot'
-      ? /^dot-[1-9][0-9]*$/
-      : /^svg-[1-9][0-9]*$/;
-    if (!parentPattern.test(candidate.parentId)) return undefined;
-    const source = validSavedSource(candidate.source);
-    if (source === undefined) return undefined;
-    return {
-      id: candidate.id,
-      kind: candidate.kind,
-      parentId: candidate.parentId,
-      label: validTabLabel(candidate.label, 'Reference'),
-      source
-    };
-  }
-
-  function loadSession() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (!saved || saved.version !== 1) return undefined;
-      const source = validSavedSource(saved.source) ?? starter;
-      const paneWidth = Number(saved.paneWidth);
-      const explorerWidth = Number(saved.explorerWidth);
-      const preferences = saved.preferences || {};
-      const seenPaths = new Set();
-      const seenIds = new Set();
-      const savedDocsTabs = Array.isArray(saved.docsTabs)
-        ? saved.docsTabs.map(validDocsTab).filter((tab) => {
-          if (!tab || seenPaths.has(tab.path) || seenIds.has(tab.id)) {
-            return false;
-          }
-          seenPaths.add(tab.path);
-          seenIds.add(tab.id);
-          return true;
-        })
-        : [];
-      const highestDocsId = savedDocsTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(5)) + 1);
-      }, 1);
-      const savedNextDocs = Number(saved.nextDocs);
-      const dotIds = new Set();
-      const dotPaths = new Set();
-      const savedDotTabs = Array.isArray(saved.dotTabs)
-        ? saved.dotTabs.map(validDotTab).filter((tab) => {
-          if (!tab || dotIds.has(tab.id)
-            || (tab.path && dotPaths.has(tab.path))) return false;
-          dotIds.add(tab.id);
-          if (tab.path) dotPaths.add(tab.path);
-          return true;
-        })
-        : [];
-      const svgIds = new Set();
-      const svgPaths = new Set();
-      const savedSvgTabs = Array.isArray(saved.svgTabs)
-        ? saved.svgTabs.map(validSvgTab).filter((tab) => {
-          if (!tab || svgIds.has(tab.id)
-            || (tab.path && svgPaths.has(tab.path))) return false;
-          svgIds.add(tab.id);
-          if (tab.path) svgPaths.add(tab.path);
-          if (tab.sourceDotId && !dotIds.has(tab.sourceDotId)) {
-            tab.sourceDotId = undefined;
-          }
-          return true;
-        })
-        : [];
-      const highestDotId = savedDotTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(4)) + 1);
-      }, 1);
-      const highestSvgId = savedSvgTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(4)) + 1);
-      }, 1);
-      const savedNextDotTab = Number(saved.nextDotTab);
-      const savedNextSvgTab = Number(saved.nextSvgTab);
-      const refParents = new Set();
-      const refIds = new Set();
-      const savedRefTabs = Array.isArray(saved.refTabs)
-        ? saved.refTabs.map(validRefTab).filter((tab) => {
-          if (!tab || refIds.has(tab.id)) return false;
-          const parentKey = `${tab.kind}:${tab.parentId}`;
-          if (refParents.has(parentKey)) return false;
-          refIds.add(tab.id);
-          refParents.add(parentKey);
-          return true;
-        })
-        : [];
-      const highestRefId = savedRefTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(4)) + 1);
-      }, 1);
-      const savedNextRef = Number(saved.nextRef);
-      const savedExplorerView = typeof saved.explorerView === 'string'
-        && (permanentExplorerViews.includes(saved.explorerView)
-          || savedDocsTabs.some((tab) => tab.id === saved.explorerView)
-          || savedRefTabs.some((tab) => tab.id === saved.explorerView))
-        ? saved.explorerView
-        : 'dot-files';
-      const availableExplorerTabs = [
-        ...permanentExplorerViews,
-        ...savedDocsTabs.map((tab) => tab.id),
-        ...savedRefTabs.map((tab) => tab.id)
-      ];
-      const savedExplorerOrder = Array.isArray(saved.explorerOrder)
-        ? saved.explorerOrder.filter((id, index, items) => {
-          return typeof id === 'string'
-            && availableExplorerTabs.includes(id)
-            && items.indexOf(id) === index;
-        })
-        : [];
-      for (const id of availableExplorerTabs) {
-        if (!savedExplorerOrder.includes(id)) savedExplorerOrder.push(id);
-      }
-      return {
-        source,
-        paneWidth: Number.isFinite(paneWidth)
-          ? clamp(paneWidth, 25, 70)
-          : 44,
-        explorerWidth: Number.isFinite(explorerWidth)
-          ? Math.max(explorerWidth, minExplorerWidth)
-          : 288,
-        explorerOpen: saved.explorerOpen !== false,
-        explorerView: savedExplorerView,
-        explorerOrder: savedExplorerOrder,
-        docsTabs: savedDocsTabs,
-        nextDocs: Number.isSafeInteger(savedNextDocs)
-          ? Math.max(savedNextDocs, highestDocsId)
-          : highestDocsId,
-        refTabs: savedRefTabs,
-        nextRef: Number.isSafeInteger(savedNextRef)
-          ? Math.max(savedNextRef, highestRefId)
-          : highestRefId,
-        dotTabs: savedDotTabs,
-        activeDotTabId: dotIds.has(saved.activeDotTabId)
-          ? saved.activeDotTabId
-          : savedDotTabs[0]?.id,
-        nextDotTab: Number.isSafeInteger(savedNextDotTab)
-          ? Math.max(savedNextDotTab, highestDotId)
-          : highestDotId,
-        svgTabs: savedSvgTabs,
-        activeSvgTabId: svgIds.has(saved.activeSvgTabId)
-          ? saved.activeSvgTabId
-          : savedSvgTabs[0]?.id,
-        nextSvgTab: Number.isSafeInteger(savedNextSvgTab)
-          ? Math.max(savedNextSvgTab, highestSvgId)
-          : highestSvgId,
-        view: validView(saved.view),
-        autoRender: preferences.autoRender !== false,
-        theme: validTheme(preferences.theme)
-      };
-    } catch (_) {
-      return undefined;
-    }
-  }
-
-  function currentPaneWidth() {
-    const value = getComputedStyle(workspace)
-      .getPropertyValue('--editor-width');
-    return clamp(parseFloat(value) || 44, 25, 70);
-  }
-
-  function currentExplorerWidth() {
-    const value = getComputedStyle(workbench)
-      .getPropertyValue('--explorer-width');
-    return clamp(
-      parseFloat(value) || 288,
-      minExplorerWidth,
-      maxExplorerWidth()
-    );
-  }
-
-  function maxExplorerWidth() {
-    const bounds = workbench.getBoundingClientRect();
-    return Math.max(
-      minExplorerWidth,
-      bounds.width - explorerDividerWidth
-    );
-  }
-
-  function setExplorerWidth(width) {
-    const nextWidth = clamp(
-      width,
-      minExplorerWidth,
-      maxExplorerWidth()
-    );
-    workbench.style.setProperty('--explorer-width', `${nextWidth}px`);
-    if (editor) refreshEditor();
-  }
-
-  function applyExplorerLayout() {
-    explorerPane.classList.toggle('collapsed', !explorerOpen);
-    workbench.classList.toggle('explorer-collapsed', !explorerOpen);
-    explorerResizer.classList.toggle('inactive', !explorerOpen);
-    explorerResizer.disabled = !explorerOpen;
-    explorerCollapse.setAttribute('aria-expanded', String(explorerOpen));
-    explorerCollapse.setAttribute(
-      'aria-label',
-      explorerOpen ? 'Collapse explorer' : 'Expand explorer'
-    );
-    explorerCollapse.textContent = explorerOpen ? '‹' : '›';
-    refreshEditor();
-  }
-
-  function saveSession() {
-    clearTimeout(saveTimer);
-    try {
-      captureActiveDotTab();
-      captureActiveSvgTab();
-      const source = editor.getSource();
-      validateSource(source);
-      localStorage.setItem(storageKey, JSON.stringify({
-        version: 1,
-        source,
-        paneWidth: currentPaneWidth(),
-        explorerWidth: currentExplorerWidth(),
-        explorerOpen,
-        explorerView,
-        explorerOrder,
-        docsTabs,
-        nextDocs,
-        refTabs,
-        nextRef,
-        dotTabs,
-        activeDotTabId,
-        nextDotTab,
-        svgTabs,
-        activeSvgTabId,
-        nextSvgTab,
-        view,
-        preferences: {
-          autoRender: autoRender.checked,
-          theme: theme.value
-        }
-      }));
-    } catch (_) {
-      // Storage can be disabled or full without blocking the editor.
-    }
-  }
-
-  function queueSaveSession() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveSession, saveDelay);
-  }
-
-  function encodeSource(source) {
-    const bytes = new TextEncoder().encode(source);
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
-  }
-
-  function decodeSource(encoded) {
-    if (!encoded || encoded.length > maxShareParamChars) {
-      throw new Error('Shared DOT parameter is missing or too large');
-    }
-    if (!/^[A-Za-z0-9_-]+$/.test(encoded)) {
-      throw new Error('Shared DOT parameter is invalid');
-    }
-    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-    const binary = atob(padded);
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    const source = new TextDecoder('utf-8', {fatal: true}).decode(bytes);
-    validateSource(source, maxSharedSourceBytes);
-    if (encodeSource(source) !== encoded) {
-      throw new Error('Shared DOT parameter is not canonical');
-    }
-    return source;
-  }
-
-  function sourceFromUrl() {
-    const encoded = new URL(window.location.href).searchParams.get('dot');
-    return encoded === null ? undefined : decodeSource(encoded);
   }
 
   function showClientProblem(message) {
@@ -4344,7 +3006,7 @@
     tab.view = restoredView;
     tab.showingSource = false;
     syncRefFromParent('svg', tab.id);
-    activeSvgTabId = undefined;
+    runtime.tabs.setActiveId('svg', undefined);
     selectSvgTab(tab.id, false, false);
   }
 
@@ -4422,7 +3084,7 @@
   async function render() {
     const uid = latestRequestUid = ++requestUid;
     captureActiveDotTab();
-    const dotTabId = activeDotTabId;
+    const dotTabId = runtime.tabs.activeId('dot');
     const source = editor.getSource();
     try {
       validateSource(source);
@@ -4513,10 +3175,10 @@
   function bootGraphViz() {
   button.addEventListener('click', renderNow);
   addDotRef.addEventListener('click', () => {
-    addRef('dot', activeDotTabId);
+    addRef('dot', runtime.tabs.activeId('dot'));
   });
   addSvgRef.addEventListener('click', () => {
-    addRef('svg', activeSvgTabId);
+    addRef('svg', runtime.tabs.activeId('svg'));
   });
   addNode.addEventListener('click', addVisualNode);
   drawEdge.addEventListener('click', drawSelectedEdge);
@@ -4553,12 +3215,7 @@
       clearTimeout(renderTimer);
     }
   });
-  theme.addEventListener('change', () => applyTheme(theme.value));
-  if (themeMedia.addEventListener) {
-    themeMedia.addEventListener('change', systemThemeChanged);
-  } else {
-    themeMedia.addListener(systemThemeChanged);
-  }
+  runtime.wire();
   editor.onChange(editorChanged);
   svgEditor.onChange(svgEditorChanged);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
@@ -4570,42 +3227,8 @@
   fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
-  help.addEventListener('click', () => setHelpOpen(true));
-  closeHelp.addEventListener('click', () => setHelpOpen(false, true));
-  helpPanel.addEventListener('click', (event) => {
-    if (event.target === helpPanel) setHelpOpen(false, true);
-  });
-  explorerCollapse.addEventListener('click', () => {
-    explorerOpen = !explorerOpen;
-    applyExplorerLayout();
-    queueSaveSession();
-  });
-  explorerPane.addEventListener('dragover', (event) => {
-    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
-      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-  });
-  explorerPane.addEventListener('drop', (event) => {
-    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
-      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
-    event.preventDefault();
-    event.stopPropagation?.();
-    addRef(draggedTab.kind, draggedTab.id);
-  });
-  for (const tab of [dotFilesTab, svgFilesTab]) {
-    tab.addEventListener('click', () => {
-      setExplorerView(tab.dataset.explorerView);
-    });
-    tab.addEventListener('keydown', explorerTabKeydown);
-  }
   fileContextOpen.addEventListener('click', openContextFile);
   fileContextDelete.addEventListener('click', deleteContextFile);
-  fileContextMenu.addEventListener('keydown', fileContextKeydown);
-  closeClayError.addEventListener('click', hideClayError);
-  clayErrorModal.addEventListener('click', (event) => {
-    if (event.target === clayErrorModal) hideClayError();
-  });
   clearSelection.addEventListener('click', () => {
     clearVisualSelection();
     preview.focus();
@@ -4676,97 +3299,21 @@
   preview.addEventListener('pointerup', endPan);
   preview.addEventListener('pointercancel', endPan);
 
-  explorerResizer.addEventListener('pointerdown', (event) => {
-    if (matchMedia('(max-width: 760px)').matches) return;
-    explorerResizer.setPointerCapture(event.pointerId);
-  });
-
-  explorerResizer.addEventListener('pointermove', (event) => {
-    if (!explorerResizer.hasPointerCapture(event.pointerId)) return;
-    const bounds = workbench.getBoundingClientRect();
-    setExplorerWidth(event.clientX - bounds.left);
-    queueSaveSession();
-  });
-
-  explorerResizer.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    event.preventDefault();
-    const change = event.key === 'ArrowLeft' ? -16 : 16;
-    setExplorerWidth(currentExplorerWidth() + change);
-    queueSaveSession();
-  });
-
-  splitter.addEventListener('pointerdown', (event) => {
-    if (matchMedia('(max-width: 760px)').matches) return;
-    splitter.setPointerCapture(event.pointerId);
-  });
-
-  splitter.addEventListener('pointermove', (event) => {
-    if (!splitter.hasPointerCapture(event.pointerId)) return;
-    const bounds = workspace.getBoundingClientRect();
-    const percent = ((event.clientX - bounds.left) / bounds.width) * 100;
-    const width = Math.max(25, Math.min(70, percent));
-    workspace.style.setProperty('--editor-width', `${width}%`);
-    refreshEditor();
-    queueSaveSession();
-  });
-
-  splitter.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    event.preventDefault();
-    const current = parseFloat(getComputedStyle(workspace)
-      .getPropertyValue('--editor-width')) || 44;
-    const change = event.key === 'ArrowLeft' ? -2 : 2;
-    const width = Math.max(25, Math.min(70, current + change));
-    workspace.style.setProperty('--editor-width', `${width}%`);
-    refreshEditor();
-    queueSaveSession();
-  });
-
   document.addEventListener('keydown', handleShortcut, {capture: true});
-  document.addEventListener('click', (event) => {
-    if (fileContextMenu.hidden || fileContextMenu.contains(event.target)) {
-      return;
-    }
-    if (contextFileSource?.parentElement?.contains(event.target)) return;
-    closeFileContext();
-  });
   document.addEventListener('fullscreenchange', updateFullscreenControl);
-  window.addEventListener('beforeunload', saveSession);
-  window.addEventListener('resize', () => {
-    closeFileContext();
-    refreshEditor();
-    svgEditor.refresh();
-  });
+  //  the runtime validates the record and applies its own slots; only
+  //  this application's three come back here
   const savedSession = loadSession();
-  applyTheme(savedSession?.theme || 'system', false);
+  if (!savedSession) applyTheme('system', false);
   let initialProblem = '';
   if (savedSession) {
-    workspace.style.setProperty(
-      '--editor-width',
-      `${savedSession.paneWidth}%`
-    );
-    setExplorerWidth(savedSession.explorerWidth);
-    explorerOpen = savedSession.explorerOpen;
-    docsTabs = savedSession.docsTabs;
-    nextDocs = savedSession.nextDocs;
-    refTabs = savedSession.refTabs;
-    nextRef = savedSession.nextRef;
-    explorerView = savedSession.explorerView;
-    explorerOrder = savedSession.explorerOrder;
-    dotTabs = savedSession.dotTabs;
-    activeDotTabId = savedSession.activeDotTabId;
-    nextDotTab = savedSession.nextDotTab;
-    svgTabs = savedSession.svgTabs;
-    activeSvgTabId = savedSession.activeSvgTabId;
-    nextSvgTab = savedSession.nextSvgTab;
-    autoRender.checked = savedSession.autoRender;
+    autoRender.checked = savedSession['preferences.autoRender'];
     pendingView = savedSession.view;
   }
-  applyExplorerLayout();
+  runtime.layout.apply();
   renderDocsTabs();
   renderRefTabs();
-  setExplorerView(explorerView);
+  setExplorerView(explorer.view());
   let sharedSource;
   try {
     sharedSource = sourceFromUrl();
@@ -4775,13 +3322,13 @@
   }
   if (sharedSource !== undefined) {
     const shared = createDotTab(sharedSource, {label: 'Shared'});
-    activeDotTabId = shared.id;
+    runtime.tabs.setActiveId('dot', shared.id);
   }
   if (!dotTabs.length) {
     const first = createDotTab(savedSession?.source ?? starter);
-    activeDotTabId = first.id;
+    runtime.tabs.setActiveId('dot', first.id);
   }
-  if (!activeDotTab()) activeDotTabId = dotTabs[0].id;
+  if (!activeDotTab()) runtime.tabs.setActiveId('dot', dotTabs[0].id);
   const initialDot = activeDotTab();
   editor.setSource(initialDot.source, {
     history: 'reset',
@@ -4791,16 +3338,16 @@
   renderDocumentTabs('dot');
   if (!svgTabs.length) {
     const first = createSvgTab();
-    activeSvgTabId = first.id;
+    runtime.tabs.setActiveId('svg', first.id);
   }
-  if (!activeSvgTab()) activeSvgTabId = svgTabs[0].id;
+  if (!activeSvgTab()) runtime.tabs.setActiveId('svg', svgTabs[0].id);
   syncAllRefs();
   try {
-    selectSvgTab(activeSvgTabId, false, false);
+    selectSvgTab(runtime.tabs.activeId('svg'), false, false);
   } catch (_) {
-    svgTabs = [];
+    runtime.tabs.setList('svg', []);
     const first = createSvgTab();
-    activeSvgTabId = first.id;
+    runtime.tabs.setActiveId('svg', first.id);
     selectSvgTab(first.id, false, false);
   }
   newNodeCategory.value = 'basic-shapes';
@@ -4854,8 +3401,8 @@
     },
     shortcuts: {register: () => undefined},
     layout: {
-      paneWidth: currentPaneWidth,
-      explorerWidth: currentExplorerWidth
+      paneWidth: runtime.layout.paneWidth,
+      explorerWidth: runtime.layout.explorerWidth
     },
     problem: {show: showProblem, clear: setEditorProblem}
   });

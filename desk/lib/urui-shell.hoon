@@ -237,6 +237,9 @@
   $(views t.views, kinds ?~(kinds ~ t.kinds), first |)
 ::
 ++  workspace-area
+  ::  The ++full-shell equivalent of ++section: adds the document-tab
+  ::  strip and a heading id keyed to the area's $doc-kind, which the
+  ::  editor's Ace host needs to label itself.
   |=  [area=area:urui config=app-config:urui]
   ^-  manx
   =/  pane-class
@@ -368,6 +371,10 @@
   ==
 ::
 ++  initial-status
+  ::  The editor pane starts on the vocabulary's first status
+  ::  (conventionally "ready"); every other pane starts on the third
+  ::  (conventionally "empty") — a fixed position in the consumer's own
+  ::  status list, not something urui can name generically.
   |=  [role=area-role:urui statuses=(list [@tas @t])]
   ^-  @t
   ?~  statuses  ''
@@ -389,8 +396,11 @@
 ++  section
   ::  One area: pane header, optional tab strip, consumer body.
   ::
-  ::  Called once per role from ++build.  Kept separate because the three
-  ::  call sites would otherwise repeat twenty lines of Sail.
+  ::  Used by ++compact (the frame for applications with no permanent
+  ::  explorer views); ++full uses ++workspace-area instead, which also
+  ::  renders the document-tab strip. Kept separate from ++compact
+  ::  because its three call sites would otherwise repeat twenty lines
+  ::  of Sail.
   |=  =area:urui
   ^-  manx
   =/  title=marl
