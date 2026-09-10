@@ -1000,7 +1000,6 @@
     editors: () => [editor, svgEditor],
     onChange: () => queueSaveSession(),
     onResize: () => closeFileContext(),
-    browse: (kind) => browseClayNode(kind),
     session: {
       read: (key) => {
         if (key === 'source') return validateSource(editor.getSource());
@@ -1015,8 +1014,53 @@
         return undefined;
       }
     },
-    openFile: (kind, path) => {
-      return kind === 'dot' ? loadCurrentDot(path) : loadCurrentSvg(path);
+    files: {
+      dot: {
+        status: (label, action) => {
+          sourceStatus.textContent = label === 'Load failed' ? 'Ready' : label;
+        },
+        error: (cause) => showClientProblem(String(cause))
+      },
+      svg: {
+        canSave: (tab) => Boolean(tab.source),
+        status: (label, action) => {
+          if (action === 'delete') renderStatus.textContent = label;
+          else if (label === 'Loading' || label === 'Saving') {
+            setState('loading', label);
+          } else {
+            setState(currentSvg ? 'ready' : 'empty',
+              label === 'Ready' ? 'Rendered' : label);
+          }
+        },
+        loaded: () => {
+          error.textContent = '';
+          error.hidden = true;
+          setPreviewControls(true);
+        },
+        saved: (tab, source) => { tab.editBaseSource = source; },
+        error: (cause) => {
+          error.textContent = String(cause);
+          error.hidden = false;
+        }
+      }
+    },
+    shortcuts: {
+      preview: () => Boolean(currentSvg),
+      onKeydown: (event) => {
+        const focus = event.target || document.activeElement;
+        if (focus !== preview && !preview.contains(focus)) return false;
+        if (event.key === 'Escape' && selectedItems.length) {
+          clearVisualSelection();
+          preview.focus();
+          return true;
+        }
+        if ((event.key === 'Delete' || event.key === 'Backspace')
+          && selectedItems.length === 1) {
+          deleteSelectedItem();
+          return true;
+        }
+        return false;
+      }
     },
     tabs: {
       dot: {
@@ -1477,64 +1521,6 @@
 
   const showClayError = runtime.dialogs.showError;
   const hideClayError = runtime.dialogs.hideError;
-
-  async function openContextFile() {
-    const {kind, path} = explorer.context.target();
-    closeFileContext();
-    if (!kind || !path) return;
-    if (kind === 'dot') await loadCurrentDot(path);
-    else await loadCurrentSvg(path);
-  }
-
-  async function deleteContextFile() {
-    const {kind, path, source} = explorer.context.target();
-    if (!kind || !path) return;
-    if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
-      closeFileContext();
-      source?.focus();
-      return;
-    }
-    closeFileContext();
-    try {
-      await clayFileRequest(kind, 'delete', '', path);
-      await refreshFileTree(kind);
-      const label = `${path} deleted`;
-      if (kind === 'dot') sourceStatus.textContent = label;
-      else renderStatus.textContent = label;
-    } catch (cause) {
-      showClayError(cause);
-    }
-  }
-
-  //  The recursive walk stays here until stage 5 owns the clay
-  //  endpoints; the runtime only asks for the resulting path list.
-  async function browseClayNode(kind, path = '') {
-    const headers = path ? {'x-graph-viz-path': path} : {};
-    const response = await fetch(
-      `/apps/graph-viz/file/${kind}/browse`,
-      {method: 'POST', headers}
-    );
-    const body = await response.text();
-    if (!response.ok) {
-      throw new Error(body || `Clay request failed (${response.status})`);
-    }
-    const node = JSON.parse(body);
-    if (!node || typeof node.file !== 'boolean'
-      || !Array.isArray(node.children)) {
-      throw new Error('Invalid Clay directory');
-    }
-    const paths = node.file ? [path] : [];
-    for (const name of node.children) {
-      if (typeof name !== 'string' || !name || name.includes('/')) {
-        throw new Error('Invalid Clay directory');
-      }
-      const childPath = normalizeClayPath(
-        path ? `${path}/${name}` : name
-      );
-      paths.push(...await browseClayNode(kind, childPath));
-    }
-    return paths;
-  }
 
   const validateSource = runtime.session.validateSource;
   const validSavedSource = (source) => {
@@ -2764,217 +2750,10 @@
     render();
   }
 
-  function requestClayPath(kind) {
-    const value = window.prompt(`${kind} path`);
-    if (value === null) return undefined;
-    return normalizeClayPath(value);
-  }
-
-  async function clayFileRequest(
-    kind,
-    action,
-    source = '',
-    requestedPath,
-    overwrite = false
-  ) {
-    const path = requestedPath === undefined
-      ? requestClayPath(kind.toUpperCase())
-      : normalizeClayPath(requestedPath);
-    if (path === undefined) return undefined;
-    const headers = {
-      'content-type': 'text/plain; charset=utf-8',
-      'x-graph-viz-path': path
-    };
-    if (overwrite) headers['x-graph-viz-overwrite'] = 'true';
-    const response = await fetch(
-      `/apps/graph-viz/file/${kind}/${action}`,
-      {
-        method: 'POST',
-        headers,
-        body: source
-      }
-    );
-    const body = await response.text();
-    if (action === 'save' && response.status === 409 && !overwrite) {
-      const approved = window.confirm(
-        `${kind.toUpperCase()} path "${path}" already exists. Overwrite it?`
-      );
-      if (!approved) return undefined;
-      return clayFileRequest(kind, action, source, path, true);
-    }
-    if (!response.ok) {
-      throw new Error(body || `Clay request failed (${response.status})`);
-    }
-    return body;
-  }
-
-  async function clayCopyChanged(kind, path, baseline) {
-    let stored;
-    try {
-      stored = await clayFileRequest(kind, 'load', '', path);
-    } catch (_) {
-      return false;
-    }
-    return stored !== undefined && stored !== baseline;
-  }
-
-  async function loadCurrentDot(path) {
-    try {
-      const requestedPath = path ?? requestClayPath('DOT');
-      if (requestedPath === undefined) return;
-      const existing = dotTabs.find((tab) => {
-        return tab.path === requestedPath;
-      });
-      if (existing) {
-        selectDotTab(existing.id, true);
-        return;
-      }
-      sourceStatus.textContent = 'Loading';
-      const source = await clayFileRequest(
-        'dot',
-        'load',
-        '',
-        requestedPath
-      );
-      if (source === undefined) return;
-      validateSource(source);
-      const tab = createDotTab(source, {
-        path: requestedPath,
-        label: tabLabel(requestedPath, 'dot')
-      });
-      selectDotTab(tab.id, true);
-    } catch (cause) {
-      showClayError(cause);
-      showClientProblem(String(cause));
-    } finally {
-      sourceStatus.textContent = 'Ready';
-    }
-  }
-
-  async function saveCurrentDot() {
-    try {
-      captureActiveDotTab();
-      const tab = activeDotTab();
-      if (!tab) return;
-      const source = editor.getSource();
-      validateSource(source);
-      const path = tab.path ?? requestClayPath('DOT');
-      if (path === undefined) return;
-      if (tab.path
-        && await clayCopyChanged('dot', path, tab.cleanSource)
-        && !window.confirm(
-          `${path} changed in Clay since it was loaded. Overwrite it?`
-        )) {
-        sourceStatus.textContent = 'Ready';
-        return;
-      }
-      sourceStatus.textContent = 'Saving';
-      const result = await clayFileRequest(
-        'dot',
-        'save',
-        source,
-        path,
-        Boolean(tab.path)
-      );
-      sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
-      if (result !== undefined) {
-        tab.path = path;
-        tab.label = tabLabel(path, 'dot');
-        tab.cleanSource = source;
-        syncRefFromParent('dot', tab.id);
-        renderDocumentTabs('dot');
-        queueSaveSession();
-        await refreshFileTree('dot');
-      }
-    } catch (cause) {
-      showClayError(cause);
-      showClientProblem(String(cause));
-      sourceStatus.textContent = 'Save failed';
-    }
-  }
-
-  async function loadCurrentSvg(path) {
-    try {
-      const requestedPath = path ?? requestClayPath('SVG');
-      if (requestedPath === undefined) return;
-      const existing = svgTabs.find((tab) => {
-        return tab.path === requestedPath;
-      });
-      if (existing) {
-        selectSvgTab(existing.id, true);
-        return;
-      }
-      setState('loading', 'Loading');
-      const source = await clayFileRequest(
-        'svg',
-        'load',
-        '',
-        requestedPath
-      );
-      if (source === undefined) {
-        const state = currentSvg ? 'ready' : 'empty';
-        setState(state, currentSvg ? 'Rendered' : 'Empty');
-        return;
-      }
-      const tab = createSvgTab(source, {
-        path: requestedPath,
-        label: tabLabel(requestedPath, 'svg')
-      });
-      selectSvgTab(tab.id, true);
-      queueSaveSession();
-      error.textContent = '';
-      error.hidden = true;
-      setPreviewControls(true);
-      setState('ready', 'Rendered');
-    } catch (cause) {
-      showClayError(cause);
-      error.textContent = String(cause);
-      error.hidden = false;
-      setState(currentSvg ? 'ready' : 'empty', 'Load failed');
-    }
-  }
-
-  async function saveCurrentSvg() {
-    captureActiveSvgTab();
-    const tab = activeSvgTab();
-    if (!tab?.source) return;
-    try {
-      const path = tab.path ?? requestClayPath('SVG');
-      if (path === undefined) return;
-      if (tab.path
-        && await clayCopyChanged('svg', path, tab.cleanSource)
-        && !window.confirm(
-          `${path} changed in Clay since it was loaded. Overwrite it?`
-        )) {
-        setState('ready', 'Rendered');
-        return;
-      }
-      setState('loading', 'Saving');
-      const result = await clayFileRequest(
-        'svg',
-        'save',
-        tab.source,
-        path,
-        Boolean(tab.path)
-      );
-      setState('ready', result === undefined ? 'Rendered' : 'Saved');
-      if (result !== undefined) {
-        tab.path = path;
-        tab.label = tabLabel(path, 'svg');
-        tab.cleanSource = tab.source;
-        tab.editBaseSource = tab.source;
-        syncRefFromParent('svg', tab.id);
-        renderDocumentTabs('svg');
-        queueSaveSession();
-        await refreshFileTree('svg');
-      }
-    } catch (cause) {
-      showClayError(cause);
-      error.textContent = String(cause);
-      error.hidden = false;
-      setState('ready', 'Save failed');
-    }
-  }
+  const loadCurrentDot = (path) => runtime.files.load('dot', path);
+  const saveCurrentDot = () => runtime.files.save('dot');
+  const loadCurrentSvg = (path) => runtime.files.load('svg', path);
+  const saveCurrentSvg = () => runtime.files.save('svg');
 
   function renderedSvgLabel(dotTab) {
     if (!dotTab || dotTab.label === 'Untitled') return 'Preview';
@@ -3021,64 +2800,14 @@
     editor.focus();
   }
 
-  function handleShortcut(event) {
-    const consume = () => {
-      event.preventDefault();
-      event.stopPropagation?.();
-    };
-    if (event.key === 'Escape' && !helpPanel.hidden) {
-      consume();
-      setHelpOpen(false, true);
-      return;
-    }
-    if (event.key === 'Escape' && !clayErrorModal.hidden) {
-      consume();
-      hideClayError();
-      return;
-    }
-    if (event.key === 'Escape' && !fileContextMenu.hidden) {
-      consume();
-      closeFileContext(true);
-      return;
-    }
-    const primary = (event.ctrlKey || event.metaKey) && !event.altKey;
-    const key = event.key.toLowerCase();
-    if (primary && !event.shiftKey && event.key === 'Enter') {
-      consume();
-      renderNow();
-      return;
-    }
-    if (primary && key === 's') {
-      consume();
-      if (event.shiftKey) saveCurrentSvg();
-      else saveCurrentDot();
-      return;
-    }
-    if (primary && !event.shiftKey && event.key === '0') {
-      consume();
-      fitToWindow();
-      return;
-    }
-    if (primary && !event.shiftKey && event.key === '1') {
-      consume();
-      resetGraphView();
-      return;
-    }
-    if (editor.isFocused(event.target)
-      || svgEditor.isFocused(event.target)) return;
-    const focus = event.target || document.activeElement;
-    const inPreview = focus === preview || preview.contains(focus);
-    if (event.key === 'Escape' && selectedItems.length && inPreview) {
-      consume();
-      clearVisualSelection();
-      preview.focus();
-      return;
-    }
-    if ((event.key === 'Delete' || event.key === 'Backspace')
-      && selectedItems.length === 1 && inPreview) {
-      consume();
-      deleteSelectedItem();
-    }
+  function handleShortcut() {
+    for (const [command, handler] of Object.entries({
+      render: renderNow,
+      'save-dot': saveCurrentDot,
+      'save-svg': saveCurrentSvg,
+      'fit-view': fitToWindow,
+      'reset-view': resetGraphView
+    })) runtime.shortcuts.register(command, handler);
   }
 
   async function render() {
@@ -3196,12 +2925,6 @@
     event.preventDefault();
     addVisualNode();
   });
-  browseDot.addEventListener('click', () => showFileExplorer('dot'));
-  loadDot.addEventListener('click', () => loadCurrentDot());
-  saveDot.addEventListener('click', saveCurrentDot);
-  browseSvg.addEventListener('click', () => showFileExplorer('svg'));
-  loadSvg.addEventListener('click', () => loadCurrentSvg());
-  saveSvg.addEventListener('click', saveCurrentSvg);
   toggleSvgSource.addEventListener('click', toggleSvgView);
   copySvg.addEventListener('click', copySvgSource);
   fullscreenSvg.addEventListener('click', toggleSvgFullscreen);
@@ -3227,8 +2950,6 @@
   fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
-  fileContextOpen.addEventListener('click', openContextFile);
-  fileContextDelete.addEventListener('click', deleteContextFile);
   clearSelection.addEventListener('click', () => {
     clearVisualSelection();
     preview.focus();
@@ -3299,7 +3020,7 @@
   preview.addEventListener('pointerup', endPan);
   preview.addEventListener('pointercancel', endPan);
 
-  document.addEventListener('keydown', handleShortcut, {capture: true});
+  handleShortcut();
   document.addEventListener('fullscreenchange', updateFullscreenControl);
   //  the runtime validates the record and applies its own slots; only
   //  this application's three come back here
@@ -3393,13 +3114,8 @@
       get: loadSession,
       set: saveSession
     },
-    files: {
-      browse: refreshFileTree,
-      load: requestClayPath,
-      save: requestClayPath,
-      delete: requestClayPath
-    },
-    shortcuts: {register: () => undefined},
+    files: runtime.files,
+    shortcuts: runtime.shortcuts,
     layout: {
       paneWidth: runtime.layout.paneWidth,
       explorerWidth: runtime.layout.explorerWidth

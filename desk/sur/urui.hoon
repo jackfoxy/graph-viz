@@ -91,7 +91,8 @@
   ::  The four file operations and how the path travels.
   ::
   ::  %header sends the clay path in `path-header`; %body sends it as a
-  ::  json field.  `{kind}` in a route is replaced by the $doc-kind name.
+  ::  json object with `path` segments, `source` text, and `overwrite`.
+  ::  `{kind}` in a route is replaced by the $doc-kind name.
   $:  =transport
       path-header=(unit @t)
       flag-header=(unit @t)
@@ -114,6 +115,10 @@
 ::
 +$  shortcut
   ::  An application chord urui dispatches on the app's behalf.
+  ::
+  ::  %editor/%no-editor test Ace focus; %preview uses the consumer
+  ::  runtime option `shortcuts.preview`, even while Ace has focus.
+  ::  Register command handlers through `runtime.shortcuts.register`.
   ::
   $:  binding=@t
       command=@t

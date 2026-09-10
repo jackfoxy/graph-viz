@@ -141,19 +141,19 @@
   ::  two resizers, explorer collapse, the help panel, the Clay error
   ::  dialog, document tabs, the explorer (permanent views, docs tabs,
   ::  ref tabs, the Clay file tree and its context menu), and session
-  ::  persistence (the slot registry and the shared-source url param).
+  ::  persistence, Clay file operations, and shortcut dispatch.
   ::  It reads its policy from `window.URUI_CONFIG` and reaches the frame
   ::  through `data-role` and the ids `urui-shell` fixes, so nothing here
-  ::  names a consumer. The six JS section banners below (search
-  ::  `// ---- `) mark where each of those owns its code; the returned
-  ::  object at the end of this cord groups the same six under
-  ::  `tabs`/`explorer`/`session`/`dialogs` plus `theme`/`layout`/`status`.
+  ::  names a consumer. Section banners mark each responsibility;
+  ::  ++files and ++shortcuts are composed into the same lexical scope.
   ::
   ::  `options.editors` supplies the Ace adapters to resize and re-theme;
   ::  `options.onChange` is called whenever a persisted value moves;
   ::  `options.tabs[kindName]` and the explorer/session options are
   ::  documented at their own section banner, not repeated here.
   ^-  @t
+  %+  rap  3
+  :~
   '''
   const config = window.URUI_CONFIG || {};
   const limits = config.limits || {};
@@ -640,8 +640,7 @@
   // backed by iframes, and reference tabs mirroring an open document.
   // All three share the strip's order, which the user can drag.
   //
-  // Networking is the consumer's: `options.browse(kind)` answers a list
-  // of clay paths, `options.openFile(kind, path)` opens one.
+  // Clay networking is shared with the file-operation section below.
   const permanentViews = (config.permanentViews || []).map((view) => {
     return view.name;
   });
@@ -1145,7 +1144,7 @@
 
   // ---- clay file tree and its context menu --------------------------
   //
-  // `options.browse(kind)`'s flat path list becomes a nested tree, one
+  // The browse endpoint's flat path list becomes a nested tree, one
   // row per directory or leaf; right-click (or the row's own button)
   // opens the shared context menu, positioned to stay inside the
   // viewport.
@@ -1261,7 +1260,7 @@
       file.title = path;
       file.addEventListener('click', async () => {
         closeFileContext();
-        await options.openFile?.(name, path);
+        await loadFile(name, path);
       });
       row.addEventListener('contextmenu', (event) => {
         openFileContext(name, path, file, event);
@@ -1318,7 +1317,7 @@
     tree.textContent = 'Loading…';
     tree.setAttribute('aria-busy', 'true');
     try {
-      renderFileTree(await options.browse(name), name);
+      renderFileTree(await browseClayNode(name), name);
     } catch (cause) {
       tree.setAttribute('aria-busy', 'false');
       tree.replaceChildren();
@@ -1753,10 +1752,33 @@
     return encoded === null ? undefined : decodeSource(encoded);
   }
 
+  '''
+  files
+  shortcuts
+  '''
   // Everything above is callable on its own; `wire` is what turns the
   // frame into a live surface.  A consumer that wants different
   // behavior simply does not call it.
   function wire() {
+    document.addEventListener('keydown', dispatchShortcut, {capture: true});
+    for (const {name} of kinds) {
+      for (const [action, handler] of Object.entries({
+        browse: showFileExplorer, load: loadFile, save: saveFile
+      })) {
+        document.querySelector(`#${action}-${name}`)
+          ?.addEventListener('click', () => handler(name));
+      }
+    }
+    elements.contextOpen?.addEventListener('click', () => {
+      const {kind, path} = contextTarget;
+      closeFileContext();
+      if (kind && path) loadFile(kind, path);
+    });
+    elements.contextDelete?.addEventListener('click', () => {
+      const {kind, path, source} = contextTarget;
+      closeFileContext();
+      if (kind && path) deleteFile(kind, path, source);
+    });
     elements.themeControl?.addEventListener('change', () => {
       applyTheme(elements.themeControl.value);
     });
@@ -1849,6 +1871,11 @@
     elements,
     clamp,
     refreshEditors,
+    files: {
+      browse: refreshFileTree, load: loadFile, save: saveFile,
+      delete: deleteFile
+    },
+    shortcuts: {register: registerShortcut, dispatch: dispatchShortcut},
     tabs: {
       kinds,
       kind: (name) => kindByName.get(name),
@@ -1972,6 +1999,247 @@
     },
     wire
   };
+  '''
+  ==
+::
+++  files
+  ::  Clay operations in the runtime scope; per-kind hooks supply policy.
+  ^-  @t
+  '''
+  // ---- Clay files ---------------------------------------------------
+  // Per-kind hooks only supply document policy and application feedback:
+  // validate(source), canSave(tab), status(label, action), loaded(tab),
+  // saved(tab, source), error(cause, action). Tabs and requests stay here.
+  const endpoints = config.endpoints || {};
+  const fileHooks = (name) => options.files?.[name] || {};
+
+  function fileStatus(name, label, action) {
+    const hook = fileHooks(name).status;
+    if (hook) hook(label, action);
+    else setStatus(kinds[0]?.name === name ? 'editor' : 'result', label);
+  }
+
+  function requestClayPath(name) {
+    const value = window.prompt(`${kindByName.get(name).label} path`);
+    return value === null ? undefined : normalizeClayPath(value);
+  }
+
+  async function clayFileRequest(
+    name, action, source = '', requestedPath, overwrite = false
+  ) {
+    store(name);
+    const path = requestedPath === undefined
+      ? requestClayPath(name)
+      : action === 'browse' && requestedPath === ''
+        ? '' : normalizeClayPath(requestedPath);
+    if (path === undefined) return undefined;
+    const route = endpoints[action];
+    if (!route) throw new Error(`Missing Clay endpoint: ${action}`);
+    const headers = {};
+    const request = {method: 'POST', headers};
+    if (endpoints.transport === 'body') {
+      headers['content-type'] = 'application/json';
+      request.body = JSON.stringify({
+        path: path ? path.split('/') : [], source, overwrite
+      });
+    } else {
+      if (action !== 'browse') {
+        headers['content-type'] = 'text/plain; charset=utf-8';
+        request.body = source;
+      }
+      if (path || action !== 'browse') headers[endpoints.pathHeader] = path;
+      if (overwrite) headers[endpoints.flagHeader] = 'true';
+    }
+    const response = await fetch(route.replaceAll('{kind}', name), request);
+    const body = await response.text();
+    if (action === 'save' && response.status === 409 && !overwrite) {
+      const label = kindByName.get(name).label;
+      if (!window.confirm(
+        `${label} path "${path}" already exists. Overwrite it?`
+      )) return undefined;
+      return clayFileRequest(name, action, source, path, true);
+    }
+    if (!response.ok) {
+      throw new Error(body || `Clay request failed (${response.status})`);
+    }
+    return body;
+  }
+
+  async function browseClayNode(name, path = '') {
+    const node = JSON.parse(await clayFileRequest(name, 'browse', '', path));
+    if (!node || typeof node.file !== 'boolean'
+      || !Array.isArray(node.children)) {
+      throw new Error('Invalid Clay directory');
+    }
+    const paths = node.file ? [path] : [];
+    for (const child of node.children) {
+      if (typeof child !== 'string' || !child || child.includes('/')) {
+        throw new Error('Invalid Clay directory');
+      }
+      const next = normalizeClayPath(path ? `${path}/${child}` : child);
+      paths.push(...await browseClayNode(name, next));
+    }
+    return paths;
+  }
+
+  async function loadFile(name, path) {
+    const hooks = fileHooks(name);
+    try {
+      const requested = path == null
+        ? requestClayPath(name) : normalizeClayPath(path);
+      if (requested === undefined) return;
+      const existing = tabList(name).find((tab) => tab.path === requested);
+      if (existing) {
+        selectTab(name, existing.id, {focus: true});
+        return existing;
+      }
+      fileStatus(name, 'Loading', 'load');
+      const source = await clayFileRequest(name, 'load', '', requested);
+      validateSource(source);
+      hooks.validate?.(source);
+      const tab = createTab(name, source, {path: requested});
+      selectTab(name, tab.id, {focus: true});
+      hooks.loaded?.(tab);
+      fileStatus(name, 'Ready', 'load');
+      return tab;
+    } catch (cause) {
+      showError(cause);
+      fileStatus(name, 'Load failed', 'load');
+      hooks.error?.(cause, 'load');
+    }
+  }
+
+  async function saveFile(name) {
+    const hooks = fileHooks(name);
+    try {
+      const tab = captureTab(name);
+      if (!tab || hooks.canSave?.(tab) === false) return;
+      const source = validateSource(tab.source);
+      hooks.validate?.(source);
+      const path = tab.path ?? requestClayPath(name);
+      if (path === undefined) return;
+      if (tab.path) {
+        let stored;
+        try {
+          stored = await clayFileRequest(name, 'load', '', path);
+        } catch (_) {
+          // A missing stored copy must not prevent recreating the file.
+        }
+        if (stored !== undefined && stored !== tab.cleanSource
+          && !window.confirm(
+            `${path} changed in Clay since it was loaded. Overwrite it?`
+          )) {
+          fileStatus(name, 'Ready', 'save');
+          return;
+        }
+      }
+      fileStatus(name, 'Saving', 'save');
+      const result = await clayFileRequest(
+        name, 'save', source, path, Boolean(tab.path)
+      );
+      fileStatus(name, result === undefined ? 'Ready' : 'Saved', 'save');
+      if (result === undefined) return;
+      tab.path = path;
+      tab.label = tabLabel(name, path);
+      tab.cleanSource = source;
+      hooks.saved?.(tab, source);
+      syncRefFromParent(name, tab.id);
+      renderTabs(name);
+      changed();
+      await refreshFileTree(name);
+      return result;
+    } catch (cause) {
+      showError(cause);
+      fileStatus(name, 'Save failed', 'save');
+      hooks.error?.(cause, 'save');
+    }
+  }
+
+  async function deleteFile(name, requestedPath, returnFocus) {
+    try {
+      const path = requestedPath == null
+        ? requestClayPath(name) : normalizeClayPath(requestedPath);
+      if (path === undefined) return;
+      if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
+        returnFocus?.focus();
+        return;
+      }
+      const result = await clayFileRequest(name, 'delete', '', path);
+      await refreshFileTree(name);
+      fileStatus(name, `${path} deleted`, 'delete');
+      return result;
+    } catch (cause) {
+      showError(cause);
+      fileHooks(name).error?.(cause, 'delete');
+    }
+  }
+  '''
+::
+++  shortcuts
+  ::  Capture app chords before Ace, preserving unclaimed editor keys.
+  ^-  @t
+  '''
+  // ---- shortcuts ----------------------------------------------------
+  // `preview` is consumer-defined availability, independent of Ace focus.
+  // Other contexts use editor focus. Unclaimed non-editor keys can reach
+  // onKeydown; returning true consumes a consumer's contextual action.
+  const shortcutCommands = new Map();
+
+  function registerShortcut(command, handler) {
+    if (typeof handler !== 'function') {
+      throw new TypeError('Shortcut handler must be a function');
+    }
+    shortcutCommands.set(command, handler);
+  }
+
+  function dispatchShortcut(event) {
+    const consume = () => {
+      event.preventDefault();
+      event.stopPropagation?.();
+    };
+    if (event.key === 'Escape') {
+      if (helpIsOpen()) {
+        consume();
+        setHelpOpen(false, true);
+        return;
+      }
+      if (errorIsOpen()) {
+        consume();
+        hideError();
+        return;
+      }
+      if (elements.contextMenu && !elements.contextMenu.hidden) {
+        consume();
+        closeFileContext(true);
+        return;
+      }
+    }
+    const target = event.target || document.activeElement;
+    const inEditor = editors().some((editor) => editor.isFocused?.(target));
+    const contexts = {
+      always: true,
+      editor: inEditor,
+      'no-editor': !inEditor,
+      preview: options.shortcuts?.preview?.(event) ?? false
+    };
+    for (const shortcut of config.shortcuts || []) {
+      if (!contexts[shortcut.when]) continue;
+      const parts = shortcut.binding.toLowerCase().split('-');
+      const key = parts.pop();
+      const primary = parts.includes('ctrl') || parts.includes('meta');
+      if (event.key.toLowerCase() !== key
+        || Boolean(event.ctrlKey || event.metaKey) !== primary
+        || Boolean(event.shiftKey) !== parts.includes('shift')
+        || Boolean(event.altKey) !== parts.includes('alt')) continue;
+      const handler = shortcutCommands.get(shortcut.command);
+      if (!handler) continue;
+      consume();
+      handler(event);
+      return;
+    }
+    if (inEditor) return;
+    if (options.shortcuts?.onKeydown?.(event) === true) consume();
+  }
   '''
 ::
 ++  editor-adapter
