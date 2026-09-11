@@ -11,7 +11,7 @@ const {fork} = require('node:child_process');
 const scenarios = require('./scenarios/index.js');
 
 const application = process.argv[2];
-if (!application) throw new Error('usage: node gviz-web.test.js APP_JS');
+if (!application) throw new Error('usage: node run-scenarios.js APP_JS');
 
 const runner = path.join(__dirname, 'run-scenario.js');
 

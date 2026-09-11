@@ -2,7 +2,7 @@
 
 // Runs one scenario against a freshly booted application.  The application
 // is a plain script that owns the global scope, so each scenario gets its
-// own process; the parent runner in gviz-web.test.js forks this file.
+// own process; the parent runner in run-scenarios.js forks this file.
 
 const fs = require('node:fs');
 

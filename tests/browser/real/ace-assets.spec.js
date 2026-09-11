@@ -1,16 +1,11 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 const {test, expect} = require('@playwright/test');
 
 const aceRoot = '/apps/graph-viz/ace';
 
-test('generated config preserves the legacy object and Ace setup calls', async ({
+test('generated config defines the Ace object and setup calls', async ({
   request
 }) => {
-  const legacy = fs.readFileSync(
-    path.join(__dirname, 'fixtures/legacy-ace-config.js'), 'utf8'
-  );
   const response = await request.get(`${aceRoot}/graph-viz-config.js`);
   expect(response.status()).toBe(200);
   const generated = await response.text();
@@ -27,7 +22,29 @@ test('generated config preserves the legacy object and Ace setup calls', async (
       extensionsFrozen: Object.isFrozen(assets.extensions)
     };
   };
-  expect(execute(generated)).toEqual(execute(legacy));
-  expect(execute(generated).frozen).toBe(true);
-  expect(execute(generated).extensionsFrozen).toBe(true);
+  expect(execute(generated)).toEqual({
+    assets: {
+      version: '1.44.0',
+      basePath: aceRoot,
+      mode: 'ace/mode/dot',
+      lightTheme: 'ace/theme/github',
+      darkTheme: 'ace/theme/monokai',
+      extensions: [
+        'ace/ext/beautify',
+        'ace/ext/prompt',
+        'ace/ext/searchbox',
+        'ace/ext/settings_menu'
+      ],
+      useWorker: false
+    },
+    calls: [
+      ['basePath', aceRoot],
+      ['modePath', aceRoot],
+      ['themePath', aceRoot],
+      ['workerPath', aceRoot],
+      ['loadWorkerFromBlob', false]
+    ],
+    frozen: true,
+    extensionsFrozen: true
+  });
 });

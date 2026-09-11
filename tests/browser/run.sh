@@ -17,4 +17,4 @@ if [[ -z "$APP_JS" ]]; then
 fi
 
 node --check "$APP_JS"
-node "$ROOT/tests/browser/gviz-web.test.js" "$APP_JS"
+node "$ROOT/tests/browser/run-scenarios.js" "$APP_JS"

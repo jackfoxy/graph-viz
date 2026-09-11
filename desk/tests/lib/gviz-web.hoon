@@ -156,6 +156,9 @@
         "value=\"dependencies\""
         "value=\"clusters\""
     ==
+  ::  loading an SVG is no longer this application's function: urui's
+  ::  `wire` binds `#load-svg` by name, so the control is asserted in
+  ::  `test-web-page` and the behavior belongs to urui's own suite
   =/  js-needles=(list tape)
     :~  "strict digraph unique_edges"
         "last wins"
@@ -163,7 +166,6 @@
         "svgEditor.onChange(svgEditorChanged)"
         "problem.line"
         "problem.column"
-        "loadCurrentSvg"
     ==
   =/  html-tests=tang
     %-  zing

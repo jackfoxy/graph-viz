@@ -902,8 +902,6 @@
   };
   const starter = templates.flowchart;
   const dot = document.querySelector('#dot');
-  const dotDocumentTabs = document.querySelector('#dot-document-tabs');
-  const svgDocumentTabs = document.querySelector('#svg-document-tabs');
   const editorLoadError = document.querySelector('#editor-load-error');
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
@@ -952,42 +950,15 @@
   const fullscreenZoomIn = document.querySelector('#fullscreen-zoom-in');
   const resetView = document.querySelector('#reset-view');
   const addDotRef = document.querySelector('#add-dot-ref');
-  const browseDot = document.querySelector('#browse-dot');
-  const loadDot = document.querySelector('#load-dot');
-  const saveDot = document.querySelector('#save-dot');
   const addSvgRef = document.querySelector('#add-svg-ref');
-  const browseSvg = document.querySelector('#browse-svg');
-  const loadSvg = document.querySelector('#load-svg');
   const saveSvg = document.querySelector('#save-svg');
   const toggleSvgSource = document.querySelector('#toggle-svg-source');
   const fit = document.querySelector('#fit');
   const autoRender = document.querySelector('#auto-render');
   const theme = document.querySelector('#theme');
   const help = document.querySelector('#help');
-  const helpPanel = document.querySelector('#help-panel');
-  const closeHelp = document.querySelector('#close-help');
-  const fallbackHelpContent = document.querySelector(
-    '#fallback-help-content'
-  );
-  const docsHelpContent = document.querySelector('#docs-help-content');
-  const docsHelpNav = document.querySelector('#docs-help-nav');
   const workbench = document.querySelector('#workbench');
   const explorerPane = document.querySelector('#explorer-pane');
-  const explorerTabs = document.querySelector('#explorer-tabs');
-  const explorerCollapse = document.querySelector('#explorer-collapse');
-  const explorerResizer = document.querySelector('#explorer-resizer');
-  const dotFilesTab = document.querySelector('#dot-files-tab');
-  const svgFilesTab = document.querySelector('#svg-files-tab');
-  const dotFilesPanel = document.querySelector('#dot-files-panel');
-  const svgFilesPanel = document.querySelector('#svg-files-panel');
-  const dotFilesTree = document.querySelector('#dot-files-tree');
-  const svgFilesTree = document.querySelector('#svg-files-tree');
-  const fileContextMenu = document.querySelector('#file-context-menu');
-  const fileContextOpen = document.querySelector('#file-context-open');
-  const fileContextDelete = document.querySelector('#file-context-delete');
-  const clayErrorModal = document.querySelector('#clay-error-modal');
-  const clayErrorMessage = document.querySelector('#clay-error-message');
-  const closeClayError = document.querySelector('#close-clay-error');
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const config = window.urui.config;
@@ -1135,14 +1106,11 @@
     }
   });
   const renderDelay = 350;
-  const saveDelay = 150;
   const minScale = 0.05;
   const maxScale = 32;
   const isMac = /Mac|iPhone|iPad|iPod/.test(
     navigator.platform || navigator.userAgent || ''
   );
-  const docsRoot = '/docs/d/graph-viz/';
-  const permanentExplorerViews = ['dot-files', 'svg-files'];
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1225,13 +1193,9 @@
 
   const dotTabs = runtime.tabs.list('dot');
   const svgTabs = runtime.tabs.list('svg');
-  const tabLabel = (path, kind) => runtime.tabs.label(kind, path);
   const activeDotTab = () => runtime.tabs.active('dot');
   const activeSvgTab = () => runtime.tabs.active('svg');
-  const tabDirty = (tab) => tab.source !== tab.cleanSource;
   const documentTabs = (kind) => runtime.tabs.list(kind);
-  const activeDocumentTabId = (kind) => runtime.tabs.activeId(kind);
-  const documentTabContainer = (kind) => runtime.tabs.container(kind);
   const captureActiveDotTab = () => runtime.tabs.capture('dot');
   const captureActiveSvgTab = () => runtime.tabs.capture('svg');
   const createDotTab = (source = starter, options = {}) => {
@@ -1241,12 +1205,6 @@
     return runtime.tabs.create('svg', source, options);
   };
   const renderDocumentTabs = (kind) => runtime.tabs.render(kind);
-  const moveTab = (kind, sourceId, targetId, after) => {
-    return runtime.tabs.move(kind, sourceId, targetId, after);
-  };
-  const enableTabDrag = (wrapper, kind, id) => {
-    return runtime.tabs.enableDrag(wrapper, kind, id);
-  };
   const selectDotTab = (id, focus = false, renderSelected = true) => {
     return runtime.tabs.select('dot', id, {focus, renderSelected});
   };
@@ -1311,7 +1269,6 @@
     editorResizeObserver.observe(svgSource);
   }
 
-  const validTheme = runtime.theme.valid;
   const applyTheme = runtime.theme.apply;
 
   function setState(state, label) {
@@ -1501,26 +1458,19 @@
   const setHelpOpen = runtime.dialogs.setHelpOpen;
   const explorer = runtime.explorer;
   const setExplorerView = explorer.setView;
-  const syncExplorerTabOrder = explorer.syncOrder;
   const docsTabs = explorer.docs.list();
   const refTabs = explorer.refs.list();
   const renderDocsTabs = explorer.docs.render;
   const renderRefTabs = explorer.refs.render;
   const openDocsTab = explorer.docs.open;
   const refreshHelpVariant = explorer.docs.refreshVariant;
-  const setHelpVariant = explorer.docs.setVariant;
   const addRef = explorer.refs.add;
-  const canAddRef = explorer.refs.can;
   const syncRefFromParent = explorer.refs.syncFromParent;
   const syncAllRefs = explorer.refs.syncAll;
-  const updateRefActions = explorer.refs.updateActions;
-  const normalizeClayPath = explorer.tree.normalize;
   const refreshFileTree = explorer.tree.refresh;
-  const showFileExplorer = explorer.tree.show;
   const closeFileContext = explorer.context.close;
 
   const showClayError = runtime.dialogs.showError;
-  const hideClayError = runtime.dialogs.hideError;
 
   const validateSource = runtime.session.validateSource;
   const validSavedSource = (source) => {
@@ -2750,9 +2700,7 @@
     render();
   }
 
-  const loadCurrentDot = (path) => runtime.files.load('dot', path);
   const saveCurrentDot = () => runtime.files.save('dot');
-  const loadCurrentSvg = (path) => runtime.files.load('svg', path);
   const saveCurrentSvg = () => runtime.files.save('svg');
 
   function renderedSvgLabel(dotTab) {
