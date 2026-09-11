@@ -7,6 +7,10 @@
 ::  Put %controls before component sections so their equally specific
 ::  selectors can override base control dimensions. Put %responsive last.
 ::
+::  The frame ++compact emits is deliberately unstyled here — no rule
+::  names .pane-title, .pane-actions, or .pane-body — and so is the Ace
+::  host, .editor-host.  A consumer of the compact shell brings its own.
+::
 |%
 ::
 +$  section
@@ -17,6 +21,10 @@
   ==
 ::
 ++  tokens
+  ::  Every custom property, on :root and its dark override, keyed to the
+  ::  `data-effective-theme` ++theme-bootstrap sets before first paint.
+  ::  --editor-width and --explorer-width are declared here and rewritten
+  ::  inline by the runtime's layout section.
   ^-  @t
   '''
   :root {
@@ -78,6 +86,9 @@
   '''
 ::
 ++  shell
+  ::  Reset, header and toolbar, the workbench and workspace grids, panes
+  ::  and pane headers, the status line, the splitter, the connection
+  ::  state panel, and .sr-only.
   ^-  @t
   '''
   * { box-sizing: border-box; }
@@ -274,6 +285,8 @@
   '''
 ::
 ++  explorer
+  ::  The aside itself — header, collapse, panels, file-tree rows, the
+  ::  resizer, and the file context menu.  Its tab strip is in %tabs.
   ^-  @t
   '''
   .explorer-pane {
@@ -438,6 +451,8 @@
   '''
 ::
 ++  tabs
+  ::  All three strips: the explorer tabs, the docs tabs beside them, and
+  ::  the document tabs in a workspace pane.
   ^-  @t
   '''
   .explorer-tabs {
@@ -616,6 +631,8 @@
   '''
 ::
 ++  dialogs
+  ::  The help panel and its card, including the documentation nav the
+  ::  runtime builds from doc.toc.  The Clay error modal reuses .help-card.
   ^-  @t
   '''
   .help-panel {
@@ -753,6 +770,8 @@
   '''
 ::
 ++  controls
+  ::  Base button, select, and input dimensions, the theme control, icon
+  ::  buttons, preferences, and the css-drawn copy and close icons.
   ^-  @t
   '''
   button, select, input, .preference {
@@ -869,6 +888,8 @@
   '''
 ::
 ++  responsive
+  ::  The single narrow-viewport query, at the same 760px `limits.narrow`
+  ::  the runtime matches on.  Last in the cascade, by convention.
   ^-  @t
   '''
   @media (max-width: 760px) {

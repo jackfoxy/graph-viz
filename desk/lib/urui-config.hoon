@@ -151,6 +151,7 @@
   ?~(value ~ s+u.value)
 ::
 ++  number
+  ::  `scot %ud` groups digits with dots, which json numbers cannot carry.
   |=  value=@ud
   ^-  json
   =/  digits

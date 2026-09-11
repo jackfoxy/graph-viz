@@ -143,6 +143,9 @@
   ::
   ::  Emitted to the page as one json object; nothing in urui's
   ::  javascript reads a consumer name except through this record.
+  ::
+  ::  `permanent-views` also selects the frame: empty asks urui-shell for
+  ::  the compact three-area page, non-empty for the full explorer shell.
   $:  =app-id
       kinds=(list doc-kind)
       =endpoints

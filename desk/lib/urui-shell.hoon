@@ -162,6 +162,10 @@
   ==
 ::
 ++  explorer-tabs
+  ::  Ids are derived from the view name — `{view}-tab` controlling
+  ::  `{view}-panel` — and the first view is the selected one.  The
+  ::  runtime re-orders, re-labels, and adds to this strip by those
+  ::  names, so a view renamed here is a view the session drops.
   |=  [views=(list [@tas @t]) first=?]
   ^-  marl
   ?~  views  ~
@@ -199,6 +203,10 @@
   $(views t.views, first |)
 ::
 ++  explorer-panels
+  ::  Each permanent view gets one file tree, `{view}-tree`, labelled
+  ::  after the $doc-kind in the same position: the first view owns the
+  ::  first kind.  `aria-busy` stays true until the runtime's first
+  ::  browse response replaces the placeholder.
   |=  [views=(list [@tas @t]) kinds=(list doc-kind:urui) first=?]
   ^-  marl
   ?~  views  ~
@@ -275,6 +283,10 @@
   ==
 ::
 ++  document-strip
+  ::  The strip is `{kind}-document-tabs`; the runtime fills it.  An area
+  ::  that asks for a strip without naming a kind gets the plain
+  ::  `{area}-tabs` element instead.  The hidden span is there because a
+  ::  tall-attribute element must have children.
   |=  [area=area:urui config=app-config:urui]
   ^-  marl
   ?.  strip.area  ~
@@ -293,6 +305,9 @@
   ==
 ::
 ++  secondary-host
+  ::  An Ace host is an empty `.editor-host` carrying the mode; the
+  ::  adapter the consumer builds mounts into it by id.  The hidden span
+  ::  is there because a tall-attribute element must have children.
   |=  value=(unit editor:urui)
   ^-  marl
   ?~  value  ~
@@ -331,6 +346,7 @@
   ==
 ::
 ++  context-menu
+  ::  One menu for the whole page, at ids the runtime's file tree binds.
   ^-  manx
   ;div#file-context-menu.file-context-menu(hidden "", role "menu")
     ;button#file-context-open(type "button", role "menuitem"): Open
@@ -342,6 +358,7 @@
   ==
 ::
 ++  error-dialog
+  ::  The Clay failure modal, at ids the runtime's error path binds.
   ^-  manx
   ;aside#clay-error-modal.help-panel
     =hidden          ""

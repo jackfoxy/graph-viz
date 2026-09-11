@@ -1,6 +1,10 @@
+::  urui-clay: clay path validation and browse listings.
+::
+::  Paths are built relative to a consumer's storage root and validated
+::  as data; nothing here reads or writes clay.
+::
 |%
-  ::  Clay paths relative to a consumer's storage root and browse JSON.
-  ::
+::
 ++  file-path
   ::  Preserve an allowed suffix; otherwise append the first extension.
   ::  An empty extension list cannot name a file.

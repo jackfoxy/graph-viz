@@ -1,6 +1,9 @@
+::  urui-http: eyre response helpers.
+::
+::  Exact asset lookup and HTTP payloads; policy belongs to the consumer.
+::
 |%
-  ::  Exact asset lookup and HTTP payloads; policy belongs to the consumer.
-  ::
+::
 +$  asset  [content-type=@t body=octs]
 ::
 ++  respond

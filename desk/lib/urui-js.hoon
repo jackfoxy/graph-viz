@@ -147,14 +147,21 @@
   ::  names a consumer. Section banners mark each responsibility;
   ::  ++files and ++shortcuts are composed into the same lexical scope.
   ::
-  ::  `options.editors` supplies the Ace adapters to resize and re-theme;
-  ::  `options.onChange` is called whenever a persisted value moves;
-  ::  `options.tabs[kindName]` and the explorer/session options are
-  ::  documented at their own section banner, not repeated here.
+  ::  Every `options` field is documented at the banner of the section
+  ::  that reads it.  The object ++runtime returns is runtime-internal,
+  ::  wider than `window.urui`, and unfrozen.
   ^-  @t
   %+  rap  3
   :~
   '''
+  // ---- shell frame --------------------------------------------------
+  //
+  // Policy comes from `window.URUI_CONFIG`; the frame is reached through
+  // `data-role` and the ids urui-shell fixes.  A consumer adds to or
+  // overrides that node map with `options.elements`, supplies the Ace
+  // adapters to resize and re-theme with `options.editors` (an array or
+  // a function returning one), and takes over persistence scheduling
+  // with `options.onChange`, which replaces the queued session save.
   const config = window.URUI_CONFIG || {};
   const limits = config.limits || {};
   const paneMin = limits.paneMin ?? 25;
@@ -223,6 +230,13 @@
     });
   }
 
+  // ---- theme --------------------------------------------------------
+  //
+  // Three selections — system, light, dark — carried on the root element
+  // as `data-theme` (the selection) and `data-effective-theme` (what it
+  // resolves to now), the same pair ++theme-bootstrap writes before
+  // first paint.  `options.onTheme(effective, selected)` follows every
+  // change; every editor is re-themed with the effective value.
   function validTheme(candidate) {
     return themes.includes(candidate) ? candidate : 'system';
   }
@@ -253,6 +267,12 @@
     if (selectedTheme() === 'system') applyTheme('system', false);
   }
 
+  // ---- status lines -------------------------------------------------
+  //
+  // `config.statuses` maps a state name to its label; an unrecognised
+  // state is shown verbatim.  A pane's node is `options.elements`
+  // `editorStatus`/`resultStatus` when the consumer names one, else the
+  // first `.status` or `.pane-status` inside that pane.
   function statusNode(name) {
     const named = name === 'editor'
       ? elements.editorStatus
@@ -269,6 +289,14 @@
     return label;
   }
 
+  // ---- layout -------------------------------------------------------
+  //
+  // Two widths, both css custom properties the stylesheet declares and
+  // the runtime rewrites inline: `--editor-width`, a percent on
+  // `#workspace`, and `--explorer-width`, pixels on `#workbench`.  Every
+  // change refreshes the editors, batched one per frame.  Explorer
+  // collapse is a class on the pane and the workbench plus the
+  // resizer's disabled state, not a width of zero.
   function paneWidth() {
     const value = getComputedStyle(elements.workspace)
       .getPropertyValue('--editor-width');
@@ -326,6 +354,13 @@
     return explorerOpen;
   }
 
+  // ---- help and error dialogs ---------------------------------------
+  //
+  // Both are `hidden`-toggled asides that move focus: help focuses its
+  // close button and restores the toggle, the error modal restores
+  // whatever was focused when it opened.  `options.onHelpOpen` runs
+  // before help takes focus.  Escape ordering between them lives in the
+  // shortcut dispatcher.
   function helpIsOpen() {
     return !elements.helpPanel.hidden;
   }
@@ -1014,10 +1049,12 @@
 
   // ---- documentation ------------------------------------------------
   //
-  // Fetches `${config.docsRoot}doc.toc`, an indented `/slug title` list
-  // (two-space indent per level, one nesting deep), and renders it as the
-  // collapsible nav the help panel's docs tab shows; each leaf opens an
-  // iframe at `docsRoot + path`.
+  // Availability is probed at the ship's own `/docs`, not at the
+  // application; the table of contents is then read from
+  // `${config.appId.base}/doc.toc`, an indented `/slug title` list (two
+  // spaces per level, one nesting deep), and rendered as the collapsible
+  // nav the help panel's docs tab shows.  Only the iframe a leaf opens
+  // uses `config.docsRoot`.
 
   function parseDocsToc(source) {
     const root = [];
@@ -1391,7 +1428,7 @@
     return new RegExp(`^${prefix}-[1-9][0-9]*$`);
   }
 
-  //  A saved id carries its own counter: `dot-7` means the next tab is
+  //  A saved id carries its own counter: `note-7` means the next tab is
   //  at least 8, however stale the saved counter is.
   function highestId(tabs) {
     return tabs.reduce((highest, tab) => {
@@ -1759,9 +1796,14 @@
   files
   shortcuts
   '''
+  // ---- wiring -------------------------------------------------------
+  //
   // Everything above is callable on its own; `wire` is what turns the
   // frame into a live surface.  A consumer that wants different
-  // behavior simply does not call it.
+  // behavior simply does not call it.  Its file controls are bound by
+  // name — `#browse-{kind}`, `#load-{kind}`, `#save-{kind}`, one set per
+  // `config.kinds` entry — and `options.onResize` runs on every window
+  // resize, before the editors are refreshed.
   function wire() {
     document.addEventListener('keydown', dispatchShortcut, {capture: true});
     for (const {name} of kinds) {
@@ -1870,6 +1912,12 @@
     });
   }
 
+  // ---- the runtime object -------------------------------------------
+  //
+  // Runtime-internal, not the stable api: `window.urui` is the frozen
+  // facade a consumer calls, this is the surface a consumer's hooks are
+  // written against.  A plain unfrozen object, reachable only as the
+  // value `urui.runtime(options)` returns.
   return {
     elements,
     clamp,
@@ -2247,6 +2295,12 @@
 ::
 ++  editor-adapter
   ::  The body of createAceEditorAdapter, shared by every consumer.
+  ::
+  ::  `options.assets` is the frozen record ++config-js:urui-ace
+  ::  publishes, and is required; `mode` overrides the configured Ace
+  ::  mode; `platform` overrides Ace's keyboard platform; `label`,
+  ::  `labelledBy`, and `describedBy` name and describe the hidden
+  ::  textarea for a screen reader.
   ::
   ^-  @t
   '''
