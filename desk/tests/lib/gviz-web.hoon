@@ -79,22 +79,33 @@
         "id=\"template\""
         "id=\"inspector\""
     ==
+  ::  each global is published once: a second copy would mean the runtime
+  ::  is composed twice, and the later one would silently win
+  =/  once-needles=(list tape)
+    :~  "window.URUI_CONFIG = "
+        "window.urui = "
+        "window.urui.boot("
+    ==
   =/  exactly-once
     |=  [needle=tape haystack=tape]
     ^-  ?
     =/  offset=(unit @ud)  (find needle haystack)
     ?~  offset  %.n
     ?=(~ (find needle (slag +(u.offset) haystack)))
-  ;:  weld
+  ::  the operands are cast to `tang` before they are welded, as every arm
+  ::  above does: `weld` is wet, so `;:  weld` over inline expressions
+  ::  re-fishes each operand's own inferred type and loops (`fuse-loop`)
+  =/  html-tests=tang
     %-  zing
     %+  turn  html-needles
     |=  needle=tape
     (expect !>(?=(^ (find needle html))))
-  ::
-    (expect !>((exactly-once "window.URUI_CONFIG = " js)))
-    (expect !>((exactly-once "window.urui = " js)))
-    (expect !>((exactly-once "window.urui.boot(" js)))
-  ==
+  =/  once-tests=tang
+    %-  zing
+    %+  turn  once-needles
+    |=  needle=tape
+    (expect !>((exactly-once needle js)))
+  (weld html-tests once-tests)
 ::
 ++  test-theme-switcher
   =/  style  (trip css:web)

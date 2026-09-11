@@ -262,13 +262,20 @@
     (expect-eq !>('missing Clay path') !>((response-body -.out)))
   ==
 ::
-++  test-web-clay-browse-failure
+++  test-web-clay-browse-missing
+  ::  A path with no clay node is not a browse failure: `%cy` answers an
+  ::  empty arch for any path in the revision, so the listing is an empty
+  ::  directory.  The handler's 500 branch covers a scry that fails
+  ::  outright — a malformed beam, not a missing node — which this poke
+  ::  cannot provoke.
   =/  req
     (file-request '/apps/graph-viz/file/dot/browse' 'missing' ~)
   =/  out  (poke-http req)
   ;:  weld
-    (expect-eq !>(500) !>((response-status -.out)))
-    (expect-eq !>('Clay browse failed') !>((response-body -.out)))
+    (expect-eq !>(200) !>((response-status -.out)))
+    %+  expect-eq
+      !>('{"children":[],"file":false}')
+    !>((response-body -.out))
   ==
 ::
 ++  test-browse-path
