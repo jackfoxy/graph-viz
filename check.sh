@@ -23,6 +23,7 @@
 #
 set -euo pipefail
 cd "$(dirname "$0")"
+"$PWD/bin/verify-sync.sh" --quiet || true
 
 VERE="${VERE:-$HOME/piers/vere-v4.5-linux-x86_64}"
 DESK=desk

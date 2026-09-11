@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+"$ROOT/bin/verify-sync.sh" --quiet || true
 APP_JS="${1:-}"
 WORK=""
 
@@ -16,4 +17,4 @@ if [[ -z "$APP_JS" ]]; then
 fi
 
 node --check "$APP_JS"
-node "$ROOT/tests/browser/gviz-web.test.js" "$APP_JS"
+node "$ROOT/tests/browser/run-scenarios.js" "$APP_JS"

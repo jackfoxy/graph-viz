@@ -7,9 +7,18 @@ const {spawn} = require('node:child_process');
 
 const root = path.resolve(__dirname, '../../..');
 
-function read(relative) {
-  return fs.readFileSync(path.join(root, relative), 'utf8')
-    .replace(/^\/[+-].*\n/gm, '');
+function readSource(filename) {
+  return fs.readFileSync(filename, 'utf8').replace(/^\/[+-].*\n/gm, '');
+}
+
+function assemble(bindings, expression) {
+  const lines = [];
+  for (const [face, relative] of bindings) {
+    lines.push(`=+  ^=  ${face}`);
+    lines.push(readSource(path.resolve(root, relative)));
+  }
+  lines.push(expression);
+  return lines.join('\n');
 }
 
 function findVere() {
@@ -54,7 +63,7 @@ function parseCords(output) {
   if (start < 0) throw new Error('vere eval returned no result');
   const cords = [];
   let index = start;
-  while (index < plain.length && cords.length < 2) {
+  while (index < plain.length && cords.length < 3) {
     if (plain[index] !== "'") {
       index += 1;
       continue;
@@ -84,7 +93,7 @@ function parseCords(output) {
     }
     cords.push(decodeCord(encoded));
   }
-  if (cords.length !== 2) throw new Error('vere eval returned invalid assets');
+  if (cords.length !== 3) throw new Error('vere eval returned invalid assets');
   return cords;
 }
 
@@ -105,15 +114,17 @@ function evaluate(source) {
 }
 
 async function compileAssetsOnce() {
-  const source = [
-    '=+  ^=  gg',
-    read('desk/sur/graph.hoon'),
-    '=+  ^=  gviz',
-    read('desk/sur/gviz.hoon'),
-    '=+  ^=  web',
-    read('desk/lib/gviz-web.hoon'),
-    '[page:web javascript:web]'
-  ].join('\n');
+  const source = assemble([
+    ['gg', 'desk/sur/graph.hoon'],
+    ['gviz', 'desk/sur/gviz.hoon'],
+    ['urui', 'desk/sur/urui.hoon'],
+    ['uace', 'desk/lib/urui-ace.hoon'],
+    ['ucss', 'desk/lib/urui-css.hoon'],
+    ['ucfg', 'desk/lib/urui-config.hoon'],
+    ['ujs', 'desk/lib/urui-js.hoon'],
+    ['shell', 'desk/lib/urui-shell.hoon'],
+    ['web', 'desk/lib/gviz-web.hoon']
+  ], '[page:web javascript:web ace-config-js:web]');
   return parseCords(await evaluate(source));
 }
 
@@ -126,6 +137,7 @@ async function compileAssets() {
         throw new Error('vere eval returned truncated page HTML');
       }
       new vm.Script(assets[1], {filename: 'graph-viz-app.js'});
+      new vm.Script(assets[2], {filename: 'graph-viz-config.js'});
       return assets;
     } catch (cause) {
       problem = cause;
@@ -135,14 +147,10 @@ async function compileAssets() {
 }
 
 async function main() {
-  const [page, javascript] = await compileAssets();
+  const [page, javascript, aceConfig] = await compileAssets();
   const aceRoot = path.join(root, 'desk/web/ace');
   const aceAssets = new Map([
     ['/apps/graph-viz/ace/ace.js', 'ace.js'],
-    [
-      '/apps/graph-viz/ace/graph-viz-config.js',
-      'graph-viz-config.js'
-    ],
     ['/apps/graph-viz/ace/mode-dot.js', 'mode-dot.js'],
     ['/apps/graph-viz/ace/theme-github.js', 'theme-github.js'],
     ['/apps/graph-viz/ace/theme-monokai.js', 'theme-monokai.js'],
@@ -170,6 +178,14 @@ async function main() {
         'content-type': 'text/javascript; charset=utf-8'
       });
       response.end(javascript);
+      return;
+    }
+    if (request.method === 'GET'
+      && requestPath === '/apps/graph-viz/ace/graph-viz-config.js') {
+      response.writeHead(200, {
+        'content-type': 'text/javascript; charset=utf-8'
+      });
+      response.end(aceConfig);
       return;
     }
     if (request.method === 'GET'

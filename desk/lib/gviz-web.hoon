@@ -1,699 +1,585 @@
 ::  Browser assets and JSON conversion for %graph-viz-web.
 ::
-/-  gviz
+/-  gviz, urui
+/+  shell=urui-shell, ucss=urui-css, uace=urui-ace
+/+  ucfg=urui-config, ujs=urui-js
 |%
+::
+++  config
+  ^-  app-config:urui
+  :*  :*  name=%graph-viz
+          title='Graph Viz'
+          base='/apps/graph-viz'
+          storage-key='graph-viz.session.v1'
+          storage-version=1
+      ==
+      :~  :*  name=%dot
+              label='DOT'
+              untitled='Untitled'
+              ext=%dot
+              leaf=%txt
+              mime='text/vnd.graphviz; charset=utf-8'
+              tabs=&
+              refs=&
+          ==
+          :*  name=%svg
+              label='SVG'
+              untitled='Preview'
+              ext=%svg
+              leaf=%svg
+              mime='image/svg+xml; charset=utf-8'
+              tabs=&
+              refs=&
+          ==
+      ==
+      :*  transport=%header
+          path-header=`'x-graph-viz-path'
+          flag-header=`'x-graph-viz-overwrite'
+          browse='/apps/graph-viz/file/{kind}/browse'
+          load='/apps/graph-viz/file/{kind}/load'
+          save='/apps/graph-viz/file/{kind}/save'
+          delete='/apps/graph-viz/file/{kind}/delete'
+      ==
+      :*  render-debounce=350
+          save-debounce=150
+          min-explorer=180
+          divider=10
+          pane-min=25
+          pane-max=70
+          narrow=760
+          max-source=262.144
+      ==
+      slots
+      shortcuts
+      :~  [%ready 'Ready']
+          [%loading 'Loading']
+          [%empty 'Empty']
+          [%disconnected 'Disconnected']
+      ==
+      docs-root=`'/docs/d/graph-viz/'
+      share-param=`[name='dot' max=12.288 param-max=16.384]
+      :~  [%dot-files 'DOT Files']
+          [%svg-files 'SVG Files']
+      ==
+      ace-spec
+  ==
+::
+++  slots
+  ^-  (list slot:urui)
+  :~  ['source' %app %scalar ~]
+      ['paneWidth' %urui %scalar ~]
+      ['explorerWidth' %urui %scalar ~]
+      ['explorerOpen' %urui %scalar ~]
+      ['explorerView' %urui %scalar ~]
+      ['explorerOrder' %urui %scalar ~]
+      ['docsTabs' %urui %tabs ~]
+      ['nextDocs' %urui %next ~]
+      ['refTabs' %urui %tabs ~]
+      ['nextRef' %urui %next ~]
+      ['dotTabs' %urui %tabs `%dot]
+      ['activeDotTabId' %urui %active `%dot]
+      ['nextDotTab' %urui %next `%dot]
+      ['svgTabs' %urui %tabs `%svg]
+      ['activeSvgTabId' %urui %active `%svg]
+      ['nextSvgTab' %urui %next `%svg]
+      ['view' %app %record ~]
+      ['preferences.theme' %urui %scalar ~]
+      ['preferences.autoRender' %app %scalar ~]
+  ==
+::
+++  shortcuts
+  ^-  (list shortcut:urui)
+  :~  ['Ctrl-Enter' 'render' %always]
+      ['Ctrl-S' 'save-dot' %always]
+      ['Ctrl-Shift-S' 'save-svg' %always]
+      ['Ctrl-0' 'fit-view' %preview]
+      ['Ctrl-1' 'reset-view' %preview]
+  ==
+::
+++  ace-spec
+  ^-  ace-spec:urui
+  :*  base='/apps/graph-viz/ace'
+      global='graphVizAceAssets'
+      version='1.44.0'
+      mode='ace/mode/dot'
+      light='ace/theme/github'
+      dark='ace/theme/monokai'
+      :~  'ace/ext/beautify'  'ace/ext/prompt'
+          'ace/ext/searchbox'  'ace/ext/settings_menu'
+      ==
+      use-worker=|
+  ==
 ::
 ++  page
   ^-  @t
-  %-  crip
-  %-  en-xml:html
-  ;html
-    ;head
-      ;meta(charset "utf-8");
-      ;meta(name "viewport", content "width=device-width, initial-scale=1");
-      ;title: Graph Viz
-      ;script
-        ;+  ;/  (trip theme-bootstrap)
+  (crip (en-xml:html (build:shell spec)))
+::
+++  spec
+  ^-  shell-spec:urui
+  :*  config
+      brand
+      toolbar
+      [reference-area editor-area result-area]
+      help
+      dialogs=~
+      styles=~[css]
+      :~  '/apps/graph-viz/ace/ace.js'
+          '/apps/graph-viz/ace/graph-viz-config.js'
+          '/apps/graph-viz/ace/mode-dot.js'
+          '/apps/graph-viz/ace/theme-github.js'
+          '/apps/graph-viz/ace/ext-beautify.js'
+          '/apps/graph-viz/app.js'
       ==
-      ;style
-        ;+  ;/  (trip css)
-      ==
-    ==
-    ;body
-      ;header.app-header
-        ;div.brand
-          ;h1: Graph Viz
-        ==
-        ;nav.toolbar(aria-label "Graph controls")
-          ;label.theme-control
-            ;span: Theme
-            ;select#theme(aria-label "Theme")
-              ;option(value "system"): System
-              ;option(value "light"): Light
-              ;option(value "dark"): Dark
-            ==
-          ==
-          ;button#help(type "button", aria-expanded "false"): Help
-        ==
-      ==
-      ;main#workbench.workbench
-        ;aside#explorer-pane.explorer-pane
-          =aria-label  "Graph Viz explorer"
-          ;div.explorer-header
-            ;div#explorer-tabs.explorer-tabs
-              =role        "tablist"
-              =aria-label  "Graph Viz explorer"
-              ;div.explorer-tab-control.active(role "presentation")
-                ;button#dot-files-tab.explorer-tab.active
-                  =type                "button"
-                  =role                "tab"
-                  =data-explorer-view  "dot-files"
-                  =aria-selected       "true"
-                  =aria-controls       "dot-files-panel"
-                  DOT Files
-                ==
-              ==
-              ;div.explorer-tab-control(role "presentation")
-                ;button#svg-files-tab.explorer-tab
-                  =type                "button"
-                  =role                "tab"
-                  =data-explorer-view  "svg-files"
-                  =aria-selected       "false"
-                  =aria-controls       "svg-files-panel"
-                  =tabindex            "-1"
-                  SVG Files
-                ==
-              ==
-            ==
-            ;button#explorer-collapse.icon-button.explorer-collapse
-              =type           "button"
-              =aria-label     "Collapse explorer"
-              =aria-expanded  "true"
-              ‹
-            ==
-          ==
-          ;div#dot-files-panel.explorer-panel
-            =role              "tabpanel"
-            =aria-labelledby   "dot-files-tab"
-            ;div#dot-files-tree.explorer-file-tree
-              =role       "tree"
-              =aria-label  "DOT files"
-              =aria-busy   "true"
-              ;p: Loading…
-            ==
-          ==
-          ;div#svg-files-panel.explorer-panel(hidden "")
-            =role              "tabpanel"
-            =aria-labelledby   "svg-files-tab"
-            ;div#svg-files-tree.explorer-file-tree
-              =role       "tree"
-              =aria-label  "SVG files"
-              =aria-busy   "true"
-              ;p: Loading…
-            ==
-          ==
-        ==
-        ;button#explorer-resizer.explorer-resizer
-          =type              "button"
-          =role              "separator"
-          =aria-orientation  "vertical"
-          =aria-label        "Resize explorer"
-          ;span.sr-only: Resize explorer
-        ==
-        ;section#workspace.workspace
-        ;section#editor-pane.pane.editor-pane
-          ;div.pane-header
-            ;h2#dot-source-heading: DOT source
-            ;span#source-status.status: Ready
-            ;div.file-actions(aria-label "DOT file controls")
-              ;select#template
-                =title       "Insert starter template"
-                =aria-label  "Starter template"
-                ;option(value "", disabled "", hidden ""): Select template…
-                ;option(value "flowchart"): Flowchart
-                ;option(value "strict-digraph"): Strict digraph
-                ;option(value "state-machine"): State machine
-                ;option(value "dependencies"): Dependencies
-                ;option(value "clusters"): Clusters
-              ==
-              ;button#add-dot-ref(type "button", disabled ""): Add Ref
-              ;button#browse-dot(type "button"): Browse
-              ;button#load-dot(type "button"): Load DOT
-              ;button#save-dot(type "button"): Save DOT
-            ==
-            ;label.preference.source-auto-render
-              ;input#auto-render(type "checkbox", checked "");
-              ;span: Auto-render
-            ==
-          ==
-          ;div#dot-document-tabs.document-tabs
-            =role        "tablist"
-            =aria-label  "Open DOT documents"
-            ;span(hidden "");
-          ==
-          ;div.visual-tools(aria-label "Visual editing tools")
-            ;label.control
-              ;span: Node name
-              ;input#new-node-name(type "text", placeholder "new_node");
-            ==
-            ;label.control
-              ;span: Category
-              ;select#new-node-category
-                ;option(value "basic-shapes"): Basic shapes
-                ;option(value "basic-symbols"): Basic symbols
-                ;option(value "special-shapes"): Special shapes
-                ;option(value "gene-expression-symbols"): Gene expression symbols
-                ;option(value "dna-construction-symbols"): DNA construction symbols
-                ;option(value "other-shapes"): Other shapes
-              ==
-            ==
-            ;label.control
-              ;span: Shape
-              ;select#new-node-shape;
-            ==
-            ;button#add-node(type "button"): Add node
-            ;button#draw-edge
-              =type      "button"
-              =disabled  ""
-              =title     "Shift-click two nodes, then draw an edge"
-              ;span: Draw edge
-            ==
-          ==
-          ;div.editor-body
-            ;div#editor-load-error.editor-load-error
-              =hidden  ""
-              =role    "alert"
-              ;strong: Source editors unavailable
-              ;span: Reload the page.
-              ;span: If the problem continues, verify the Ace assets are installed.
-            ==
-            ;div#dot.ace-editor-host
-              =role               "region"
-              =aria-labelledby    "dot-source-heading"
-              =aria-describedby   "error editor-load-error"
-              ;+  ;/  (trip 'digraph { a -> b }')
-            ==
-          ==
-        ==
-        ;div#splitter.splitter
-          =role              "separator"
-          =tabindex          "0"
-          =aria-orientation  "vertical"
-          =aria-label        "Resize editor and preview"
-          ;span.sr-only: Resize editor and preview
-        ==
-        ;section#preview-pane.pane.preview-pane
-          ;div.pane-header
-            ;h2: Preview
-            ;span#render-status.status: Empty
-            ;div.file-actions(aria-label "SVG file controls")
-              ;button#render.primary
-                =type   "button"
-                =title  "Render (Ctrl+Enter)"
-                ;span: Render
-              ==
-              ;div.zoom-controls(aria-label "Zoom controls")
-                ;button#zoom-in.icon-button
-                  =type        "button"
-                  =disabled    ""
-                  =title       "Zoom in"
-                  =aria-label  "Zoom in"
-                  ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
-                ==
-                ;button#zoom-out.icon-button
-                  =type        "button"
-                  =disabled    ""
-                  =title       "Zoom out"
-                  =aria-label  "Zoom out"
-                  ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
-                ==
-              ==
-              ;button#fit
-                =type      "button"
-                =disabled  ""
-                =title     "Fit graph (Ctrl+0)"
-                ;span: Fit
-              ==
-              ;button#reset-view
-                =type      "button"
-                =disabled  ""
-                =title     "Reset view (Ctrl+1)"
-                ;span: Reset
-              ==
-              ;button#add-svg-ref(type "button", disabled ""): Add Ref
-              ;button#browse-svg(type "button"): Browse
-              ;button#load-svg(type "button"): Load SVG
-              ;button#save-svg(type "button", disabled ""): Save SVG
-              ;button#toggle-svg-source
-                =type          "button"
-                =disabled      ""
-                =aria-pressed  "false"
-                ;span: Edit SVG
-              ==
-            ==
-          ==
-          ;div#svg-document-tabs.document-tabs
-            =role        "tablist"
-            =aria-label  "Open SVG documents"
-            ;span(hidden "");
-          ==
-          ;pre#error.error(hidden "", role "alert");
-          ;div#inspector.inspector(hidden "", aria-live "polite")
-            ;div.selection-summary
-              ;span#selection-kind.selection-kind;
-              ;code#selection-id;
-              ;button#delete-selection.danger-button(type "button")
-                Delete
-              ==
-              ;button#clear-selection
-                =type        "button"
-                =aria-label  "Clear graph selection"
-                ;span: Clear
-              ==
-            ==
-            ;form#attribute-form.attribute-form
-              ;label.control
-                ;span: Label
-                ;input#attr-label(type "text", maxlength "200");
-              ==
-              ;label#shape-control.control
-                ;span: Shape
-                ;select#attr-shape
-                  ;option(value ""): Default
-                  ;option(value "box"): Box
-                  ;option(value "ellipse"): Ellipse
-                  ;option(value "circle"): Circle
-                  ;option(value "diamond"): Diamond
-                  ;option(value "point"): Point
-                ==
-              ==
-              ;label.control
-                ;span: Color
-                ;input#attr-color(type "text", placeholder "#2563eb");
-              ==
-              ;label#fill-control.control
-                ;span: Fill color
-                ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
-              ==
-              ;label.control
-                ;span: Line style
-                ;select#attr-style
-                  ;option(value ""): Default
-                  ;option(value "solid"): Solid
-                  ;option(value "dashed"): Dashed
-                  ;option(value "dotted"): Dotted
-                  ;option(value "bold"): Bold
-                  ;option(value "invis"): Invisible
-                ==
-              ==
-              ;div#edge-controls.edge-controls(hidden "")
-                ;label.control
-                  ;span: Pen width
-                  ;input#attr-penwidth(type "number", min "0", step "any");
-                ==
-                ;label.control
-                  ;span: Arrowhead
-                  ;select#attr-arrowhead
-                    ;option(value ""): Default
-                    ;option(value "normal"): Normal
-                    ;option(value "empty"): Empty
-                    ;option(value "vee"): Vee
-                    ;option(value "dot"): Dot
-                    ;option(value "diamond"): Diamond
-                    ;option(value "none"): None
-                  ==
-                ==
-                ;label.control
-                  ;span: Arrowtail
-                  ;select#attr-arrowtail
-                    ;option(value ""): Default
-                    ;option(value "normal"): Normal
-                    ;option(value "empty"): Empty
-                    ;option(value "vee"): Vee
-                    ;option(value "dot"): Dot
-                    ;option(value "diamond"): Diamond
-                    ;option(value "none"): None
-                  ==
-                ==
-                ;label.control
-                  ;span: Arrow size
-                  ;input#attr-arrowsize(type "number", min "0", step "any");
-                ==
-                ;label.control
-                  ;span: Direction
-                  ;select#attr-dir
-                    ;option(value ""): Default
-                    ;option(value "forward"): Forward
-                    ;option(value "back"): Back
-                    ;option(value "both"): Both
-                    ;option(value "none"): None
-                  ==
-                ==
-                ;label.control
-                  ;span: Minimum length
-                  ;input#attr-minlen(type "number", min "0", step "1");
-                ==
-                ;label.control
-                  ;span: Weight
-                  ;input#attr-weight(type "number", min "0", step "1");
-                ==
-                ;label.control
-                  ;span: Font name
-                  ;input#attr-fontname(type "text", maxlength "80");
-                ==
-                ;label.control
-                  ;span: Font size
-                  ;input#attr-fontsize(type "number", min "0", step "any");
-                ==
-                ;label.control
-                  ;span: Font color
-                  ;input#attr-fontcolor(type "text", placeholder "#18181b");
-                ==
-              ==
-              ;div.attribute-actions
-                ;label.preference
-                  ;input#attr-change-all(type "checkbox");
-                  ;span: Change all
-                ==
-                ;label.preference
-                  ;input#attr-use-default(type "checkbox");
-                  ;span: Use as default
-                ==
-                ;button#apply-attributes(type "submit"): Apply
-              ==
-            ==
-          ==
-          ;div#preview-shell.preview-shell(data-state "empty")
-            ;div.preview-actions(aria-label "Preview controls")
-              ;button#copy-svg.preview-action
-                =type        "button"
-                =disabled    ""
-                =title       "Copy SVG source"
-                =aria-label  "Copy SVG source to clipboard"
-                ;span.copy-icon(aria-hidden "true");
-              ==
-              ;button#fullscreen-svg.preview-action
-                =type          "button"
-                =disabled      ""
-                =hidden        ""
-                =title         "Expand SVG to fullscreen"
-                =aria-label    "Expand SVG to fullscreen"
-                =aria-pressed  "false"
-                ;span.fullscreen-icon(aria-hidden "true");
-              ==
-              ;button#fullscreen-zoom-out.preview-action.fullscreen-only
-                =type        "button"
-                =disabled    ""
-                =title       "Zoom out"
-                =aria-label  "Zoom out"
-                ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
-              ==
-              ;button#fullscreen-zoom-in.preview-action.fullscreen-only
-                =type        "button"
-                =disabled    ""
-                =title       "Zoom in"
-                =aria-label  "Zoom in"
-                ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
-              ==
-            ==
-            ;div#empty-state.state-panel
-              ;p.state-title: Nothing rendered yet
-              ;p: Select Render to preview the current DOT source.
-            ==
-            ;div#loading-state.state-panel
-              ;span.spinner(aria-hidden "true");
-              ;p.state-title: Rendering graph
-            ==
-            ;div#disconnected-state.state-panel
-              ;p.state-title: Renderer unavailable
-              ;p: Check the ship connection, then try again.
-            ==
-            ;div#preview.preview(aria-live "polite", tabindex "0");
-            ;div#svg-source.ace-editor-host
-              =hidden      ""
-              =role        "region"
-              =aria-label  "SVG source editor"
-              ;span(hidden "");
-            ==
-          ==
-        ==
-        ==
-      ==
-      ;aside#help-panel.help-panel
-        =hidden          ""
-        =role            "dialog"
-        =aria-modal      "true"
-        =aria-labelledby  "help-title"
-        ;div#editor-help-card.help-card.editor-help-card
-          ;div.pane-header
-            ;h2#help-title: Help
-            ;button#close-help.icon-button.help-close
-              =type        "button"
-              =title       "Close"
-              =aria-label  "Close help"
-              ;span.close-icon(aria-hidden "true");
-            ==
-          ==
-          ;div#fallback-help-content
-            ;nav.help-links(aria-label "Graph Viz documentation")
-              ;a
-                =href    "/docs/d/graph-viz/dot-language"
-                =target  "_blank"
-                =rel     "noopener noreferrer"
-                DOT Language Reference
-              ==
-            ==
-            ;p: Write DOT on the left and inspect the SVG on the right.
-            ;p: Drag the divider to resize the panes on larger screens.
-            ;h3: Keyboard shortcuts
-            ;ul.shortcut-list
-              ;li: Ctrl/Cmd + Enter: render now
-              ;li: Ctrl/Cmd + S: save DOT to Clay
-              ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
-              ;li: Ctrl/Cmd + 0: fit graph
-              ;li: Ctrl/Cmd + 1: reset graph view
-              ;li: Tab / Shift + Tab: indent / unindent
-              ;li: Shift-click: select two nodes for an edge
-              ;li: Delete: remove the selected node or edge
-            ==
-          ==
-          ;div#docs-help-content.docs-help-content(hidden "")
-            ;nav#docs-help-nav.docs-help-nav
-              =aria-label  "Graph Viz documentation"
-              =aria-busy  "true"
-              ;p.docs-help-loading: Loading documentation…
-            ==
-          ==
-          ;nav.help-links.help-skill-links
-            =aria-label  "Graph Viz LLM skill files"
-            ;a
-              =href
-                "https://github.com/jackfoxy/foxy-skills/tree/master/".
-                "gviz-dot-syntax"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              DOT Syntax LLM Skill
-            ==
-            ;a
-              =href
-                "https://github.com/jackfoxy/foxy-skills/tree/master/".
-                "gviz-gall-api"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              Gall API LLM Skill
-            ==
-            ;a
-              =href
-                "https://github.com/jackfoxy/foxy-skills/tree/master/".
-                "gviz-patterns"
-              =target  "_blank"
-              =rel     "noopener noreferrer"
-              Common Patterns LLM Skill
-            ==
-          ==
-        ==
-      ==
-      ;div#file-context-menu.file-context-menu(hidden "", role "menu")
-        ;button#file-context-open(type "button", role "menuitem"): Open
-        ;button#file-context-delete.danger-button
-          =type  "button"
-          =role  "menuitem"
-          Delete
-        ==
-      ==
-      ;aside#clay-error-modal.help-panel
-        =hidden      ""
-        =role        "dialog"
-        =aria-modal  "true"
-        =aria-labelledby  "clay-error-title"
-        ;div.help-card
-          ;div.pane-header
-            ;h2#clay-error-title: Clay error
-            ;button#close-clay-error
-              =type        "button"
-              =aria-label  "Close Clay error"
-              ;span: Close
-            ==
-          ==
-          ;pre#clay-error-message.clay-error-message;
-        ==
-      ==
-      ;script(src "/apps/graph-viz/ace/ace.js");
-      ;script(src "/apps/graph-viz/ace/graph-viz-config.js");
-      ;script(src "/apps/graph-viz/ace/mode-dot.js");
-      ;script(src "/apps/graph-viz/ace/theme-github.js");
-      ;script(src "/apps/graph-viz/ace/ext-beautify.js");
-      ;script(src "/apps/graph-viz/app.js");
-    ==
   ==
 ::
-++  theme-bootstrap
+++  reference-area
+  ^-  area:urui
+  :*  role=%reference
+      id='explorer-pane'
+      label='Graph Viz explorer'
+      heading=~
+      status-id=~
+      kind=~
+      strip=|
+      controls=~
+      body=~
+      secondary=~
+  ==
+::
+++  editor-area
+  ^-  area:urui
+  :*  role=%editor
+      id='editor-pane'
+      label='DOT editor'
+      heading=`'DOT source'
+      status-id=`'source-status'
+      kind=`%dot
+      strip=&
+      controls=editor-controls
+      body=editor-body
+      secondary=~
+  ==
+::
+++  result-area
+  ^-  area:urui
+  :*  role=%result
+      id='preview-pane'
+      label='SVG preview'
+      heading=`'Preview'
+      status-id=`'render-status'
+      kind=`%svg
+      strip=&
+      controls=result-controls
+      body=result-body
+      secondary=~
+  ==
+::
+++  brand
+  ^-  marl
+  :~  ;div.brand
+        ;h1: Graph Viz
+      ==
+  ==
+::
+++  toolbar
+  ^-  marl
+  :~  ;nav.toolbar(aria-label "Graph controls")
+        ;label.theme-control
+          ;span: Theme
+          ;select#theme(aria-label "Theme")
+            ;option(value "system"): System
+            ;option(value "light"): Light
+            ;option(value "dark"): Dark
+          ==
+        ==
+        ;button#help(type "button", aria-expanded "false"): Help
+      ==
+  ==
+::
+++  editor-controls
+  ^-  marl
+  :~  ;div.file-actions(aria-label "DOT file controls")
+        ;select#template
+          =title       "Insert starter template"
+          =aria-label  "Starter template"
+          ;option(value "", disabled "", hidden ""): Select template…
+          ;option(value "flowchart"): Flowchart
+          ;option(value "strict-digraph"): Strict digraph
+          ;option(value "state-machine"): State machine
+          ;option(value "dependencies"): Dependencies
+          ;option(value "clusters"): Clusters
+        ==
+        ;button#add-dot-ref(type "button", disabled ""): Add Ref
+        ;button#browse-dot(type "button"): Browse
+        ;button#load-dot(type "button"): Load DOT
+        ;button#save-dot(type "button"): Save DOT
+      ==
+      ;label.preference.source-auto-render
+        ;input#auto-render(type "checkbox", checked "");
+        ;span: Auto-render
+      ==
+  ==
+::
+++  editor-body
+  ^-  marl
+  :~  ;div.visual-tools(aria-label "Visual editing tools")
+        ;label.control
+          ;span: Node name
+          ;input#new-node-name(type "text", placeholder "new_node");
+        ==
+        ;label.control
+          ;span: Category
+          ;select#new-node-category
+            ;option(value "basic-shapes"): Basic shapes
+            ;option(value "basic-symbols"): Basic symbols
+            ;option(value "special-shapes"): Special shapes
+            ;option(value "gene-expression-symbols"): Gene expression symbols
+            ;option(value "dna-construction-symbols"): DNA construction symbols
+            ;option(value "other-shapes"): Other shapes
+          ==
+        ==
+        ;label.control
+          ;span: Shape
+          ;select#new-node-shape;
+        ==
+        ;button#add-node(type "button"): Add node
+        ;button#draw-edge
+          =type      "button"
+          =disabled  ""
+          =title     "Shift-click two nodes, then draw an edge"
+          ;span: Draw edge
+        ==
+      ==
+      ;div.editor-body
+        ;div#editor-load-error.editor-load-error
+          =hidden  ""
+          =role    "alert"
+          ;strong: Source editors unavailable
+          ;span: Reload the page.
+          ;span: If the problem continues, verify the Ace assets are installed.
+        ==
+        ;div#dot.ace-editor-host
+          =role               "region"
+          =aria-labelledby    "dot-source-heading"
+          =aria-describedby   "error editor-load-error"
+          ;+  ;/  (trip 'digraph { a -> b }')
+        ==
+      ==
+  ==
+::
+++  result-controls
+  ^-  marl
+  :~  ;div.file-actions(aria-label "SVG file controls")
+        ;button#render.primary
+          =type   "button"
+          =title  "Render (Ctrl+Enter)"
+          ;span: Render
+        ==
+        ;div.zoom-controls(aria-label "Zoom controls")
+          ;button#zoom-in.icon-button
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom in"
+            =aria-label  "Zoom in"
+            ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+          ==
+          ;button#zoom-out.icon-button
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom out"
+            =aria-label  "Zoom out"
+            ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+          ==
+        ==
+        ;button#fit
+          =type      "button"
+          =disabled  ""
+          =title     "Fit graph (Ctrl+0)"
+          ;span: Fit
+        ==
+        ;button#reset-view
+          =type      "button"
+          =disabled  ""
+          =title     "Reset view (Ctrl+1)"
+          ;span: Reset
+        ==
+        ;button#add-svg-ref(type "button", disabled ""): Add Ref
+        ;button#browse-svg(type "button"): Browse
+        ;button#load-svg(type "button"): Load SVG
+        ;button#save-svg(type "button", disabled ""): Save SVG
+        ;button#toggle-svg-source
+          =type          "button"
+          =disabled      ""
+          =aria-pressed  "false"
+          ;span: Edit SVG
+        ==
+      ==
+  ==
+::
+++  result-body
+  ^-  marl
+  :~  ;pre#error.error(hidden "", role "alert");
+      ;div#inspector.inspector(hidden "", aria-live "polite")
+        ;div.selection-summary
+          ;span#selection-kind.selection-kind;
+          ;code#selection-id;
+          ;button#delete-selection.danger-button(type "button")
+            Delete
+          ==
+          ;button#clear-selection
+            =type        "button"
+            =aria-label  "Clear graph selection"
+            ;span: Clear
+          ==
+        ==
+        ;form#attribute-form.attribute-form
+          ;label.control
+            ;span: Label
+            ;input#attr-label(type "text", maxlength "200");
+          ==
+          ;label#shape-control.control
+            ;span: Shape
+            ;select#attr-shape
+              ;option(value ""): Default
+              ;option(value "box"): Box
+              ;option(value "ellipse"): Ellipse
+              ;option(value "circle"): Circle
+              ;option(value "diamond"): Diamond
+              ;option(value "point"): Point
+            ==
+          ==
+          ;label.control
+            ;span: Color
+            ;input#attr-color(type "text", placeholder "#2563eb");
+          ==
+          ;label#fill-control.control
+            ;span: Fill color
+            ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
+          ==
+          ;label.control
+            ;span: Line style
+            ;select#attr-style
+              ;option(value ""): Default
+              ;option(value "solid"): Solid
+              ;option(value "dashed"): Dashed
+              ;option(value "dotted"): Dotted
+              ;option(value "bold"): Bold
+              ;option(value "invis"): Invisible
+            ==
+          ==
+          ;div#edge-controls.edge-controls(hidden "")
+            ;label.control
+              ;span: Pen width
+              ;input#attr-penwidth(type "number", min "0", step "any");
+            ==
+            ;label.control
+              ;span: Arrowhead
+              ;select#attr-arrowhead
+                ;option(value ""): Default
+                ;option(value "normal"): Normal
+                ;option(value "empty"): Empty
+                ;option(value "vee"): Vee
+                ;option(value "dot"): Dot
+                ;option(value "diamond"): Diamond
+                ;option(value "none"): None
+              ==
+            ==
+            ;label.control
+              ;span: Arrowtail
+              ;select#attr-arrowtail
+                ;option(value ""): Default
+                ;option(value "normal"): Normal
+                ;option(value "empty"): Empty
+                ;option(value "vee"): Vee
+                ;option(value "dot"): Dot
+                ;option(value "diamond"): Diamond
+                ;option(value "none"): None
+              ==
+            ==
+            ;label.control
+              ;span: Arrow size
+              ;input#attr-arrowsize(type "number", min "0", step "any");
+            ==
+            ;label.control
+              ;span: Direction
+              ;select#attr-dir
+                ;option(value ""): Default
+                ;option(value "forward"): Forward
+                ;option(value "back"): Back
+                ;option(value "both"): Both
+                ;option(value "none"): None
+              ==
+            ==
+            ;label.control
+              ;span: Minimum length
+              ;input#attr-minlen(type "number", min "0", step "1");
+            ==
+            ;label.control
+              ;span: Weight
+              ;input#attr-weight(type "number", min "0", step "1");
+            ==
+            ;label.control
+              ;span: Font name
+              ;input#attr-fontname(type "text", maxlength "80");
+            ==
+            ;label.control
+              ;span: Font size
+              ;input#attr-fontsize(type "number", min "0", step "any");
+            ==
+            ;label.control
+              ;span: Font color
+              ;input#attr-fontcolor(type "text", placeholder "#18181b");
+            ==
+          ==
+          ;div.attribute-actions
+            ;label.preference
+              ;input#attr-change-all(type "checkbox");
+              ;span: Change all
+            ==
+            ;label.preference
+              ;input#attr-use-default(type "checkbox");
+              ;span: Use as default
+            ==
+            ;button#apply-attributes(type "submit"): Apply
+          ==
+        ==
+      ==
+      ;div#preview-shell.preview-shell(data-state "empty")
+        ;div.preview-actions(aria-label "Preview controls")
+          ;button#copy-svg.preview-action
+            =type        "button"
+            =disabled    ""
+            =title       "Copy SVG source"
+            =aria-label  "Copy SVG source to clipboard"
+            ;span.copy-icon(aria-hidden "true");
+          ==
+          ;button#fullscreen-svg.preview-action
+            =type          "button"
+            =disabled      ""
+            =hidden        ""
+            =title         "Expand SVG to fullscreen"
+            =aria-label    "Expand SVG to fullscreen"
+            =aria-pressed  "false"
+            ;span.fullscreen-icon(aria-hidden "true");
+          ==
+          ;button#fullscreen-zoom-out.preview-action.fullscreen-only
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom out"
+            =aria-label  "Zoom out"
+            ;span.zoom-icon.zoom-out-icon(aria-hidden "true");
+          ==
+          ;button#fullscreen-zoom-in.preview-action.fullscreen-only
+            =type        "button"
+            =disabled    ""
+            =title       "Zoom in"
+            =aria-label  "Zoom in"
+            ;span.zoom-icon.zoom-in-icon(aria-hidden "true");
+          ==
+        ==
+        ;div#empty-state.state-panel
+          ;p.state-title: Nothing rendered yet
+          ;p: Select Render to preview the current DOT source.
+        ==
+        ;div#loading-state.state-panel
+          ;span.spinner(aria-hidden "true");
+          ;p.state-title: Rendering graph
+        ==
+        ;div#disconnected-state.state-panel
+          ;p.state-title: Renderer unavailable
+          ;p: Check the ship connection, then try again.
+        ==
+        ;div#preview.preview(aria-live "polite", tabindex "0");
+        ;div#svg-source.ace-editor-host
+          =hidden      ""
+          =role        "region"
+          =aria-label  "SVG source editor"
+          ;span(hidden "");
+        ==
+      ==
+  ==
+::
+++  help
+  ^-  marl
+  :~  ;div#fallback-help-content
+        ;nav.help-links(aria-label "Graph Viz documentation")
+          ;a
+            =href    "/docs/d/graph-viz/dot-language"
+            =target  "_blank"
+            =rel     "noopener noreferrer"
+            DOT Language Reference
+          ==
+        ==
+        ;p: Write DOT on the left and inspect the SVG on the right.
+        ;p: Drag the divider to resize the panes on larger screens.
+        ;h3: Keyboard shortcuts
+        ;ul.shortcut-list
+          ;li: Ctrl/Cmd + Enter: render now
+          ;li: Ctrl/Cmd + S: save DOT to Clay
+          ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
+          ;li: Ctrl/Cmd + 0: fit graph
+          ;li: Ctrl/Cmd + 1: reset graph view
+          ;li: Tab / Shift + Tab: indent / unindent
+          ;li: Shift-click: select two nodes for an edge
+          ;li: Delete: remove the selected node or edge
+        ==
+      ==
+      ;div#docs-help-content.docs-help-content(hidden "")
+        ;nav#docs-help-nav.docs-help-nav
+          =aria-label  "Graph Viz documentation"
+          =aria-busy  "true"
+          ;p.docs-help-loading: Loading documentation…
+        ==
+      ==
+      ;nav.help-links.help-skill-links
+        =aria-label  "Graph Viz LLM skill files"
+        ;a
+          =href
+            "https://github.com/jackfoxy/foxy-skills/tree/master/".
+            "gviz-dot-syntax"
+          =target  "_blank"
+          =rel     "noopener noreferrer"
+          DOT Syntax LLM Skill
+        ==
+        ;a
+          =href
+            "https://github.com/jackfoxy/foxy-skills/tree/master/".
+            "gviz-gall-api"
+          =target  "_blank"
+          =rel     "noopener noreferrer"
+          Gall API LLM Skill
+        ==
+        ;a
+          =href
+            "https://github.com/jackfoxy/foxy-skills/tree/master/".
+            "gviz-patterns"
+          =target  "_blank"
+          =rel     "noopener noreferrer"
+          Common Patterns LLM Skill
+        ==
+      ==
+  ==
+::
+++  ace-config-js
   ^-  @t
-  '''
-  (() => {
-    const key = 'graph-viz.session.v1';
-    const themes = ['system', 'light', 'dark'];
-    let selected = 'system';
-    try {
-      const saved = JSON.parse(localStorage.getItem(key));
-      const candidate = saved?.preferences?.theme;
-      if (saved?.version === 1 && themes.includes(candidate)) {
-        selected = candidate;
-      }
-    } catch (_) {
-      // Storage failures must not block first paint.
-    }
-    const systemDark = matchMedia(
-      '(prefers-color-scheme: dark)'
-    ).matches;
-    const effective = selected === 'system'
-      ? (systemDark ? 'dark' : 'light')
-      : selected;
-    const root = document.documentElement;
-    root.dataset.theme = selected;
-    root.dataset.effectiveTheme = effective;
-    root.style.colorScheme = effective;
-  })();
-  '''
+  (config-js:uace ace-spec)
 ::
 ++  css
   ^-  @t
+  %+  rap  3
+  :~  %-  compose:ucss
+      :~  %tokens  %controls  %shell  %explorer
+          %tabs  %dialogs  %responsive
+      ==
+      app-css
+  ==
+::
+++  app-css
+  ::  Graph preview, zoom, inspector and fullscreen rules.
+  ::
+  ^-  @t
   '''
-  :root {
-    color-scheme: light;
-    --background: #f4f4f5;
-    --surface: #ffffff;
-    --surface-alt: #fafafa;
-    --border: #d4d4d8;
-    --ink: #18181b;
-    --muted: #71717a;
-    --accent: #2563eb;
-    --accent-text: #ffffff;
-    --focus: #93c5fd;
-    --danger: #b91c1c;
-    --danger-background: #fef2f2;
-    --danger-border: #fecaca;
-    --editor-error: #fee2e2;
-    --preview-background: #ffffff;
-    --preview-grid: #d4d4d8;
-    --floating-control: rgb(255 255 255 / 0.9);
-    --selection-hover: #2563eb;
-    --selection-active: #f59e0b;
-    --spinner-track: #bfdbfe;
-    --state-ink: #52525b;
-    --state-title: #27272a;
-    --inspector-background: #fffbeb;
-    --inspector-border: #fde68a;
-    --inspector-ink: #78350f;
-    --editor-width: 44%;
-  }
-
-  :root[data-effective-theme='dark'] {
-    color-scheme: dark;
-    --background: #11110f;
-    --surface: #191917;
-    --surface-alt: #22221f;
-    --border: #3b3b35;
-    --ink: #f2f2ec;
-    --muted: #a7a79e;
-    --accent: #8b5cf6;
-    --accent-text: #ffffff;
-    --focus: #60a5fa;
-    --danger: #f87171;
-    --danger-background: #35191d;
-    --danger-border: #7f1d1d;
-    --editor-error: #3f1d24;
-    --preview-background: #11110f;
-    --preview-grid: #3b3b35;
-    --floating-control: rgb(25 25 23 / 0.92);
-    --selection-hover: #60a5fa;
-    --selection-active: #fbbf24;
-    --spinner-track: #4c1d95;
-    --state-ink: #a7a79e;
-    --state-title: #f2f2ec;
-    --inspector-background: #33270e;
-    --inspector-border: #854d0e;
-    --inspector-ink: #fde68a;
-  }
-
-  * { box-sizing: border-box; }
-
-  html, body { height: 100%; }
-
-  body {
-    background: var(--background);
-    color: var(--ink);
-    display: grid;
-    font: 16px/1.4 system-ui, sans-serif;
-    grid-template-rows: auto minmax(0, 1fr);
-    margin: 0;
-  }
-
-  button, select, input, .preference {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    color: inherit;
-    font: inherit;
-    padding: 0.5rem 0.75rem;
-  }
-
-  button, select { cursor: pointer; }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:focus-visible, select:focus-visible, input:focus-visible,
-  .help-card a:focus-visible {
-    outline: 3px solid var(--focus);
-  }
-  button:disabled { cursor: not-allowed; opacity: 0.45; }
-
-  .primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-text);
-  }
-
-  .app-header {
-    align-items: center;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 1rem;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
-  }
-
-  .brand h1 { font-size: 1.25rem; line-height: 1.1; margin: 0; }
-
-  .eyebrow {
-    color: var(--muted);
-    display: block;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-
-  .theme-control {
-    align-items: center;
-    color: var(--muted);
-    display: inline-flex;
-    font-size: 0.75rem;
-    gap: 0.4rem;
-  }
-
-  .theme-control select { color: var(--ink); }
-
   .zoom-controls { display: inline-flex; gap: 0.25rem; }
-
-  .icon-button {
-    align-items: center;
-    display: inline-flex;
-    height: 2.65rem;
-    justify-content: center;
-    padding: 0;
-    width: 2.65rem;
-  }
 
   .zoom-icon {
     border: 2px solid currentcolor;
@@ -742,402 +628,10 @@
     padding: 0.5rem 0.75rem;
   }
 
-  .control {
-    display: grid;
-    font-size: 0.7rem;
-    gap: 0.2rem;
-  }
-
-  .control input, .control select {
-    font-size: 0.85rem;
-    min-width: 0;
-    padding: 0.35rem 0.5rem;
-  }
-
   #shape-control[hidden], #fill-control[hidden],
   #edge-controls[hidden] {
     display: none;
   }
-
-  .preference {
-    align-items: center;
-    display: inline-flex;
-    gap: 0.4rem;
-  }
-
-  .preference input { accent-color: var(--accent); }
-  .source-auto-render { margin-left: 0.5rem; white-space: nowrap; }
-
-  .workbench {
-    display: grid;
-    grid-template-columns: var(--explorer-width, 18rem) 0.6rem
-      minmax(0, 1fr);
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .explorer-pane {
-    background: var(--surface);
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    min-height: 0;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .explorer-header {
-    align-items: stretch;
-    display: flex;
-    min-width: 0;
-  }
-
-  .explorer-header .explorer-tabs { flex: 1; }
-
-  .explorer-collapse {
-    border-width: 0 0 1px 1px;
-    border-radius: 0;
-    flex: 0 0 2.65rem;
-    height: auto;
-    min-height: 2.3125rem;
-  }
-
-  .explorer-pane.collapsed .explorer-tabs,
-  .explorer-pane.collapsed .explorer-panel {
-    display: none;
-  }
-
-  .explorer-pane.collapsed .explorer-header {
-    justify-content: center;
-  }
-
-  .explorer-pane.collapsed .explorer-collapse {
-    border-left: 0;
-    flex-basis: 3rem;
-    width: 3rem;
-  }
-
-  .workbench.explorer-collapsed {
-    grid-template-columns: 3rem 0 minmax(0, 1fr);
-  }
-
-  .explorer-tabs {
-    align-items: flex-start;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    flex: 0 0 2.55rem;
-    height: 2.55rem;
-    min-height: 2.55rem;
-    min-width: 0;
-    overscroll-behavior-inline: contain;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-  .explorer-tab-control, .docs-tab-control {
-    align-items: center;
-    border-right: 1px solid var(--border);
-    display: inline-flex;
-    flex: 0 0 auto;
-    height: 2.25rem;
-  }
-
-  .docs-tab-control { position: relative; }
-
-  .explorer-tab, .docs-tab, .docs-tab-close {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    color: var(--muted);
-    font-size: 0.75rem;
-    height: 2.25rem;
-    min-height: 2.25rem;
-    padding-block: 0;
-  }
-
-  .explorer-tab, .docs-tab {
-    max-width: 14rem;
-    overflow: hidden;
-    text-align: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .explorer-tab {
-    align-items: center;
-    display: inline-flex;
-    justify-content: center;
-    line-height: 1;
-  }
-
-  .docs-tab {
-    padding-left: 2.25rem;
-    padding-right: 2.25rem;
-  }
-
-  .explorer-tab-control.active, .docs-tab-control.active {
-    box-shadow: inset 0 -2px var(--accent);
-  }
-
-  .explorer-tab[aria-selected='true'],
-  .docs-tab[aria-selected='true'] {
-    color: var(--ink);
-    font-weight: 650;
-  }
-
-  .docs-tab-close {
-    bottom: 0;
-    font: 700 0.75rem/1 ui-monospace, monospace;
-    position: absolute;
-    padding: 0.25rem 0.55rem;
-    right: 0;
-    top: 0;
-    width: 1.75rem;
-    z-index: 1;
-  }
-
-  .explorer-panel {
-    grid-column: 1;
-    grid-row: 2;
-    min-height: 0;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .explorer-panel[hidden] { display: none; }
-
-  .explorer-file-tree {
-    height: 100%;
-    min-height: 0;
-    overflow: auto;
-    padding: 0.75rem;
-  }
-
-  .docs-explorer-frame {
-    background: var(--surface);
-    border: 0;
-    height: 100%;
-    width: 100%;
-  }
-
-  .ref-explorer-panel {
-    overflow: auto;
-    padding: 1rem;
-  }
-
-  .ref-source {
-    font: 0.8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
-    margin: 0;
-    min-width: max-content;
-    white-space: pre;
-  }
-
-  .explorer-resizer {
-    background: var(--border);
-    border: 0;
-    border-radius: 0;
-    cursor: col-resize;
-    padding: 0;
-    touch-action: none;
-  }
-
-  .explorer-resizer:hover, .explorer-resizer:focus {
-    background: var(--accent);
-  }
-
-  .explorer-resizer.inactive { cursor: default; }
-
-  .workspace {
-    display: grid;
-    grid-template-columns: minmax(18rem, var(--editor-width)) 0.6rem
-      minmax(20rem, 1fr);
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .pane {
-    background: var(--surface);
-    display: flex;
-    min-height: 0;
-    min-width: 0;
-  }
-
-  .editor-pane, .preview-pane { flex-direction: column; }
-
-  .pane-header {
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: space-between;
-    min-height: 2.75rem;
-    padding: 0.5rem 0.75rem;
-  }
-
-  .pane-header h2 { font-size: 0.9rem; margin: 0; }
-  .file-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: flex-end;
-    margin-left: auto;
-    min-width: 0;
-  }
-  .status {
-    color: var(--muted);
-    font-size: 0.75rem;
-    margin-left: 0.5rem;
-  }
-
-  .document-tabs {
-    align-items: flex-start;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    flex: 0 0 2.55rem;
-    height: 2.55rem;
-    min-height: 2.55rem;
-    min-width: 0;
-    overscroll-behavior-inline: contain;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-  .explorer-tabs::-webkit-scrollbar,
-  .document-tabs::-webkit-scrollbar {
-    height: 0.3rem;
-  }
-
-  .explorer-tabs::-webkit-scrollbar-track,
-  .document-tabs::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .explorer-tabs::-webkit-scrollbar-thumb,
-  .document-tabs::-webkit-scrollbar-thumb {
-    background: var(--muted);
-    border-radius: 999px;
-  }
-
-  @supports (-moz-appearance: none) {
-    .explorer-tabs, .document-tabs {
-      scrollbar-color: var(--muted) transparent;
-      scrollbar-width: thin;
-    }
-  }
-
-  .document-tab-control {
-    align-items: stretch;
-    border-right: 1px solid var(--border);
-    display: inline-flex;
-    flex: 0 0 auto;
-    height: 2.25rem;
-  }
-
-  .document-tab-control.active {
-    box-shadow: inset 0 -2px var(--accent);
-  }
-
-  .document-tab-control[draggable='true'] { cursor: grab; }
-  .document-tab-control.is-dragging { opacity: 0.45; }
-
-  .document-tab, .document-tab-close, .document-tab-add {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    color: var(--muted);
-    font-size: 0.75rem;
-    height: 2.25rem;
-    min-height: 2.25rem;
-    padding-block: 0;
-  }
-
-  .document-tab {
-    max-width: 14rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .document-tab[aria-selected='true'] {
-    color: var(--ink);
-    font-weight: 650;
-  }
-
-  .document-tab-close {
-    font: 700 0.75rem/1 ui-monospace, monospace;
-    padding: 0.25rem 0.55rem;
-  }
-
-  .document-tab-add {
-    color: var(--ink);
-    font-size: 1rem;
-    min-width: 2.25rem;
-    padding: 0.25rem 0.65rem;
-  }
-
-  .explorer-tab-control[draggable='true'],
-  .docs-tab-control[draggable='true'],
-  .ref-tab-control[draggable='true'] {
-    cursor: grab;
-  }
-
-  .explorer-tab-control.is-dragging,
-  .docs-tab-control.is-dragging,
-  .ref-tab-control.is-dragging {
-    opacity: 0.45;
-  }
-
-  .editor-body {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    position: relative;
-  }
-
-  #dot {
-    background: var(--surface);
-    border: 0;
-    font: 0.9rem/1.55 ui-monospace, monospace;
-    height: 100%;
-    min-height: 12rem;
-    outline: none;
-    width: 100%;
-  }
-
-  #dot.ace_focus, #dot:focus-within {
-    box-shadow: inset 0 0 0 2px var(--accent);
-    outline: 3px solid var(--focus);
-    outline-offset: -3px;
-  }
-
-  #dot .ace_marker-layer .ace-error-marker {
-    background: var(--editor-error);
-    border-bottom: 2px solid var(--danger);
-    box-sizing: border-box;
-    position: absolute;
-  }
-
-  .editor-load-error {
-    background: var(--danger-background);
-    border: 1px solid var(--danger);
-    color: var(--danger);
-    display: grid;
-    gap: 0.5rem;
-    inset: 1rem;
-    padding: 1rem;
-    position: absolute;
-    z-index: 1;
-  }
-
-  .editor-load-error[hidden] { display: none; }
-
-  .splitter {
-    background: var(--border);
-    cursor: col-resize;
-    touch-action: none;
-  }
-
-  .splitter:hover, .splitter:focus { background: var(--accent); }
 
   .preview-shell {
     background-color: var(--preview-background);
@@ -1172,33 +666,11 @@
   }
 
   .preview-action[hidden] { display: none; }
+
   .preview-action.fullscreen-only { display: none; }
 
   .preview-shell.is-fullscreen .preview-action.fullscreen-only {
     display: inline-flex;
-  }
-
-  .copy-icon {
-    height: 0.9rem;
-    position: relative;
-    width: 0.9rem;
-  }
-
-  .copy-icon::before, .copy-icon::after {
-    border: 1.5px solid currentcolor;
-    border-radius: 2px;
-    content: '';
-    height: 0.58rem;
-    position: absolute;
-    width: 0.5rem;
-  }
-
-  .copy-icon::before { left: 0; top: 0; }
-
-  .copy-icon::after {
-    background: var(--floating-control);
-    bottom: 0;
-    right: 0;
   }
 
   .fullscreen-icon {
@@ -1254,6 +726,7 @@
   }
 
   .preview[hidden] { display: none; }
+
   .preview.is-panning { cursor: grabbing; }
 
   .preview svg {
@@ -1300,51 +773,12 @@
 
   #svg-source[hidden] { display: none; }
 
-  .state-panel {
-    align-content: center;
-    color: var(--state-ink);
-    display: none;
-    inset: 0;
-    justify-items: center;
-    padding: 2rem;
-    position: absolute;
-    text-align: center;
-    z-index: 1;
-  }
-
-  .state-panel p { margin: 0.25rem; }
-  .state-title { color: var(--state-title); font-weight: 650; }
-
-  [data-state='empty'] #empty-state,
-  [data-state='loading'] #loading-state,
-  [data-state='disconnected'] #disconnected-state { display: grid; }
-
   [data-state='empty'] .preview,
   [data-state='loading'] .preview,
   [data-state='disconnected'] .preview,
   [data-state='empty'] #svg-source,
   [data-state='loading'] #svg-source,
   [data-state='disconnected'] #svg-source { visibility: hidden; }
-
-  .spinner {
-    animation: spin 0.8s linear infinite;
-    border: 3px solid var(--spinner-track);
-    border-radius: 50%;
-    border-top-color: var(--accent);
-    height: 2rem;
-    width: 2rem;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .error {
-    background: var(--danger-background);
-    border-bottom: 1px solid var(--danger-border);
-    color: var(--danger);
-    margin: 0;
-    padding: 0.75rem;
-    white-space: pre-wrap;
-  }
 
   .inspector {
     background: var(--inspector-background);
@@ -1357,7 +791,9 @@
   }
 
   .inspector[hidden] { display: none; }
+
   .inspector code { overflow-wrap: anywhere; }
+
   .selection-kind { font-size: 0.75rem; font-weight: 700; }
 
   .selection-summary {
@@ -1388,273 +824,26 @@
     gap: 0.75rem;
   }
 
-  .danger-button { color: var(--danger); }
-
-  .help-panel {
-    background: rgb(0 0 0 / 0.4);
-    display: grid;
-    inset: 0;
-    padding: 1rem;
-    place-items: center;
-    position: fixed;
-    z-index: 70;
-  }
-
-  .help-panel[hidden] { display: none; }
-
-  .file-context-menu {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    box-shadow: 0 0.7rem 2rem rgb(0 0 0 / 0.2);
-    display: grid;
-    min-width: 9rem;
-    padding: 0.3rem;
-    position: fixed;
-    z-index: 60;
-  }
-
-  .file-context-menu[hidden] { display: none; }
-
-  .file-context-menu button {
-    background: transparent;
-    border: 0;
-    text-align: left;
-  }
-
-  .help-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.2);
-    max-width: 32rem;
-    padding: 0 1rem 1rem;
-    width: 100%;
-  }
-
-  .help-close {
-    height: 2rem;
-    padding: 0;
-    width: 2rem;
-  }
-
-  .close-icon {
-    height: 0.9rem;
-    position: relative;
-    width: 0.9rem;
-  }
-
-  .close-icon::before, .close-icon::after {
-    background: currentcolor;
-    content: '';
-    height: 1px;
-    left: 0;
-    position: absolute;
-    top: 0.42rem;
-    width: 0.9rem;
-  }
-
-  .close-icon::before { transform: rotate(45deg); }
-  .close-icon::after { transform: rotate(-45deg); }
-
-  .help-links {
-    display: grid;
-    gap: 0.5rem;
-  }
-
-  .help-links a {
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-    padding: 0.65rem 0.75rem;
-    text-decoration: none;
-  }
-
-  .help-card a { color: inherit; }
-  .help-card a p { margin: 0; }
-
-  .help-skill-links {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 1rem;
-  }
-
-  .help-skill-links a { text-align: center; }
-
-  #fallback-help-content[hidden], .docs-help-content[hidden] {
-    display: none;
-  }
-
-  .docs-help-content {
-    display: grid;
-    gap: 0.8rem;
-  }
-
-  .docs-help-nav {
-    align-content: start;
-    display: grid;
-    gap: 0.4rem;
-    max-height: min(32rem, calc(100vh - 15rem));
-    overflow: auto;
-  }
-
-  .docs-help-link {
-    border-radius: 0.3rem;
-    padding: 0.45rem 0.65rem;
-    text-decoration: none;
-  }
-
-  .docs-help-link:hover, .docs-help-link[aria-current="page"] {
-    background: var(--surface-alt);
-  }
-
-  .docs-help-link[aria-current="page"] { font-weight: 600; }
-
-  .docs-help-summary {
-    align-items: center;
-    cursor: pointer;
-    display: flex;
-    font-weight: 600;
-    list-style: none;
-    padding: 0.6rem 0.7rem;
-  }
-
-  .docs-help-summary::-webkit-details-marker { display: none; }
-
-  .docs-help-summary:hover { background: var(--surface-alt); }
-
-  .docs-help-summary::before {
-    color: var(--muted);
-    content: '\25b8';
-    font-size: 0.7rem;
-    margin-right: 0.5rem;
-  }
-
-  .docs-help-group[open] > .docs-help-summary::before { content: '\25be'; }
-
-  .docs-help-group {
-    border: 1px solid var(--border);
-    border-radius: 0.4rem;
-  }
-
-  .docs-help-subnav {
-    border-top: 1px solid var(--border);
-    display: grid;
-    gap: 0;
-    padding: 0.3rem 0.3rem 0.3rem 1.5rem;
-  }
-
-  .docs-help-subnav .docs-help-link {
-    display: block;
-    font-size: 0.9rem;
-    padding: 0.3rem 0.65rem;
-  }
-
-  .docs-help-subnav .docs-help-group {
-    border-width: 0 0 0 1px;
-    border-radius: 0;
-  }
-
-  .docs-help-loading {
-    color: var(--muted);
-    margin: 0;
-    padding: 0.65rem;
-  }
-
-  .shortcut-list { line-height: 1.8; padding-left: 1.5rem; }
-
-  .file-tree-list {
-    list-style: none;
-    margin: 0;
-    padding-left: 1.25rem;
-  }
-
-  .explorer-file-tree > .file-tree-list { padding-left: 0; }
-
-  .file-tree-directory {
-    color: var(--muted);
-    padding: 0.2rem 0;
-  }
-
-  .explorer-file-row {
-    align-items: stretch;
-    display: flex;
-    min-width: 0;
-  }
-
-  .file-tree-file {
-    background: transparent;
-    border: 0;
-    color: var(--accent);
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    padding: 0.3rem 0.5rem;
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: auto;
-  }
-
-  .file-tree-file:hover:not(:disabled) { background: var(--background); }
-
-  .file-tree-actions {
-    background: transparent;
-    border: 0;
-    color: var(--muted);
-    flex: 0 0 auto;
-    padding: 0.2rem 0.45rem;
-  }
-
-  .clay-error-message {
-    color: var(--danger);
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
-  }
-
-  .sr-only {
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    position: absolute;
-    width: 1px;
-  }
+  .preview-pane { flex-direction: column; }
 
   @media (max-width: 760px) {
-    body { height: auto; min-height: 100%; }
-
-    .app-header { align-items: stretch; flex-direction: column; }
-    .toolbar { display: grid; grid-template-columns: repeat(3, 1fr); }
-
     .visual-tools, .attribute-form {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .workbench {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(12rem, 35vh) minmax(0, 1fr);
-      overflow: visible;
-    }
-
-    .workbench.explorer-collapsed {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: 3rem minmax(0, 1fr);
-    }
-
-    .explorer-resizer { display: none; }
-
-    .workspace {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(18rem, 45vh) minmax(20rem, 55vh);
-      overflow: visible;
-    }
-
-    .splitter { display: none; }
     .preview-pane { border-top: 1px solid var(--border); }
-
-    .help-skill-links { grid-template-columns: minmax(0, 1fr); }
   }
   '''
 ::
 ++  javascript
+  ^-  @t
+  %+  rap  3
+  :~  (emit:ucfg config)
+      core:ujs
+      app-js
+  ==
+::
+++  app-js
   ^-  @t
   '''
   const templates = {
@@ -1713,8 +902,6 @@
   };
   const starter = templates.flowchart;
   const dot = document.querySelector('#dot');
-  const dotDocumentTabs = document.querySelector('#dot-document-tabs');
-  const svgDocumentTabs = document.querySelector('#svg-document-tabs');
   const editorLoadError = document.querySelector('#editor-load-error');
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
@@ -1763,84 +950,167 @@
   const fullscreenZoomIn = document.querySelector('#fullscreen-zoom-in');
   const resetView = document.querySelector('#reset-view');
   const addDotRef = document.querySelector('#add-dot-ref');
-  const browseDot = document.querySelector('#browse-dot');
-  const loadDot = document.querySelector('#load-dot');
-  const saveDot = document.querySelector('#save-dot');
   const addSvgRef = document.querySelector('#add-svg-ref');
-  const browseSvg = document.querySelector('#browse-svg');
-  const loadSvg = document.querySelector('#load-svg');
   const saveSvg = document.querySelector('#save-svg');
   const toggleSvgSource = document.querySelector('#toggle-svg-source');
   const fit = document.querySelector('#fit');
   const autoRender = document.querySelector('#auto-render');
   const theme = document.querySelector('#theme');
   const help = document.querySelector('#help');
-  const helpPanel = document.querySelector('#help-panel');
-  const closeHelp = document.querySelector('#close-help');
-  const fallbackHelpContent = document.querySelector(
-    '#fallback-help-content'
-  );
-  const docsHelpContent = document.querySelector('#docs-help-content');
-  const docsHelpNav = document.querySelector('#docs-help-nav');
   const workbench = document.querySelector('#workbench');
   const explorerPane = document.querySelector('#explorer-pane');
-  const explorerTabs = document.querySelector('#explorer-tabs');
-  const explorerCollapse = document.querySelector('#explorer-collapse');
-  const explorerResizer = document.querySelector('#explorer-resizer');
-  const dotFilesTab = document.querySelector('#dot-files-tab');
-  const svgFilesTab = document.querySelector('#svg-files-tab');
-  const dotFilesPanel = document.querySelector('#dot-files-panel');
-  const svgFilesPanel = document.querySelector('#svg-files-panel');
-  const dotFilesTree = document.querySelector('#dot-files-tree');
-  const svgFilesTree = document.querySelector('#svg-files-tree');
-  const fileContextMenu = document.querySelector('#file-context-menu');
-  const fileContextOpen = document.querySelector('#file-context-open');
-  const fileContextDelete = document.querySelector('#file-context-delete');
-  const clayErrorModal = document.querySelector('#clay-error-modal');
-  const clayErrorMessage = document.querySelector('#clay-error-message');
-  const closeClayError = document.querySelector('#close-clay-error');
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
+  const config = window.urui.config;
+  const runtime = window.urui.runtime({
+    elements: {
+      explorerPane,
+      editorPane: document.querySelector('#editor-pane'),
+      resultPane: document.querySelector('#preview-pane')
+    },
+    editors: () => [editor, svgEditor],
+    onChange: () => queueSaveSession(),
+    onResize: () => closeFileContext(),
+    session: {
+      read: (key) => {
+        if (key === 'source') return validateSource(editor.getSource());
+        if (key === 'view') return view;
+        if (key === 'preferences.autoRender') return autoRender.checked;
+        return undefined;
+      },
+      validate: (key, value) => {
+        if (key === 'source') return validSavedSource(value) ?? starter;
+        if (key === 'view') return validView(value);
+        if (key === 'preferences.autoRender') return value !== false;
+        return undefined;
+      }
+    },
+    files: {
+      dot: {
+        status: (label, action) => {
+          sourceStatus.textContent = label === 'Load failed' ? 'Ready' : label;
+        },
+        error: (cause) => showClientProblem(String(cause))
+      },
+      svg: {
+        canSave: (tab) => Boolean(tab.source),
+        status: (label, action) => {
+          if (action === 'delete') renderStatus.textContent = label;
+          else if (label === 'Loading' || label === 'Saving') {
+            setState('loading', label);
+          } else {
+            setState(currentSvg ? 'ready' : 'empty',
+              label === 'Ready' ? 'Rendered' : label);
+          }
+        },
+        loaded: () => {
+          error.textContent = '';
+          error.hidden = true;
+          setPreviewControls(true);
+        },
+        saved: (tab, source) => { tab.editBaseSource = source; },
+        error: (cause) => {
+          error.textContent = String(cause);
+          error.hidden = false;
+        }
+      }
+    },
+    shortcuts: {
+      preview: () => Boolean(currentSvg),
+      onKeydown: (event) => {
+        const focus = event.target || document.activeElement;
+        if (focus !== preview && !preview.contains(focus)) return false;
+        if (event.key === 'Escape' && selectedItems.length) {
+          clearVisualSelection();
+          preview.focus();
+          return true;
+        }
+        if ((event.key === 'Delete' || event.key === 'Backspace')
+          && selectedItems.length === 1) {
+          deleteSelectedItem();
+          return true;
+        }
+        return false;
+      }
+    },
+    tabs: {
+      dot: {
+        add: 'Add empty DOT tab',
+        validate: (candidate, base) => {
+          const start = Number(candidate.selection?.start);
+          const end = Number(candidate.selection?.end);
+          const selection = {
+            start: Number.isFinite(start)
+              ? clamp(Math.trunc(start), 0, base.source.length) : 0,
+            end: Number.isFinite(end)
+              ? clamp(Math.trunc(end), 0, base.source.length) : 0
+          };
+          selection.end = Math.max(selection.start, selection.end);
+          return {selection};
+        },
+        defaults: (options) => ({
+          selection: options.selection || {start: 0, end: 0}
+        }),
+        empty: () => createDotTab(),
+        onCapture: (tab) => {
+          if (!editor) return;
+          tab.source = editor.getSource();
+          tab.selection = editor.getSelection();
+          syncRefFromParent('dot', tab.id);
+        },
+        onActivate: (tab) => {
+          invalidateRender();
+          clearTimeout(renderTimer);
+          editor.setSource(tab.source, {
+            history: 'reset',
+            notify: false,
+            selection: tab.selection
+          });
+          clearVisualSelection();
+          error.hidden = true;
+          setEditorProblem();
+          sourceStatus.textContent = 'Ready';
+        },
+        afterActivate: (tab, choices) => {
+          if (choices.renderSelected !== false && autoRender.checked) {
+            renderNow();
+          }
+        }
+      },
+      svg: {
+        validate: (candidate, base, ids) => ({
+          editBaseSource: validSavedSource(candidate.editBaseSource)
+            ?? base.source,
+          view: validView(candidate.view),
+          showingSource: candidate.showingSource === true,
+          sourceDotId: ids.get('dot')?.has(candidate.sourceDotId)
+            ? candidate.sourceDotId
+            : undefined
+        }),
+        defaults: (options, source) => ({
+          editBaseSource: options.editBaseSource ?? source,
+          view: options.view,
+          showingSource: options.showingSource === true,
+          sourceDotId: options.sourceDotId
+        }),
+        empty: () => createSvgTab(),
+        onCapture: (tab) => {
+          if (showingSvgSource) tab.source = svgEditor.getSource();
+          else if (currentSvg) tab.source = lastSvgSource;
+          tab.view = {...view};
+          tab.showingSource = showingSvgSource;
+          syncRefFromParent('svg', tab.id);
+        },
+        onActivate: () => displayActiveSvgTab()
+      }
+    }
+  });
   const renderDelay = 350;
-  const saveDelay = 150;
-  const minExplorerWidth = 180;
-  const explorerDividerWidth = 10;
   const minScale = 0.05;
   const maxScale = 32;
-  const maxSourceBytes = 256 * 1024;
-  const maxSharedSourceBytes = 12 * 1024;
-  const maxShareParamChars = 16 * 1024;
-  const storageKey = 'graph-viz.session.v1';
-  const themes = ['system', 'light', 'dark'];
-  const themeMedia = matchMedia('(prefers-color-scheme: dark)');
   const isMac = /Mac|iPhone|iPad|iPod/.test(
     navigator.platform || navigator.userAgent || ''
   );
-  const docsRoot = '/docs/d/graph-viz/';
-  const permanentExplorerViews = ['dot-files', 'svg-files'];
-  let docsAvailable = null;
-  let docsCheckPending = false;
-  let docsTreeLoaded = false;
-  let explorerOpen = true;
-  let docsTabs = [];
-  let nextDocs = 1;
-  let refTabs = [];
-  let nextRef = 1;
-  let explorerView = 'dot-files';
-  let explorerOrder = [...permanentExplorerViews];
-  let dotTabs = [];
-  let activeDotTabId;
-  let nextDotTab = 1;
-  let svgTabs = [];
-  let activeSvgTabId;
-  let nextSvgTab = 1;
-  let draggedTab;
-  let contextFileKind;
-  let contextFilePath;
-  let contextFileSource;
-  let clayErrorReturnFocus;
-  dotFilesTab.parentElement.dataset.explorerTabId = 'dot-files';
-  svgFilesTab.parentElement.dataset.explorerTabId = 'svg-files';
   const nodeShapeCategories = {
     'basic-shapes': [
       'ellipse', 'circle', 'egg', 'triangle', 'box', 'square',
@@ -1880,7 +1150,6 @@
   let requestUid = 0;
   let latestRequestUid = 0;
   let renderTimer;
-  let saveTimer;
   let currentSvg;
   let graphSize = {width: 1, height: 1};
   let view = {scale: 1, x: 0, y: 0};
@@ -1891,272 +1160,23 @@
   let selectedItems = [];
   let inheritNewNodeShape = false;
 
-  function createAceEditorAdapter(host, options = {}) {
-    if (!window.ace || !window.graphVizAceAssets) {
-      throw new Error('Ace runtime or configuration did not load');
-    }
-    const assets = window.graphVizAceAssets;
-    const AceRange = window.ace.require('ace/range').Range;
-    const beautify = window.ace.require('ace/ext/beautify');
-    if (!Array.isArray(beautify?.commands)) {
-      throw new Error('Ace Beautify extension did not load');
-    }
-    const aceEditor = window.ace.edit(host);
-    const session = aceEditor.session;
-    const changeListeners = new Set();
-    const textInput = aceEditor.textInput.getElement();
-    let errorMarker;
-    let suppressChanges = 0;
-
-    aceEditor.setOptions({
-      displayIndentGuides: true,
-      fontSize: '0.9rem',
-      highlightActiveLine: true,
-      showPrintMargin: false,
-      tabSize: 2,
-      useSoftTabs: true,
-      wrap: true
-    });
-    aceEditor.setTheme(
-      document.documentElement.dataset.effectiveTheme === 'dark'
-        ? assets.darkTheme
-        : assets.lightTheme
-    );
-    session.setMode(options.mode || assets.mode);
-    session.setUseWorker(assets.useWorker);
-    if (window.__GVIZ_BROWSER_TEST__?.acePlatform) {
-      aceEditor.commands.platform = window.__GVIZ_BROWSER_TEST__.acePlatform;
-    }
-    aceEditor.commands.addCommands(beautify.commands);
-    aceEditor.commands.bindKey('Ctrl-T', 'transposeletters');
-    textInput.setAttribute(
-      'aria-label',
-      options.label || 'DOT source editor'
-    );
-    if (options.labelledBy) {
-      textInput.setAttribute('aria-labelledby', options.labelledBy);
-    }
-    textInput.setAttribute(
-      'aria-describedby',
-      options.describedBy || 'error editor-load-error'
-    );
-    textInput.setAttribute('aria-invalid', 'false');
-
-    function getSource() {
-      return aceEditor.getValue();
-    }
-
-    function clampOffset(offset) {
-      const numeric = Number.isFinite(offset) ? Math.trunc(offset) : 0;
-      return Math.max(0, Math.min(getSource().length, numeric));
-    }
-
-    function getSelection() {
-      const range = aceEditor.selection.getRange();
-      return {
-        start: positionToOffset(range.start),
-        end: positionToOffset(range.end)
-      };
-    }
-
-    function setSelection(start, end = start) {
-      const nextStart = clampOffset(start);
-      const nextEnd = Math.max(nextStart, clampOffset(end));
-      const first = offsetToPosition(nextStart);
-      const last = offsetToPosition(nextEnd);
-      aceEditor.selection.setSelectionRange(new AceRange(
-        first.row,
-        first.column,
-        last.row,
-        last.column
-      ));
-    }
-
-    function offsetToPosition(offset) {
-      return session.doc.indexToPosition(clampOffset(offset), 0);
-    }
-
-    function positionToOffset(position) {
-      const source = getSource();
-      const lines = source.split('\n');
-      const requestedRow = Number.isFinite(position?.row)
-        ? Math.trunc(position.row)
-        : 0;
-      const row = Math.max(0, Math.min(lines.length - 1, requestedRow));
-      const requestedColumn = Number.isFinite(position?.column)
-        ? Math.trunc(position.column)
-        : 0;
-      const column = Math.max(0, Math.min(lines[row].length, requestedColumn));
-      return session.doc.positionToIndex({row, column}, 0);
-    }
-
-    function notifyChange() {
-      for (const listener of changeListeners) listener();
-    }
-
-    function mutate(change, notify) {
-      suppressChanges += 1;
-      try {
-        change();
-      } finally {
-        suppressChanges -= 1;
-      }
-      if (notify !== false) notifyChange();
-    }
-
-    function isolateUndo(change) {
-      const undoManager = session.getUndoManager();
-      undoManager.startNewGroup();
-      try {
-        change();
-      } finally {
-        undoManager.startNewGroup();
-      }
-    }
-
-    function setSource(source, options = {}) {
-      mutate(() => {
-        const history = options.history || 'undoable';
-        if (history === 'reset') {
-          session.setValue(source);
-          session.getUndoManager().reset();
-        } else if (history === 'undoable') {
-          const last = offsetToPosition(getSource().length);
-          isolateUndo(() => {
-            session.replace(new AceRange(
-              0,
-              0,
-              last.row,
-              last.column
-            ), source);
-          });
-        } else {
-          throw new Error(`Unsupported editor history mode: ${history}`);
-        }
-        const selection = options.selection || {
-          start: source.length,
-          end: source.length
-        };
-        setSelection(selection.start, selection.end);
-      }, options.notify);
-    }
-
-    function replaceRange(start, end, replacement, options = {}) {
-      const rangeStart = clampOffset(start);
-      const rangeEnd = Math.max(rangeStart, clampOffset(end));
-      const first = offsetToPosition(rangeStart);
-      const last = offsetToPosition(rangeEnd);
-      mutate(() => {
-        isolateUndo(() => {
-          session.replace(new AceRange(
-            first.row,
-            first.column,
-            last.row,
-            last.column
-          ), replacement);
-        });
-        const replacementEnd = rangeStart + replacement.length;
-        if (options.selection && typeof options.selection === 'object') {
-          setSelection(options.selection.start, options.selection.end);
-        } else if (options.selection === 'select') {
-          setSelection(rangeStart, replacementEnd);
-        } else if (options.selection === 'start') {
-          setSelection(rangeStart);
-        } else {
-          setSelection(replacementEnd);
-        }
-      }, options.notify);
-    }
-
-    function selectRange(start, end, options = {}) {
-      setSelection(start, end);
-      if (options.focus) aceEditor.focus();
-      if (options.reveal) {
-        const position = offsetToPosition(start);
-        aceEditor.scrollToLine(position.row, true, true);
-      }
-    }
-
-    function clearDiagnostic() {
-      session.clearAnnotations();
-      if (errorMarker !== undefined) session.removeMarker(errorMarker);
-      errorMarker = undefined;
-      textInput.setAttribute('aria-invalid', 'false');
-    }
-
-    function setDiagnostic(problem) {
-      clearDiagnostic();
-      if (!problem) return;
-      const requestedLine = Number(problem.line);
-      if (!Number.isFinite(requestedLine) || requestedLine < 1) return;
-      const lines = getSource().split('\n');
-      const row = Math.min(lines.length - 1, Math.trunc(requestedLine) - 1);
-      const requestedColumn = Number(problem.column);
-      const column = Math.max(0, Math.min(
-        lines[row].length,
-        Number.isFinite(requestedColumn)
-          ? Math.trunc(requestedColumn) - 1
-          : 0
-      ));
-      const endColumn = Math.min(lines[row].length, column + 1);
-      const markerEnd = endColumn > column ? endColumn : column + 1;
-      const message = problem.message || 'syntax error';
-      session.setAnnotations([{row, column, text: message, type: 'error'}]);
-      errorMarker = session.addMarker(
-        new AceRange(row, column, row, markerEnd),
-        'ace-error-marker',
-        'text',
-        false
-      );
-      aceEditor.selection.moveCursorTo(row, column);
-      aceEditor.clearSelection();
-      aceEditor.scrollToLine(row, true, true);
-      textInput.setAttribute('aria-invalid', 'true');
-    }
-
-    session.on('change', () => {
-      if (!suppressChanges) notifyChange();
-    });
-
-    return {
-      getSource,
-      setSource,
-      replaceRange,
-      getSelection,
-      setSelection,
-      selectRange,
-      offsetToPosition,
-      positionToOffset,
-      focus: () => aceEditor.focus(),
-      onChange(listener) {
-        changeListeners.add(listener);
-        return () => changeListeners.delete(listener);
-      },
-      isFocused(target) {
-        const active = document.activeElement;
-        return target === host || host.contains(target)
-          || active === host || host.contains(active)
-          || Boolean(aceEditor.isFocused?.());
-      },
-      setDiagnostic,
-      setTheme(effective) {
-        aceEditor.setTheme(
-          effective === 'dark' ? assets.darkTheme : assets.lightTheme
-        );
-      },
-      refresh: () => aceEditor.resize(true)
-    };
-  }
-
+  const createAceEditorAdapter = window.urui.editor.adapter;
   let editor;
   let svgEditor;
   try {
     editor = createAceEditorAdapter(dot, {
-      labelledBy: 'dot-source-heading'
+      assets: window.graphVizAceAssets,
+      label: 'DOT source editor',
+      labelledBy: 'dot-source-heading',
+      describedBy: 'error editor-load-error',
+      platform: window.__GVIZ_BROWSER_TEST__?.acePlatform
     });
     svgEditor = createAceEditorAdapter(svgSource, {
+      assets: window.graphVizAceAssets,
       label: 'SVG source editor',
-      mode: 'ace/mode/text'
+      mode: 'ace/mode/text',
+      describedBy: 'error editor-load-error',
+      platform: window.__GVIZ_BROWSER_TEST__?.acePlatform
     });
   } catch (cause) {
     dot.hidden = true;
@@ -2169,256 +1189,33 @@
     window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
   }
 
-  let editorResizeQueued = false;
-  function refreshEditor() {
-    if (editorResizeQueued) return;
-    editorResizeQueued = true;
-    requestAnimationFrame(() => {
-      editorResizeQueued = false;
-      editor.refresh();
-    });
-  }
+  const refreshEditor = runtime.refreshEditors;
 
-  function tabLabel(path, kind) {
-    if (!path) return kind === 'dot' ? 'Untitled' : 'Preview';
-    const parts = path.split('/');
-    const leaf = parts.at(-1);
-    if (kind === 'dot' && leaf === 'txt' && parts.length > 1) {
-      return `${parts.at(-2)}.dot`;
-    }
-    if (kind === 'svg' && leaf === 'svg' && parts.length > 1) {
-      return `${parts.at(-2)}.svg`;
-    }
-    return leaf;
-  }
-
-  function activeDotTab() {
-    return dotTabs.find((tab) => tab.id === activeDotTabId);
-  }
-
-  function activeSvgTab() {
-    return svgTabs.find((tab) => tab.id === activeSvgTabId);
-  }
-
-  function tabDirty(tab) {
-    return tab.source !== tab.cleanSource;
-  }
+  const dotTabs = runtime.tabs.list('dot');
+  const svgTabs = runtime.tabs.list('svg');
+  const activeDotTab = () => runtime.tabs.active('dot');
+  const activeSvgTab = () => runtime.tabs.active('svg');
+  const documentTabs = (kind) => runtime.tabs.list(kind);
+  const captureActiveDotTab = () => runtime.tabs.capture('dot');
+  const captureActiveSvgTab = () => runtime.tabs.capture('svg');
+  const createDotTab = (source = starter, options = {}) => {
+    return runtime.tabs.create('dot', source, options);
+  };
+  const createSvgTab = (source = '', options = {}) => {
+    return runtime.tabs.create('svg', source, options);
+  };
+  const renderDocumentTabs = (kind) => runtime.tabs.render(kind);
+  const selectDotTab = (id, focus = false, renderSelected = true) => {
+    return runtime.tabs.select('dot', id, {focus, renderSelected});
+  };
+  const selectSvgTab = (id, focus = false, capture = true) => {
+    return runtime.tabs.select('svg', id, {focus, capture});
+  };
+  const closeDotTab = (id) => runtime.tabs.close('dot', id);
+  const closeSvgTab = (id) => runtime.tabs.close('svg', id);
 
   function svgTabEdited(tab) {
     return tab.source !== tab.editBaseSource;
-  }
-
-  function captureActiveDotTab() {
-    const tab = activeDotTab();
-    if (!tab || !editor) return;
-    tab.source = editor.getSource();
-    tab.selection = editor.getSelection();
-    syncRefFromParent('dot', tab.id);
-  }
-
-  function captureActiveSvgTab() {
-    const tab = activeSvgTab();
-    if (!tab) return;
-    if (showingSvgSource) tab.source = svgEditor.getSource();
-    else if (currentSvg) tab.source = lastSvgSource;
-    tab.view = {...view};
-    tab.showingSource = showingSvgSource;
-    syncRefFromParent('svg', tab.id);
-  }
-
-  function createDotTab(source = starter, options = {}) {
-    const tab = {
-      id: `dot-${nextDotTab++}`,
-      label: options.label || tabLabel(options.path, 'dot'),
-      path: options.path,
-      source,
-      cleanSource: options.cleanSource ?? source,
-      selection: options.selection || {start: 0, end: 0}
-    };
-    dotTabs.push(tab);
-    return tab;
-  }
-
-  function addEmptyDotTab() {
-    const tab = createDotTab('', {label: 'Untitled'});
-    selectDotTab(tab.id, true);
-  }
-
-  function createSvgTab(source = '', options = {}) {
-    const tab = {
-      id: `svg-${nextSvgTab++}`,
-      label: options.label || tabLabel(options.path, 'svg'),
-      path: options.path,
-      source,
-      cleanSource: options.cleanSource ?? source,
-      editBaseSource: options.editBaseSource ?? source,
-      view: options.view,
-      showingSource: options.showingSource === true,
-      sourceDotId: options.sourceDotId
-    };
-    svgTabs.push(tab);
-    return tab;
-  }
-
-  function documentTabs(kind) {
-    return kind === 'dot' ? dotTabs : svgTabs;
-  }
-
-  function activeDocumentTabId(kind) {
-    return kind === 'dot' ? activeDotTabId : activeSvgTabId;
-  }
-
-  function documentTabContainer(kind) {
-    return kind === 'dot' ? dotDocumentTabs : svgDocumentTabs;
-  }
-
-  function parentTab(kind, id) {
-    return documentTabs(kind).find((tab) => tab.id === id);
-  }
-
-  function refForParent(kind, parentId) {
-    return refTabs.find((tab) => {
-      return tab.kind === kind && tab.parentId === parentId;
-    });
-  }
-
-  function canAddRef(kind, id) {
-    const tab = parentTab(kind, id);
-    return Boolean(tab?.source.trim() && !refForParent(kind, id));
-  }
-
-  function updateRefActions() {
-    addDotRef.disabled = !canAddRef('dot', activeDotTabId);
-    addSvgRef.disabled = !canAddRef('svg', activeSvgTabId);
-  }
-
-  function documentTabKeydown(event, kind) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
-      .includes(event.key)) return;
-    event.preventDefault();
-    const tabs = documentTabs(kind);
-    const current = tabs.findIndex((tab) => {
-      return tab.id === event.currentTarget.dataset.documentTab;
-    });
-    let next = current;
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    else if (event.key === 'ArrowLeft') {
-      next = (current - 1 + tabs.length) % tabs.length;
-    } else {
-      next = (current + 1) % tabs.length;
-    }
-    if (kind === 'dot') selectDotTab(tabs[next].id, true);
-    else selectSvgTab(tabs[next].id, true);
-  }
-
-  function moveTab(kind, sourceId, targetId, after) {
-    const order = kind === 'explorer'
-      ? explorerOrder
-      : documentTabs(kind).map((tab) => tab.id);
-    const source = order.indexOf(sourceId);
-    const target = order.indexOf(targetId);
-    if (source < 0 || target < 0 || source === target) return;
-    order.splice(source, 1);
-    let insertion = order.indexOf(targetId) + (after ? 1 : 0);
-    insertion = Math.max(0, Math.min(order.length, insertion));
-    order.splice(insertion, 0, sourceId);
-    if (kind === 'explorer') {
-      explorerOrder = order;
-      syncExplorerTabOrder();
-    } else {
-      const byId = new Map(documentTabs(kind).map((tab) => [tab.id, tab]));
-      const reordered = order.map((id) => byId.get(id));
-      if (kind === 'dot') dotTabs = reordered;
-      else svgTabs = reordered;
-      renderDocumentTabs(kind);
-    }
-    queueSaveSession();
-  }
-
-  function enableTabDrag(wrapper, kind, id) {
-    if (wrapper.dataset.dragEnabled) return;
-    wrapper.dataset.dragEnabled = 'true';
-    wrapper.draggable = true;
-    wrapper.addEventListener('dragstart', (event) => {
-      draggedTab = {kind, id};
-      wrapper.classList.add('is-dragging');
-      event.dataTransfer?.setData('text/plain', id);
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copyMove';
-    });
-    wrapper.addEventListener('dragover', (event) => {
-      if (draggedTab?.kind !== kind) return;
-      event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    });
-    wrapper.addEventListener('drop', (event) => {
-      if (draggedTab?.kind !== kind) return;
-      event.preventDefault();
-      const bounds = wrapper.getBoundingClientRect();
-      const after = event.clientX > bounds.left + bounds.width / 2;
-      moveTab(kind, draggedTab.id, id, after);
-    });
-    wrapper.addEventListener('dragend', () => {
-      wrapper.classList.remove('is-dragging');
-      draggedTab = undefined;
-    });
-  }
-
-  function renderDocumentTabs(kind) {
-    const container = documentTabContainer(kind);
-    const activeId = activeDocumentTabId(kind);
-    container.replaceChildren();
-    for (const tab of documentTabs(kind)) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'document-tab-control';
-      wrapper.classList.toggle('active', tab.id === activeId);
-      const control = document.createElement('button');
-      control.type = 'button';
-      control.className = 'document-tab';
-      control.dataset.documentTab = tab.id;
-      control.setAttribute('role', 'tab');
-      control.setAttribute('aria-selected', String(tab.id === activeId));
-      control.tabIndex = tab.id === activeId ? 0 : -1;
-      control.textContent = tab.label;
-      control.title = tab.path || tab.label;
-      control.addEventListener('click', () => {
-        if (kind === 'dot') selectDotTab(tab.id);
-        else selectSvgTab(tab.id);
-      });
-      control.addEventListener('keydown', (event) => {
-        documentTabKeydown(event, kind);
-      });
-      const close = document.createElement('button');
-      close.type = 'button';
-      close.className = 'document-tab-close';
-      const dirty = tabDirty(tab);
-      close.textContent = dirty ? 'O' : 'X';
-      close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
-      close.setAttribute('aria-label', `Close ${tab.label}`);
-      close.addEventListener('click', (event) => {
-        event.stopPropagation?.();
-        if (kind === 'dot') closeDotTab(tab.id);
-        else closeSvgTab(tab.id);
-      });
-      wrapper.append(control, close);
-      enableTabDrag(wrapper, kind, tab.id);
-      container.append(wrapper);
-    }
-    if (kind === 'dot') {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'document-tab-control document-tab-add-control';
-      wrapper.setAttribute('role', 'presentation');
-      const add = document.createElement('button');
-      add.type = 'button';
-      add.className = 'document-tab-add';
-      add.setAttribute('aria-label', 'Add empty DOT tab');
-      add.title = 'Add empty DOT tab';
-      add.textContent = '+';
-      add.addEventListener('click', addEmptyDotTab);
-      wrapper.append(add);
-      container.append(wrapper);
-    }
-    updateRefActions();
   }
 
   function clearSvgDocument() {
@@ -2463,107 +1260,6 @@
     setState('ready', tab.path ? 'Loaded' : 'Rendered');
   }
 
-  function selectDotTab(id, focus = false, renderSelected = true) {
-    const tab = dotTabs.find((item) => item.id === id);
-    if (!tab) return;
-    if (id === activeDotTabId) {
-      if (focus) {
-        dotDocumentTabs.querySelector(
-          `[data-document-tab="${id}"]`
-        )?.focus();
-      }
-      return;
-    }
-    captureActiveDotTab();
-    invalidateRender();
-    clearTimeout(renderTimer);
-    activeDotTabId = id;
-    editor.setSource(tab.source, {
-      history: 'reset',
-      notify: false,
-      selection: tab.selection
-    });
-    clearVisualSelection();
-    error.hidden = true;
-    setEditorProblem();
-    sourceStatus.textContent = 'Ready';
-    renderDocumentTabs('dot');
-    queueSaveSession();
-    if (renderSelected && autoRender.checked) renderNow();
-    if (focus) {
-      dotDocumentTabs.querySelector(
-        `[data-document-tab="${id}"]`
-      )?.focus();
-    }
-  }
-
-  function selectSvgTab(id, focus = false, capture = true) {
-    const tab = svgTabs.find((item) => item.id === id);
-    if (!tab) return;
-    if (capture && id === activeSvgTabId) {
-      if (focus) {
-        svgDocumentTabs.querySelector(
-          `[data-document-tab="${id}"]`
-        )?.focus();
-      }
-      return;
-    }
-    if (capture) captureActiveSvgTab();
-    activeSvgTabId = id;
-    displayActiveSvgTab();
-    renderDocumentTabs('svg');
-    queueSaveSession();
-    if (focus) {
-      svgDocumentTabs.querySelector(
-        `[data-document-tab="${id}"]`
-      )?.focus();
-    }
-  }
-
-  function closeDotTab(id) {
-    captureActiveDotTab();
-    const index = dotTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const tab = dotTabs[index];
-    if (tabDirty(tab)
-      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
-      return;
-    }
-    const wasActive = id === activeDotTabId;
-    dotTabs.splice(index, 1);
-    if (!dotTabs.length) createDotTab();
-    if (wasActive) {
-      activeDotTabId = undefined;
-      const next = dotTabs[Math.min(index, dotTabs.length - 1)];
-      selectDotTab(next.id, true);
-    } else {
-      renderDocumentTabs('dot');
-      queueSaveSession();
-    }
-  }
-
-  function closeSvgTab(id) {
-    captureActiveSvgTab();
-    const index = svgTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const tab = svgTabs[index];
-    if (tabDirty(tab)
-      && !window.confirm(`Discard unsaved changes in ${tab.label}?`)) {
-      return;
-    }
-    const wasActive = id === activeSvgTabId;
-    svgTabs.splice(index, 1);
-    if (!svgTabs.length) createSvgTab();
-    if (wasActive) {
-      activeSvgTabId = undefined;
-      const next = svgTabs[Math.min(index, svgTabs.length - 1)];
-      selectSvgTab(next.id, true, false);
-    } else {
-      renderDocumentTabs('svg');
-      queueSaveSession();
-    }
-  }
-
   if (typeof ResizeObserver === 'function') {
     const editorResizeObserver = new ResizeObserver(() => {
       refreshEditor();
@@ -2573,27 +1269,7 @@
     editorResizeObserver.observe(svgSource);
   }
 
-  function validTheme(candidate) {
-    return themes.includes(candidate) ? candidate : 'system';
-  }
-
-  function applyTheme(candidate, persist = true) {
-    const selected = validTheme(candidate);
-    const effective = selected === 'system'
-      ? (themeMedia.matches ? 'dark' : 'light')
-      : selected;
-    theme.value = selected;
-    document.documentElement.dataset.theme = selected;
-    document.documentElement.dataset.effectiveTheme = effective;
-    document.documentElement.style.colorScheme = effective;
-    editor.setTheme(effective);
-    svgEditor.setTheme(effective);
-    if (persist) queueSaveSession();
-  }
-
-  function systemThemeChanged() {
-    if (theme.value === 'system') applyTheme('system', false);
-  }
+  const applyTheme = runtime.theme.apply;
 
   function setState(state, label) {
     previewShell.dataset.state = state;
@@ -2779,801 +1455,35 @@
     }
   }
 
-  function docsTabById(id) {
-    return docsTabs.find((tab) => tab.id === id);
-  }
+  const setHelpOpen = runtime.dialogs.setHelpOpen;
+  const explorer = runtime.explorer;
+  const setExplorerView = explorer.setView;
+  const docsTabs = explorer.docs.list();
+  const refTabs = explorer.refs.list();
+  const renderDocsTabs = explorer.docs.render;
+  const renderRefTabs = explorer.refs.render;
+  const openDocsTab = explorer.docs.open;
+  const refreshHelpVariant = explorer.docs.refreshVariant;
+  const addRef = explorer.refs.add;
+  const syncRefFromParent = explorer.refs.syncFromParent;
+  const syncAllRefs = explorer.refs.syncAll;
+  const refreshFileTree = explorer.tree.refresh;
+  const closeFileContext = explorer.context.close;
 
-  function refTabById(id) {
-    return refTabs.find((tab) => tab.id === id);
-  }
+  const showClayError = runtime.dialogs.showError;
 
-  function explorerTabButtons() {
-    return Array.from(explorerTabs.querySelectorAll('[role="tab"]'));
-  }
-
-  function validExplorerView(viewName) {
-    return permanentExplorerViews.includes(viewName) ||
-      Boolean(docsTabById(viewName)) || Boolean(refTabById(viewName));
-  }
-
-  function setExplorerView(viewName, focus = false) {
-    explorerView = validExplorerView(viewName)
-      ? viewName
-      : 'dot-files';
-    for (const tab of explorerTabButtons()) {
-      const active = tab.dataset.explorerView === explorerView;
-      tab.setAttribute('aria-selected', String(active));
-      tab.tabIndex = active ? 0 : -1;
-      tab.classList.toggle('active', active);
-      tab.parentElement?.classList.toggle('active', active);
-      const panelId = tab.getAttribute('aria-controls');
-      const panel = panelId ? document.getElementById(panelId) : undefined;
-      if (panel) panel.hidden = !active;
-    }
-    const selectedDocs = docsTabById(explorerView);
-    if (selectedDocs && docsAvailable === true) {
-      const frame = document.querySelector(
-        `#${selectedDocs.id}-panel iframe`
-      );
-      if (frame && !frame.getAttribute('src')) {
-        frame.src = `${docsRoot}${selectedDocs.path}`;
-      }
-    }
-    if (focus) {
-      explorerTabs.querySelector(
-        `[data-explorer-view="${explorerView}"]`
-      )?.focus();
-    }
-    refreshEditor();
-    queueSaveSession();
-  }
-
-  function explorerTabKeydown(event) {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
-      .includes(event.key)) return;
-    event.preventDefault();
-    const tabs = explorerTabButtons();
-    const current = tabs.indexOf(event.currentTarget);
-    let next = current;
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    else if (event.key === 'ArrowLeft') {
-      next = (current - 1 + tabs.length) % tabs.length;
-    } else {
-      next = (current + 1) % tabs.length;
-    }
-    setExplorerView(tabs[next].dataset.explorerView, true);
-  }
-
-  function docsTabLabel(documentTitle) {
-    const ignored = new Set(['docs', 'graph viz']);
-    const names = String(documentTitle || '').split(/\s*(?:>|\/)\s*/)
-      .map((name) => name.trim())
-      .filter((name) => name && !ignored.has(name.toLowerCase()));
-    return names.length ? names[names.length - 1] : 'Docs';
-  }
-
-  function usefulDocsTitle(title) {
-    return docsTabLabel(title) !== 'Docs';
-  }
-
-  function syncDocsTab(tab, control, close, frame) {
+  const validateSource = runtime.session.validateSource;
+  const validSavedSource = (source) => {
     try {
-      const title = frame.contentDocument?.title?.trim();
-      const pathname = frame.contentWindow?.location?.pathname || '';
-      if (usefulDocsTitle(title)) {
-        tab.title = title;
-        control.textContent = docsTabLabel(title);
-        control.title = title;
-        close.setAttribute(
-          'aria-label',
-          `Close ${docsTabLabel(title)}`
-        );
-      }
-      if (pathname.startsWith(docsRoot)) {
-        tab.path = pathname.slice(docsRoot.length);
-        control.dataset.docPath = tab.path;
-      }
-      queueSaveSession();
-      const titleNode = frame.contentDocument?.querySelector('title');
-      if (titleNode && typeof MutationObserver !== 'undefined') {
-        const observer = new MutationObserver(() => {
-          const nextTitle = frame.contentDocument?.title?.trim();
-          if (!usefulDocsTitle(nextTitle)) return;
-          tab.title = nextTitle;
-          control.textContent = docsTabLabel(nextTitle);
-          control.title = nextTitle;
-          close.setAttribute(
-            'aria-label',
-            `Close ${docsTabLabel(nextTitle)}`
-          );
-          queueSaveSession();
-        });
-        observer.observe(titleNode, {childList: true, characterData: true,
-          subtree: true});
-      }
+      return validateSource(source);
     } catch (_) {
-      // The docs frame remains usable if its title cannot be inspected.
+      return undefined;
     }
-  }
-
-  function syncExplorerTabOrder() {
-    const available = [
-      ...permanentExplorerViews,
-      ...docsTabs.map((tab) => tab.id),
-      ...refTabs.map((tab) => tab.id)
-    ];
-    explorerOrder = explorerOrder.filter((id) => available.includes(id));
-    for (const id of available) {
-      if (!explorerOrder.includes(id)) explorerOrder.push(id);
-    }
-    const wrappers = new Map(
-      Array.from(explorerTabs.children).map((wrapper) => {
-        return [wrapper.dataset.explorerTabId, wrapper];
-      })
-    );
-    for (const id of explorerOrder) {
-      const wrapper = wrappers.get(id);
-      if (!wrapper) continue;
-      enableTabDrag(wrapper, 'explorer', id);
-      explorerTabs.append(wrapper);
-    }
-  }
-
-  function createDocsTab(tab) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'docs-tab-control';
-    wrapper.setAttribute('role', 'presentation');
-    wrapper.dataset.docsTab = tab.id;
-    wrapper.dataset.explorerTabId = tab.id;
-    const control = document.createElement('button');
-    control.type = 'button';
-    control.className = 'docs-tab';
-    control.id = `${tab.id}-tab`;
-    control.dataset.explorerView = tab.id;
-    control.dataset.docPath = tab.path;
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', 'false');
-    control.setAttribute('aria-controls', `${tab.id}-panel`);
-    control.tabIndex = -1;
-    control.textContent = docsTabLabel(tab.title);
-    control.title = tab.title;
-    control.addEventListener('click', () => setExplorerView(tab.id));
-    control.addEventListener('keydown', explorerTabKeydown);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'docs-tab-close';
-    close.setAttribute('aria-label', `Close ${tab.title}`);
-    close.textContent = 'X';
-    close.addEventListener('click', () => closeDocsTab(tab.id));
-    wrapper.append(control, close);
-    explorerTabs.append(wrapper);
-    const panel = document.createElement('div');
-    panel.className = 'explorer-panel docs-explorer-panel';
-    panel.id = `${tab.id}-panel`;
-    panel.hidden = true;
-    panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', control.id);
-    const frame = document.createElement('iframe');
-    frame.className = 'docs-explorer-frame';
-    frame.title = `${tab.title} documentation`;
-    frame.addEventListener(
-      'load',
-      () => syncDocsTab(tab, control, close, frame)
-    );
-    frame.addEventListener('error', disableDocsExplorer);
-    panel.append(frame);
-    explorerPane.append(panel);
-    syncExplorerTabOrder();
-  }
-
-  function renderDocsTabs() {
-    for (const node of explorerTabs.querySelectorAll('[data-docs-tab]')) {
-      node.remove();
-    }
-    for (const node of explorerPane.querySelectorAll(
-      '.docs-explorer-panel'
-    )) {
-      node.remove();
-    }
-    for (const tab of docsTabs) createDocsTab(tab);
-    syncExplorerTabOrder();
-  }
-
-  function updateRefContent(tab) {
-    const panel = document.getElementById(`${tab.id}-panel`);
-    if (!panel) return;
-    const source = document.createElement('pre');
-    source.className = 'ref-source';
-    source.textContent = tab.source;
-    panel.replaceChildren(source);
-  }
-
-  function createRefTabControl(tab) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'docs-tab-control ref-tab-control';
-    wrapper.setAttribute('role', 'presentation');
-    wrapper.dataset.refTab = tab.id;
-    wrapper.dataset.explorerTabId = tab.id;
-    const control = document.createElement('button');
-    control.type = 'button';
-    control.className = 'docs-tab ref-tab';
-    control.id = `${tab.id}-tab`;
-    control.dataset.explorerView = tab.id;
-    control.setAttribute('role', 'tab');
-    control.setAttribute('aria-selected', 'false');
-    control.setAttribute('aria-controls', `${tab.id}-panel`);
-    control.tabIndex = -1;
-    control.textContent = tab.label;
-    control.title = tab.label;
-    control.addEventListener('click', () => setExplorerView(tab.id));
-    control.addEventListener('keydown', explorerTabKeydown);
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'docs-tab-close ref-tab-close';
-    close.setAttribute('aria-label', `Close ${tab.label} reference`);
-    close.textContent = 'X';
-    close.addEventListener('click', () => closeRefTab(tab.id));
-    wrapper.append(control, close);
-    explorerTabs.append(wrapper);
-    const panel = document.createElement('div');
-    panel.className = 'explorer-panel ref-explorer-panel';
-    panel.id = `${tab.id}-panel`;
-    panel.hidden = true;
-    panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', control.id);
-    explorerPane.append(panel);
-    updateRefContent(tab);
-  }
-
-  function renderRefTabs() {
-    for (const node of explorerTabs.querySelectorAll('[data-ref-tab]')) {
-      node.remove();
-    }
-    for (const node of explorerPane.querySelectorAll(
-      '.ref-explorer-panel'
-    )) {
-      node.remove();
-    }
-    for (const tab of refTabs) createRefTabControl(tab);
-    syncExplorerTabOrder();
-    updateRefActions();
-  }
-
-  function syncRefFromParent(kind, parentId) {
-    const ref = refForParent(kind, parentId);
-    const parent = parentTab(kind, parentId);
-    if (!ref || !parent) return;
-    ref.label = parent.label;
-    ref.source = parent.source;
-    const control = explorerTabs.querySelector(
-      `[data-explorer-view="${ref.id}"]`
-    );
-    if (control) {
-      control.textContent = ref.label;
-      control.title = ref.label;
-      control.parentElement?.querySelector('.ref-tab-close')
-        ?.setAttribute('aria-label', `Close ${ref.label} reference`);
-    }
-    updateRefContent(ref);
-    updateRefActions();
-  }
-
-  function syncAllRefs() {
-    for (const ref of refTabs) {
-      syncRefFromParent(ref.kind, ref.parentId);
-    }
-  }
-
-  function addRef(kind, parentId) {
-    if (kind === 'dot' && parentId === activeDotTabId) {
-      captureActiveDotTab();
-    }
-    if (kind === 'svg' && parentId === activeSvgTabId) {
-      captureActiveSvgTab();
-    }
-    if (!canAddRef(kind, parentId)) return;
-    const parent = parentTab(kind, parentId);
-    const tab = {
-      id: `ref-${nextRef++}`,
-      kind,
-      parentId,
-      label: parent.label,
-      source: parent.source
-    };
-    refTabs.push(tab);
-    explorerOrder.push(tab.id);
-    createRefTabControl(tab);
-    syncExplorerTabOrder();
-    if (!explorerOpen) {
-      explorerOpen = true;
-      applyExplorerLayout();
-    }
-    setExplorerView(tab.id, true);
-    renderDocumentTabs(kind);
-    queueSaveSession();
-  }
-
-  function closeRefTab(id) {
-    const index = refTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const tab = refTabs[index];
-    const wasActive = explorerView === id;
-    const orderIndex = explorerOrder.indexOf(id);
-    document.querySelector(`[data-ref-tab="${id}"]`)?.remove();
-    document.querySelector(`#${id}-panel`)?.remove();
-    refTabs.splice(index, 1);
-    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
-    if (wasActive) {
-      const neighbor = explorerOrder[
-        Math.min(orderIndex, explorerOrder.length - 1)
-      ];
-      setExplorerView(neighbor || '', true);
-    }
-    renderDocumentTabs(tab.kind);
-    queueSaveSession();
-  }
-
-  function openDocsTab(title, path) {
-    if (docsAvailable !== true) return;
-    if (!explorerOpen) {
-      explorerOpen = true;
-      applyExplorerLayout();
-    }
-    const existing = docsTabs.find((tab) => tab.path === path);
-    if (existing) {
-      setHelpOpen(false);
-      setExplorerView(existing.id, true);
-      return;
-    }
-    const tab = {id: `docs-${nextDocs++}`, title, path};
-    docsTabs.push(tab);
-    explorerOrder.push(tab.id);
-    createDocsTab(tab);
-    setHelpOpen(false);
-    setExplorerView(tab.id, true);
-  }
-
-  function closeDocsTab(id) {
-    const index = docsTabs.findIndex((tab) => tab.id === id);
-    if (index < 0) return;
-    const wasActive = explorerView === id;
-    const orderIndex = explorerOrder.indexOf(id);
-    document.querySelector(`[data-docs-tab="${id}"]`)?.remove();
-    document.querySelector(`#${id}-panel`)?.remove();
-    docsTabs.splice(index, 1);
-    explorerOrder = explorerOrder.filter((tabId) => tabId !== id);
-    if (wasActive) {
-      const neighbor = explorerOrder[
-        Math.min(orderIndex, explorerOrder.length - 1)
-      ];
-      setExplorerView(neighbor || '', true);
-    } else {
-      queueSaveSession();
-    }
-  }
-
-  function parseDocsToc(source) {
-    const root = [];
-    const folders = [];
-    for (const line of source.split(/\r?\n/)) {
-      const match = line.match(
-        /^(\s*)(\/[^\s]+)(?:\s+(.*\S))?\s*$/
-      );
-      if (!match) continue;
-      const indentation = match[1].replace(/\t/g, '  ').length;
-      if (indentation % 2 !== 0) continue;
-      const level = indentation / 2;
-      const parts = match[2].slice(1).split('/').filter(Boolean);
-      if (parts.length < 1 || parts.length > 2 ||
-        !parts.every((part) => /^[A-Za-z0-9._~-]+$/.test(part))) {
-        continue;
-      }
-      const children = level === 0
-        ? root
-        : folders[level - 1]?.children;
-      if (!children) continue;
-      const folder = parts.length === 1;
-      const entry = {
-        children: folder ? [] : undefined,
-        folder,
-        slug: parts[0],
-        title: match[3] || parts[0]
-      };
-      children.push(entry);
-      folders.length = level;
-      if (folder) folders[level] = entry;
-    }
-    return root;
-  }
-
-  function appendDocsEntries(container, entries, parentPath = []) {
-    for (const entry of entries) {
-      const path = [...parentPath, entry.slug];
-      if (entry.folder) {
-        const group = document.createElement('details');
-        group.className = 'docs-help-group';
-        const summary = document.createElement('summary');
-        summary.className = 'docs-help-summary';
-        summary.textContent = entry.title;
-        const subnav = document.createElement('div');
-        subnav.className = 'docs-help-subnav';
-        appendDocsEntries(subnav, entry.children, path);
-        group.append(summary, subnav);
-        container.append(group);
-        continue;
-      }
-      const docPath = path.join('/');
-      const link = document.createElement('a');
-      link.className = 'docs-help-link';
-      link.href = `${docsRoot}${docPath}`;
-      link.dataset.docPath = docPath;
-      link.textContent = entry.title;
-      link.addEventListener('click', (event) => {
-        event.preventDefault();
-        openDocsTab(entry.title, docPath);
-      });
-      container.append(link);
-    }
-  }
-
-  async function loadDocsTree() {
-    if (docsTreeLoaded) return true;
-    try {
-      const response = await fetch('/apps/graph-viz/doc.toc', {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-      const contentType = response.headers.get('content-type') || '';
-      if (!response.ok || !contentType.includes('text/plain')) return false;
-      const entries = parseDocsToc(await response.text());
-      if (!entries.length) return false;
-      const tree = document.createDocumentFragment();
-      appendDocsEntries(tree, entries);
-      docsHelpNav.replaceChildren(tree);
-      docsHelpNav.setAttribute('aria-busy', 'false');
-      docsTreeLoaded = true;
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function disableDocsExplorer() {
-    docsAvailable = false;
-    const wasDocs = Boolean(docsTabById(explorerView));
-    docsTabs = [];
-    renderDocsTabs();
-    if (wasDocs) setExplorerView(explorerOrder[0] || '');
-    setHelpVariant(false);
-  }
-
-  function setHelpVariant(useDocs) {
-    fallbackHelpContent.hidden = useDocs;
-    docsHelpContent.hidden = !useDocs;
-    if (useDocs && docsTabById(explorerView)) {
-      setExplorerView(explorerView);
-    }
-  }
-
-  function setHelpOpen(open, restoreFocus = false) {
-    helpPanel.hidden = !open;
-    help.setAttribute('aria-expanded', String(open));
-    if (open) {
-      setHelpVariant(docsAvailable === true);
-      refreshHelpVariant();
-      closeHelp.focus();
-    }
-    if (!open && restoreFocus) help.focus();
-  }
-
-  async function refreshHelpVariant() {
-    if (docsCheckPending || docsAvailable === true) return;
-    docsCheckPending = true;
-    try {
-      const response = await fetch('/docs', {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-      const responseUrl = new URL(response.url, window.location.origin);
-      const contentType = response.headers.get('content-type') || '';
-      const docsPath = responseUrl.pathname === '/docs' ||
-        responseUrl.pathname.startsWith('/docs/');
-      docsAvailable = response.ok &&
-        responseUrl.origin === window.location.origin && docsPath &&
-        contentType.includes('text/html');
-      if (docsAvailable) docsAvailable = await loadDocsTree();
-    } catch (_) {
-      docsAvailable = false;
-    } finally {
-      docsCheckPending = false;
-    }
-    if (docsAvailable) setHelpVariant(true);
-    else disableDocsExplorer();
-  }
-
-  function showClayError(cause) {
-    if (!clayErrorModal.contains(document.activeElement)) {
-      clayErrorReturnFocus = document.activeElement;
-    }
-    clayErrorMessage.textContent = String(cause);
-    clayErrorModal.hidden = false;
-    closeClayError.focus();
-  }
-
-  function hideClayError() {
-    clayErrorModal.hidden = true;
-    clayErrorReturnFocus?.focus?.();
-    clayErrorReturnFocus = undefined;
-  }
-
-  function closeFileContext(restoreFocus = false) {
-    fileContextMenu.hidden = true;
-    if (contextFileSource) {
-      contextFileSource.setAttribute('aria-expanded', 'false');
-      if (restoreFocus) contextFileSource.focus();
-    }
-    contextFileKind = undefined;
-    contextFilePath = undefined;
-    contextFileSource = undefined;
-  }
-
-  function openFileContext(kind, path, source, event) {
-    event.preventDefault();
-    event.stopPropagation();
-    closeFileContext();
-    contextFileKind = kind;
-    contextFilePath = path;
-    contextFileSource = source;
-    source.setAttribute('aria-expanded', 'true');
-    fileContextMenu.style.left = '0px';
-    fileContextMenu.style.top = '0px';
-    fileContextMenu.hidden = false;
-    const menuRect = fileContextMenu.getBoundingClientRect();
-    const sourceRect = source.getBoundingClientRect();
-    const margin = 8;
-    const maximumLeft = window.innerWidth - menuRect.width - margin;
-    const maximumTop = window.innerHeight - menuRect.height - margin;
-    const pointer = event.type === 'contextmenu';
-    const left = clamp(
-      pointer ? event.clientX : sourceRect.right,
-      margin,
-      Math.max(margin, maximumLeft)
-    );
-    const top = clamp(
-      pointer ? event.clientY : sourceRect.top,
-      margin,
-      Math.max(margin, maximumTop)
-    );
-    fileContextMenu.style.left = `${left}px`;
-    fileContextMenu.style.top = `${top}px`;
-    fileContextOpen.focus();
-  }
-
-  async function openContextFile() {
-    const kind = contextFileKind;
-    const path = contextFilePath;
-    closeFileContext();
-    if (!kind || !path) return;
-    if (kind === 'dot') await loadCurrentDot(path);
-    else await loadCurrentSvg(path);
-  }
-
-  async function deleteContextFile() {
-    const kind = contextFileKind;
-    const path = contextFilePath;
-    const source = contextFileSource;
-    if (!kind || !path) return;
-    if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
-      closeFileContext();
-      source?.focus();
-      return;
-    }
-    closeFileContext();
-    try {
-      await clayFileRequest(kind, 'delete', '', path);
-      await refreshFileTree(kind);
-      const label = `${path} deleted`;
-      if (kind === 'dot') sourceStatus.textContent = label;
-      else renderStatus.textContent = label;
-    } catch (cause) {
-      showClayError(cause);
-    }
-  }
-
-  function fileContextKeydown(event) {
-    const items = [fileContextOpen, fileContextDelete]
-      .filter((item) => !item.disabled);
-    const current = items.indexOf(document.activeElement);
-    let next = current;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      closeFileContext(true);
-      return;
-    }
-    if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = items.length - 1;
-    else if (event.key === 'ArrowDown') {
-      next = (current + 1) % items.length;
-    } else if (event.key === 'ArrowUp') {
-      next = (current - 1 + items.length) % items.length;
-    } else {
-      return;
-    }
-    event.preventDefault();
-    items[next].focus();
-  }
-
-  function normalizeClayPath(value) {
-    const path = value.trim().replace(/^\/+/, '');
-    if (!path || path.split('/').some((part) => {
-      return !part || part === '.' || part === '..';
-    })) {
-      throw new Error('Enter a relative Clay path');
-    }
-    if (!/^[A-Za-z0-9._~/-]+$/.test(path)) {
-      throw new Error('Clay path contains unsupported characters');
-    }
-    return path;
-  }
-
-  function renderFileTree(paths, kind) {
-    const tree = kind === 'dot' ? dotFilesTree : svgFilesTree;
-    const root = new Map();
-    for (const rawPath of paths) {
-      if (typeof rawPath !== 'string') {
-        throw new Error('Invalid Clay file list');
-      }
-      const path = normalizeClayPath(rawPath);
-      const parts = path.split('/');
-      let branch = root;
-      for (const [index, name] of parts.entries()) {
-        if (!branch.has(name)) {
-          branch.set(name, {children: new Map(), path: undefined});
-        }
-        const node = branch.get(name);
-        if (index === parts.length - 1) node.path = path;
-        branch = node.children;
-      }
-    }
-    tree.replaceChildren();
-    tree.setAttribute('aria-busy', 'false');
-    if (!root.size) {
-      tree.textContent =
-        `No /${kind === 'dot' ? 'txt' : 'svg'} files found.`;
-      return;
-    }
-    function appendFile(item, label, path) {
-      const row = document.createElement('div');
-      row.className = 'explorer-file-row';
-      row.setAttribute('role', 'treeitem');
-      const file = document.createElement('button');
-      file.type = 'button';
-      file.className = 'file-tree-file';
-      file.dataset.path = path;
-      file.textContent = label;
-      file.title = path;
-      file.addEventListener('click', async () => {
-        closeFileContext();
-        if (kind === 'dot') {
-          await loadCurrentDot(path);
-        } else {
-          await loadCurrentSvg(path);
-        }
-      });
-      row.addEventListener('contextmenu', (event) => {
-        openFileContext(kind, path, file, event);
-      });
-      const actions = document.createElement('button');
-      actions.type = 'button';
-      actions.className = 'file-tree-actions';
-      actions.setAttribute('aria-label', `Actions for ${label}`);
-      actions.setAttribute('aria-haspopup', 'menu');
-      actions.setAttribute('aria-expanded', 'false');
-      actions.textContent = '…';
-      actions.addEventListener('click', (event) => {
-        openFileContext(kind, path, actions, event);
-      });
-      row.append(file, actions);
-      item.append(row);
-    }
-    function renderBranch(branch) {
-      const list = document.createElement('ul');
-      list.className = 'file-tree-list';
-      const entries = [...branch.entries()]
-        .sort(([left], [right]) => left.localeCompare(right));
-      for (const [name, node] of entries) {
-        const item = document.createElement('li');
-        const children = [...node.children.entries()];
-        const suffix = children.length === 1 ? children[0] : undefined;
-        if (!node.path && suffix && suffix[1].path
-          && !suffix[1].children.size) {
-          appendFile(item, `${name}/${suffix[0]}`, suffix[1].path);
-          list.append(item);
-          continue;
-        }
-        if (node.children.size) {
-          const directory = document.createElement('div');
-          directory.className = 'file-tree-directory';
-          directory.textContent = `${name}/`;
-          item.append(directory);
-        }
-        if (node.path) appendFile(item, name, node.path);
-        if (node.children.size) item.append(renderBranch(node.children));
-        list.append(item);
-      }
-      return list;
-    }
-    tree.append(renderBranch(root));
-  }
-
-  async function browseClayNode(kind, path = '') {
-    const headers = path ? {'x-graph-viz-path': path} : {};
-    const response = await fetch(
-      `/apps/graph-viz/file/${kind}/browse`,
-      {method: 'POST', headers}
-    );
-    const body = await response.text();
-    if (!response.ok) {
-      throw new Error(body || `Clay request failed (${response.status})`);
-    }
-    const node = JSON.parse(body);
-    if (!node || typeof node.file !== 'boolean'
-      || !Array.isArray(node.children)) {
-      throw new Error('Invalid Clay directory');
-    }
-    const paths = node.file ? [path] : [];
-    for (const name of node.children) {
-      if (typeof name !== 'string' || !name || name.includes('/')) {
-        throw new Error('Invalid Clay directory');
-      }
-      const childPath = normalizeClayPath(
-        path ? `${path}/${name}` : name
-      );
-      paths.push(...await browseClayNode(kind, childPath));
-    }
-    return paths;
-  }
-
-  async function refreshFileTree(kind) {
-    const tree = kind === 'dot' ? dotFilesTree : svgFilesTree;
-    tree.replaceChildren();
-    tree.textContent = 'Loading…';
-    tree.setAttribute('aria-busy', 'true');
-    try {
-      renderFileTree(await browseClayNode(kind), kind);
-    } catch (cause) {
-      tree.setAttribute('aria-busy', 'false');
-      tree.replaceChildren();
-      tree.textContent = `Unable to load files: ${String(cause)}`;
-      showClayError(cause);
-    }
-  }
-
-  function showFileExplorer(kind) {
-    const viewName = kind === 'dot' ? 'dot-files' : 'svg-files';
-    if (!explorerOpen) {
-      explorerOpen = true;
-      applyExplorerLayout();
-    }
-    setExplorerView(viewName, true);
-    refreshFileTree(kind);
-  }
-
-  function sourceByteLength(source) {
-    return new TextEncoder().encode(source).byteLength;
-  }
-
-  function validateSource(source, limit = maxSourceBytes) {
-    if (typeof source !== 'string') throw new Error('DOT must be text');
-    if (source.includes('\0')) throw new Error('DOT contains a null byte');
-    if (sourceByteLength(source) > limit) {
-      throw new Error(`DOT exceeds the ${limit}-byte limit`);
-    }
-    return source;
-  }
+  };
+  const saveSession = runtime.session.save;
+  const queueSaveSession = runtime.session.queue;
+  const loadSession = runtime.session.load;
+  const sourceFromUrl = runtime.session.sourceFromUrl;
 
   function validView(candidate) {
     if (!candidate || typeof candidate !== 'object') return undefined;
@@ -3587,380 +1497,6 @@
       x: candidate.x,
       y: candidate.y
     };
-  }
-
-  function validDocsTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^docs-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    if (typeof candidate.title !== 'string' || !candidate.title.trim()
-      || candidate.title.length > 200) return undefined;
-    if (typeof candidate.path !== 'string' || !candidate.path
-      || candidate.path.length > 1_024
-      || candidate.path.startsWith('/')
-      || candidate.path.split('/').some((part) => {
-        return !part || part === '.' || part === '..';
-      })) return undefined;
-    return {
-      id: candidate.id,
-      title: candidate.title.trim(),
-      path: candidate.path
-    };
-  }
-
-  function validTabPath(path) {
-    if (path === undefined) return undefined;
-    if (typeof path !== 'string' || path.length > 1_024) return undefined;
-    try {
-      return normalizeClayPath(path);
-    } catch (_) {
-      return undefined;
-    }
-  }
-
-  function validTabLabel(label, fallback) {
-    return typeof label === 'string' && label.trim()
-      && label.length <= 200
-      ? label.trim()
-      : fallback;
-  }
-
-  function validSavedSource(source) {
-    try {
-      return validateSource(source);
-    } catch (_) {
-      return undefined;
-    }
-  }
-
-  function validDotTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^dot-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    const source = validSavedSource(candidate.source);
-    if (source === undefined) return undefined;
-    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
-    const path = validTabPath(candidate.path);
-    const start = Number(candidate.selection?.start);
-    const end = Number(candidate.selection?.end);
-    const selection = {
-      start: Number.isFinite(start)
-        ? clamp(Math.trunc(start), 0, source.length)
-        : 0,
-      end: Number.isFinite(end)
-        ? clamp(Math.trunc(end), 0, source.length)
-        : 0
-    };
-    selection.end = Math.max(selection.start, selection.end);
-    return {
-      id: candidate.id,
-      label: validTabLabel(candidate.label, tabLabel(path, 'dot')),
-      path,
-      source,
-      cleanSource,
-      selection
-    };
-  }
-
-  function validSvgTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^svg-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    const source = validSavedSource(candidate.source);
-    if (source === undefined) return undefined;
-    const cleanSource = validSavedSource(candidate.cleanSource) ?? source;
-    const editBaseSource = validSavedSource(candidate.editBaseSource)
-      ?? source;
-    const path = validTabPath(candidate.path);
-    const sourceDotId = /^dot-[1-9][0-9]*$/.test(candidate.sourceDotId)
-      ? candidate.sourceDotId
-      : undefined;
-    return {
-      id: candidate.id,
-      label: validTabLabel(candidate.label, tabLabel(path, 'svg')),
-      path,
-      source,
-      cleanSource,
-      editBaseSource,
-      view: validView(candidate.view),
-      showingSource: candidate.showingSource === true,
-      sourceDotId
-    };
-  }
-
-  function validRefTab(candidate) {
-    if (!candidate || typeof candidate !== 'object') return undefined;
-    if (!/^ref-[1-9][0-9]*$/.test(candidate.id)) return undefined;
-    if (!['dot', 'svg'].includes(candidate.kind)) return undefined;
-    const parentPattern = candidate.kind === 'dot'
-      ? /^dot-[1-9][0-9]*$/
-      : /^svg-[1-9][0-9]*$/;
-    if (!parentPattern.test(candidate.parentId)) return undefined;
-    const source = validSavedSource(candidate.source);
-    if (source === undefined) return undefined;
-    return {
-      id: candidate.id,
-      kind: candidate.kind,
-      parentId: candidate.parentId,
-      label: validTabLabel(candidate.label, 'Reference'),
-      source
-    };
-  }
-
-  function loadSession() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (!saved || saved.version !== 1) return undefined;
-      const source = validSavedSource(saved.source) ?? starter;
-      const paneWidth = Number(saved.paneWidth);
-      const explorerWidth = Number(saved.explorerWidth);
-      const preferences = saved.preferences || {};
-      const seenPaths = new Set();
-      const seenIds = new Set();
-      const savedDocsTabs = Array.isArray(saved.docsTabs)
-        ? saved.docsTabs.map(validDocsTab).filter((tab) => {
-          if (!tab || seenPaths.has(tab.path) || seenIds.has(tab.id)) {
-            return false;
-          }
-          seenPaths.add(tab.path);
-          seenIds.add(tab.id);
-          return true;
-        })
-        : [];
-      const highestDocsId = savedDocsTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(5)) + 1);
-      }, 1);
-      const savedNextDocs = Number(saved.nextDocs);
-      const dotIds = new Set();
-      const dotPaths = new Set();
-      const savedDotTabs = Array.isArray(saved.dotTabs)
-        ? saved.dotTabs.map(validDotTab).filter((tab) => {
-          if (!tab || dotIds.has(tab.id)
-            || (tab.path && dotPaths.has(tab.path))) return false;
-          dotIds.add(tab.id);
-          if (tab.path) dotPaths.add(tab.path);
-          return true;
-        })
-        : [];
-      const svgIds = new Set();
-      const svgPaths = new Set();
-      const savedSvgTabs = Array.isArray(saved.svgTabs)
-        ? saved.svgTabs.map(validSvgTab).filter((tab) => {
-          if (!tab || svgIds.has(tab.id)
-            || (tab.path && svgPaths.has(tab.path))) return false;
-          svgIds.add(tab.id);
-          if (tab.path) svgPaths.add(tab.path);
-          if (tab.sourceDotId && !dotIds.has(tab.sourceDotId)) {
-            tab.sourceDotId = undefined;
-          }
-          return true;
-        })
-        : [];
-      const highestDotId = savedDotTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(4)) + 1);
-      }, 1);
-      const highestSvgId = savedSvgTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(4)) + 1);
-      }, 1);
-      const savedNextDotTab = Number(saved.nextDotTab);
-      const savedNextSvgTab = Number(saved.nextSvgTab);
-      const refParents = new Set();
-      const refIds = new Set();
-      const savedRefTabs = Array.isArray(saved.refTabs)
-        ? saved.refTabs.map(validRefTab).filter((tab) => {
-          if (!tab || refIds.has(tab.id)) return false;
-          const parentKey = `${tab.kind}:${tab.parentId}`;
-          if (refParents.has(parentKey)) return false;
-          refIds.add(tab.id);
-          refParents.add(parentKey);
-          return true;
-        })
-        : [];
-      const highestRefId = savedRefTabs.reduce((highest, tab) => {
-        return Math.max(highest, Number(tab.id.slice(4)) + 1);
-      }, 1);
-      const savedNextRef = Number(saved.nextRef);
-      const savedExplorerView = typeof saved.explorerView === 'string'
-        && (permanentExplorerViews.includes(saved.explorerView)
-          || savedDocsTabs.some((tab) => tab.id === saved.explorerView)
-          || savedRefTabs.some((tab) => tab.id === saved.explorerView))
-        ? saved.explorerView
-        : 'dot-files';
-      const availableExplorerTabs = [
-        ...permanentExplorerViews,
-        ...savedDocsTabs.map((tab) => tab.id),
-        ...savedRefTabs.map((tab) => tab.id)
-      ];
-      const savedExplorerOrder = Array.isArray(saved.explorerOrder)
-        ? saved.explorerOrder.filter((id, index, items) => {
-          return typeof id === 'string'
-            && availableExplorerTabs.includes(id)
-            && items.indexOf(id) === index;
-        })
-        : [];
-      for (const id of availableExplorerTabs) {
-        if (!savedExplorerOrder.includes(id)) savedExplorerOrder.push(id);
-      }
-      return {
-        source,
-        paneWidth: Number.isFinite(paneWidth)
-          ? clamp(paneWidth, 25, 70)
-          : 44,
-        explorerWidth: Number.isFinite(explorerWidth)
-          ? Math.max(explorerWidth, minExplorerWidth)
-          : 288,
-        explorerOpen: saved.explorerOpen !== false,
-        explorerView: savedExplorerView,
-        explorerOrder: savedExplorerOrder,
-        docsTabs: savedDocsTabs,
-        nextDocs: Number.isSafeInteger(savedNextDocs)
-          ? Math.max(savedNextDocs, highestDocsId)
-          : highestDocsId,
-        refTabs: savedRefTabs,
-        nextRef: Number.isSafeInteger(savedNextRef)
-          ? Math.max(savedNextRef, highestRefId)
-          : highestRefId,
-        dotTabs: savedDotTabs,
-        activeDotTabId: dotIds.has(saved.activeDotTabId)
-          ? saved.activeDotTabId
-          : savedDotTabs[0]?.id,
-        nextDotTab: Number.isSafeInteger(savedNextDotTab)
-          ? Math.max(savedNextDotTab, highestDotId)
-          : highestDotId,
-        svgTabs: savedSvgTabs,
-        activeSvgTabId: svgIds.has(saved.activeSvgTabId)
-          ? saved.activeSvgTabId
-          : savedSvgTabs[0]?.id,
-        nextSvgTab: Number.isSafeInteger(savedNextSvgTab)
-          ? Math.max(savedNextSvgTab, highestSvgId)
-          : highestSvgId,
-        view: validView(saved.view),
-        autoRender: preferences.autoRender !== false,
-        theme: validTheme(preferences.theme)
-      };
-    } catch (_) {
-      return undefined;
-    }
-  }
-
-  function currentPaneWidth() {
-    const value = getComputedStyle(workspace)
-      .getPropertyValue('--editor-width');
-    return clamp(parseFloat(value) || 44, 25, 70);
-  }
-
-  function currentExplorerWidth() {
-    const value = getComputedStyle(workbench)
-      .getPropertyValue('--explorer-width');
-    return clamp(
-      parseFloat(value) || 288,
-      minExplorerWidth,
-      maxExplorerWidth()
-    );
-  }
-
-  function maxExplorerWidth() {
-    const bounds = workbench.getBoundingClientRect();
-    return Math.max(
-      minExplorerWidth,
-      bounds.width - explorerDividerWidth
-    );
-  }
-
-  function setExplorerWidth(width) {
-    const nextWidth = clamp(
-      width,
-      minExplorerWidth,
-      maxExplorerWidth()
-    );
-    workbench.style.setProperty('--explorer-width', `${nextWidth}px`);
-    if (editor) refreshEditor();
-  }
-
-  function applyExplorerLayout() {
-    explorerPane.classList.toggle('collapsed', !explorerOpen);
-    workbench.classList.toggle('explorer-collapsed', !explorerOpen);
-    explorerResizer.classList.toggle('inactive', !explorerOpen);
-    explorerResizer.disabled = !explorerOpen;
-    explorerCollapse.setAttribute('aria-expanded', String(explorerOpen));
-    explorerCollapse.setAttribute(
-      'aria-label',
-      explorerOpen ? 'Collapse explorer' : 'Expand explorer'
-    );
-    explorerCollapse.textContent = explorerOpen ? '‹' : '›';
-    refreshEditor();
-  }
-
-  function saveSession() {
-    clearTimeout(saveTimer);
-    try {
-      captureActiveDotTab();
-      captureActiveSvgTab();
-      const source = editor.getSource();
-      validateSource(source);
-      localStorage.setItem(storageKey, JSON.stringify({
-        version: 1,
-        source,
-        paneWidth: currentPaneWidth(),
-        explorerWidth: currentExplorerWidth(),
-        explorerOpen,
-        explorerView,
-        explorerOrder,
-        docsTabs,
-        nextDocs,
-        refTabs,
-        nextRef,
-        dotTabs,
-        activeDotTabId,
-        nextDotTab,
-        svgTabs,
-        activeSvgTabId,
-        nextSvgTab,
-        view,
-        preferences: {
-          autoRender: autoRender.checked,
-          theme: theme.value
-        }
-      }));
-    } catch (_) {
-      // Storage can be disabled or full without blocking the editor.
-    }
-  }
-
-  function queueSaveSession() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveSession, saveDelay);
-  }
-
-  function encodeSource(source) {
-    const bytes = new TextEncoder().encode(source);
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
-  }
-
-  function decodeSource(encoded) {
-    if (!encoded || encoded.length > maxShareParamChars) {
-      throw new Error('Shared DOT parameter is missing or too large');
-    }
-    if (!/^[A-Za-z0-9_-]+$/.test(encoded)) {
-      throw new Error('Shared DOT parameter is invalid');
-    }
-    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-    const binary = atob(padded);
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    const source = new TextDecoder('utf-8', {fatal: true}).decode(bytes);
-    validateSource(source, maxSharedSourceBytes);
-    if (encodeSource(source) !== encoded) {
-      throw new Error('Shared DOT parameter is not canonical');
-    }
-    return source;
-  }
-
-  function sourceFromUrl() {
-    const encoded = new URL(window.location.href).searchParams.get('dot');
-    return encoded === null ? undefined : decodeSource(encoded);
   }
 
   function showClientProblem(message) {
@@ -5164,217 +2700,8 @@
     render();
   }
 
-  function requestClayPath(kind) {
-    const value = window.prompt(`${kind} path`);
-    if (value === null) return undefined;
-    return normalizeClayPath(value);
-  }
-
-  async function clayFileRequest(
-    kind,
-    action,
-    source = '',
-    requestedPath,
-    overwrite = false
-  ) {
-    const path = requestedPath === undefined
-      ? requestClayPath(kind.toUpperCase())
-      : normalizeClayPath(requestedPath);
-    if (path === undefined) return undefined;
-    const headers = {
-      'content-type': 'text/plain; charset=utf-8',
-      'x-graph-viz-path': path
-    };
-    if (overwrite) headers['x-graph-viz-overwrite'] = 'true';
-    const response = await fetch(
-      `/apps/graph-viz/file/${kind}/${action}`,
-      {
-        method: 'POST',
-        headers,
-        body: source
-      }
-    );
-    const body = await response.text();
-    if (action === 'save' && response.status === 409 && !overwrite) {
-      const approved = window.confirm(
-        `${kind.toUpperCase()} path "${path}" already exists. Overwrite it?`
-      );
-      if (!approved) return undefined;
-      return clayFileRequest(kind, action, source, path, true);
-    }
-    if (!response.ok) {
-      throw new Error(body || `Clay request failed (${response.status})`);
-    }
-    return body;
-  }
-
-  async function clayCopyChanged(kind, path, baseline) {
-    let stored;
-    try {
-      stored = await clayFileRequest(kind, 'load', '', path);
-    } catch (_) {
-      return false;
-    }
-    return stored !== undefined && stored !== baseline;
-  }
-
-  async function loadCurrentDot(path) {
-    try {
-      const requestedPath = path ?? requestClayPath('DOT');
-      if (requestedPath === undefined) return;
-      const existing = dotTabs.find((tab) => {
-        return tab.path === requestedPath;
-      });
-      if (existing) {
-        selectDotTab(existing.id, true);
-        return;
-      }
-      sourceStatus.textContent = 'Loading';
-      const source = await clayFileRequest(
-        'dot',
-        'load',
-        '',
-        requestedPath
-      );
-      if (source === undefined) return;
-      validateSource(source);
-      const tab = createDotTab(source, {
-        path: requestedPath,
-        label: tabLabel(requestedPath, 'dot')
-      });
-      selectDotTab(tab.id, true);
-    } catch (cause) {
-      showClayError(cause);
-      showClientProblem(String(cause));
-    } finally {
-      sourceStatus.textContent = 'Ready';
-    }
-  }
-
-  async function saveCurrentDot() {
-    try {
-      captureActiveDotTab();
-      const tab = activeDotTab();
-      if (!tab) return;
-      const source = editor.getSource();
-      validateSource(source);
-      const path = tab.path ?? requestClayPath('DOT');
-      if (path === undefined) return;
-      if (tab.path
-        && await clayCopyChanged('dot', path, tab.cleanSource)
-        && !window.confirm(
-          `${path} changed in Clay since it was loaded. Overwrite it?`
-        )) {
-        sourceStatus.textContent = 'Ready';
-        return;
-      }
-      sourceStatus.textContent = 'Saving';
-      const result = await clayFileRequest(
-        'dot',
-        'save',
-        source,
-        path,
-        Boolean(tab.path)
-      );
-      sourceStatus.textContent = result === undefined ? 'Ready' : 'Saved';
-      if (result !== undefined) {
-        tab.path = path;
-        tab.label = tabLabel(path, 'dot');
-        tab.cleanSource = source;
-        syncRefFromParent('dot', tab.id);
-        renderDocumentTabs('dot');
-        queueSaveSession();
-        await refreshFileTree('dot');
-      }
-    } catch (cause) {
-      showClayError(cause);
-      showClientProblem(String(cause));
-      sourceStatus.textContent = 'Save failed';
-    }
-  }
-
-  async function loadCurrentSvg(path) {
-    try {
-      const requestedPath = path ?? requestClayPath('SVG');
-      if (requestedPath === undefined) return;
-      const existing = svgTabs.find((tab) => {
-        return tab.path === requestedPath;
-      });
-      if (existing) {
-        selectSvgTab(existing.id, true);
-        return;
-      }
-      setState('loading', 'Loading');
-      const source = await clayFileRequest(
-        'svg',
-        'load',
-        '',
-        requestedPath
-      );
-      if (source === undefined) {
-        const state = currentSvg ? 'ready' : 'empty';
-        setState(state, currentSvg ? 'Rendered' : 'Empty');
-        return;
-      }
-      const tab = createSvgTab(source, {
-        path: requestedPath,
-        label: tabLabel(requestedPath, 'svg')
-      });
-      selectSvgTab(tab.id, true);
-      queueSaveSession();
-      error.textContent = '';
-      error.hidden = true;
-      setPreviewControls(true);
-      setState('ready', 'Rendered');
-    } catch (cause) {
-      showClayError(cause);
-      error.textContent = String(cause);
-      error.hidden = false;
-      setState(currentSvg ? 'ready' : 'empty', 'Load failed');
-    }
-  }
-
-  async function saveCurrentSvg() {
-    captureActiveSvgTab();
-    const tab = activeSvgTab();
-    if (!tab?.source) return;
-    try {
-      const path = tab.path ?? requestClayPath('SVG');
-      if (path === undefined) return;
-      if (tab.path
-        && await clayCopyChanged('svg', path, tab.cleanSource)
-        && !window.confirm(
-          `${path} changed in Clay since it was loaded. Overwrite it?`
-        )) {
-        setState('ready', 'Rendered');
-        return;
-      }
-      setState('loading', 'Saving');
-      const result = await clayFileRequest(
-        'svg',
-        'save',
-        tab.source,
-        path,
-        Boolean(tab.path)
-      );
-      setState('ready', result === undefined ? 'Rendered' : 'Saved');
-      if (result !== undefined) {
-        tab.path = path;
-        tab.label = tabLabel(path, 'svg');
-        tab.cleanSource = tab.source;
-        tab.editBaseSource = tab.source;
-        syncRefFromParent('svg', tab.id);
-        renderDocumentTabs('svg');
-        queueSaveSession();
-        await refreshFileTree('svg');
-      }
-    } catch (cause) {
-      showClayError(cause);
-      error.textContent = String(cause);
-      error.hidden = false;
-      setState('ready', 'Save failed');
-    }
-  }
+  const saveCurrentDot = () => runtime.files.save('dot');
+  const saveCurrentSvg = () => runtime.files.save('svg');
 
   function renderedSvgLabel(dotTab) {
     if (!dotTab || dotTab.label === 'Untitled') return 'Preview';
@@ -5406,7 +2733,7 @@
     tab.view = restoredView;
     tab.showingSource = false;
     syncRefFromParent('svg', tab.id);
-    activeSvgTabId = undefined;
+    runtime.tabs.setActiveId('svg', undefined);
     selectSvgTab(tab.id, false, false);
   }
 
@@ -5421,70 +2748,20 @@
     editor.focus();
   }
 
-  function handleShortcut(event) {
-    const consume = () => {
-      event.preventDefault();
-      event.stopPropagation?.();
-    };
-    if (event.key === 'Escape' && !helpPanel.hidden) {
-      consume();
-      setHelpOpen(false, true);
-      return;
-    }
-    if (event.key === 'Escape' && !clayErrorModal.hidden) {
-      consume();
-      hideClayError();
-      return;
-    }
-    if (event.key === 'Escape' && !fileContextMenu.hidden) {
-      consume();
-      closeFileContext(true);
-      return;
-    }
-    const primary = (event.ctrlKey || event.metaKey) && !event.altKey;
-    const key = event.key.toLowerCase();
-    if (primary && !event.shiftKey && event.key === 'Enter') {
-      consume();
-      renderNow();
-      return;
-    }
-    if (primary && key === 's') {
-      consume();
-      if (event.shiftKey) saveCurrentSvg();
-      else saveCurrentDot();
-      return;
-    }
-    if (primary && !event.shiftKey && event.key === '0') {
-      consume();
-      fitToWindow();
-      return;
-    }
-    if (primary && !event.shiftKey && event.key === '1') {
-      consume();
-      resetGraphView();
-      return;
-    }
-    if (editor.isFocused(event.target)
-      || svgEditor.isFocused(event.target)) return;
-    const focus = event.target || document.activeElement;
-    const inPreview = focus === preview || preview.contains(focus);
-    if (event.key === 'Escape' && selectedItems.length && inPreview) {
-      consume();
-      clearVisualSelection();
-      preview.focus();
-      return;
-    }
-    if ((event.key === 'Delete' || event.key === 'Backspace')
-      && selectedItems.length === 1 && inPreview) {
-      consume();
-      deleteSelectedItem();
-    }
+  function handleShortcut() {
+    for (const [command, handler] of Object.entries({
+      render: renderNow,
+      'save-dot': saveCurrentDot,
+      'save-svg': saveCurrentSvg,
+      'fit-view': fitToWindow,
+      'reset-view': resetGraphView
+    })) runtime.shortcuts.register(command, handler);
   }
 
   async function render() {
     const uid = latestRequestUid = ++requestUid;
     captureActiveDotTab();
-    const dotTabId = activeDotTabId;
+    const dotTabId = runtime.tabs.activeId('dot');
     const source = editor.getSource();
     try {
       validateSource(source);
@@ -5572,12 +2849,13 @@
     }
   }
 
+  function bootGraphViz() {
   button.addEventListener('click', renderNow);
   addDotRef.addEventListener('click', () => {
-    addRef('dot', activeDotTabId);
+    addRef('dot', runtime.tabs.activeId('dot'));
   });
   addSvgRef.addEventListener('click', () => {
-    addRef('svg', activeSvgTabId);
+    addRef('svg', runtime.tabs.activeId('svg'));
   });
   addNode.addEventListener('click', addVisualNode);
   drawEdge.addEventListener('click', drawSelectedEdge);
@@ -5595,12 +2873,6 @@
     event.preventDefault();
     addVisualNode();
   });
-  browseDot.addEventListener('click', () => showFileExplorer('dot'));
-  loadDot.addEventListener('click', () => loadCurrentDot());
-  saveDot.addEventListener('click', saveCurrentDot);
-  browseSvg.addEventListener('click', () => showFileExplorer('svg'));
-  loadSvg.addEventListener('click', () => loadCurrentSvg());
-  saveSvg.addEventListener('click', saveCurrentSvg);
   toggleSvgSource.addEventListener('click', toggleSvgView);
   copySvg.addEventListener('click', copySvgSource);
   fullscreenSvg.addEventListener('click', toggleSvgFullscreen);
@@ -5614,12 +2886,7 @@
       clearTimeout(renderTimer);
     }
   });
-  theme.addEventListener('change', () => applyTheme(theme.value));
-  if (themeMedia.addEventListener) {
-    themeMedia.addEventListener('change', systemThemeChanged);
-  } else {
-    themeMedia.addListener(systemThemeChanged);
-  }
+  runtime.wire();
   editor.onChange(editorChanged);
   svgEditor.onChange(svgEditorChanged);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
@@ -5631,42 +2898,6 @@
   fullscreenZoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fit.addEventListener('click', fitToWindow);
   resetView.addEventListener('click', resetGraphView);
-  help.addEventListener('click', () => setHelpOpen(true));
-  closeHelp.addEventListener('click', () => setHelpOpen(false, true));
-  helpPanel.addEventListener('click', (event) => {
-    if (event.target === helpPanel) setHelpOpen(false, true);
-  });
-  explorerCollapse.addEventListener('click', () => {
-    explorerOpen = !explorerOpen;
-    applyExplorerLayout();
-    queueSaveSession();
-  });
-  explorerPane.addEventListener('dragover', (event) => {
-    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
-      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-  });
-  explorerPane.addEventListener('drop', (event) => {
-    if (!draggedTab || !['dot', 'svg'].includes(draggedTab.kind)
-      || !canAddRef(draggedTab.kind, draggedTab.id)) return;
-    event.preventDefault();
-    event.stopPropagation?.();
-    addRef(draggedTab.kind, draggedTab.id);
-  });
-  for (const tab of [dotFilesTab, svgFilesTab]) {
-    tab.addEventListener('click', () => {
-      setExplorerView(tab.dataset.explorerView);
-    });
-    tab.addEventListener('keydown', explorerTabKeydown);
-  }
-  fileContextOpen.addEventListener('click', openContextFile);
-  fileContextDelete.addEventListener('click', deleteContextFile);
-  fileContextMenu.addEventListener('keydown', fileContextKeydown);
-  closeClayError.addEventListener('click', hideClayError);
-  clayErrorModal.addEventListener('click', (event) => {
-    if (event.target === clayErrorModal) hideClayError();
-  });
   clearSelection.addEventListener('click', () => {
     clearVisualSelection();
     preview.focus();
@@ -5737,97 +2968,21 @@
   preview.addEventListener('pointerup', endPan);
   preview.addEventListener('pointercancel', endPan);
 
-  explorerResizer.addEventListener('pointerdown', (event) => {
-    if (matchMedia('(max-width: 760px)').matches) return;
-    explorerResizer.setPointerCapture(event.pointerId);
-  });
-
-  explorerResizer.addEventListener('pointermove', (event) => {
-    if (!explorerResizer.hasPointerCapture(event.pointerId)) return;
-    const bounds = workbench.getBoundingClientRect();
-    setExplorerWidth(event.clientX - bounds.left);
-    queueSaveSession();
-  });
-
-  explorerResizer.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    event.preventDefault();
-    const change = event.key === 'ArrowLeft' ? -16 : 16;
-    setExplorerWidth(currentExplorerWidth() + change);
-    queueSaveSession();
-  });
-
-  splitter.addEventListener('pointerdown', (event) => {
-    if (matchMedia('(max-width: 760px)').matches) return;
-    splitter.setPointerCapture(event.pointerId);
-  });
-
-  splitter.addEventListener('pointermove', (event) => {
-    if (!splitter.hasPointerCapture(event.pointerId)) return;
-    const bounds = workspace.getBoundingClientRect();
-    const percent = ((event.clientX - bounds.left) / bounds.width) * 100;
-    const width = Math.max(25, Math.min(70, percent));
-    workspace.style.setProperty('--editor-width', `${width}%`);
-    refreshEditor();
-    queueSaveSession();
-  });
-
-  splitter.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    event.preventDefault();
-    const current = parseFloat(getComputedStyle(workspace)
-      .getPropertyValue('--editor-width')) || 44;
-    const change = event.key === 'ArrowLeft' ? -2 : 2;
-    const width = Math.max(25, Math.min(70, current + change));
-    workspace.style.setProperty('--editor-width', `${width}%`);
-    refreshEditor();
-    queueSaveSession();
-  });
-
-  document.addEventListener('keydown', handleShortcut, {capture: true});
-  document.addEventListener('click', (event) => {
-    if (fileContextMenu.hidden || fileContextMenu.contains(event.target)) {
-      return;
-    }
-    if (contextFileSource?.parentElement?.contains(event.target)) return;
-    closeFileContext();
-  });
+  handleShortcut();
   document.addEventListener('fullscreenchange', updateFullscreenControl);
-  window.addEventListener('beforeunload', saveSession);
-  window.addEventListener('resize', () => {
-    closeFileContext();
-    refreshEditor();
-    svgEditor.refresh();
-  });
+  //  the runtime validates the record and applies its own slots; only
+  //  this application's three come back here
   const savedSession = loadSession();
-  applyTheme(savedSession?.theme || 'system', false);
+  if (!savedSession) applyTheme('system', false);
   let initialProblem = '';
   if (savedSession) {
-    workspace.style.setProperty(
-      '--editor-width',
-      `${savedSession.paneWidth}%`
-    );
-    setExplorerWidth(savedSession.explorerWidth);
-    explorerOpen = savedSession.explorerOpen;
-    docsTabs = savedSession.docsTabs;
-    nextDocs = savedSession.nextDocs;
-    refTabs = savedSession.refTabs;
-    nextRef = savedSession.nextRef;
-    explorerView = savedSession.explorerView;
-    explorerOrder = savedSession.explorerOrder;
-    dotTabs = savedSession.dotTabs;
-    activeDotTabId = savedSession.activeDotTabId;
-    nextDotTab = savedSession.nextDotTab;
-    svgTabs = savedSession.svgTabs;
-    activeSvgTabId = savedSession.activeSvgTabId;
-    nextSvgTab = savedSession.nextSvgTab;
-    autoRender.checked = savedSession.autoRender;
+    autoRender.checked = savedSession['preferences.autoRender'];
     pendingView = savedSession.view;
   }
-  applyExplorerLayout();
+  runtime.layout.apply();
   renderDocsTabs();
   renderRefTabs();
-  setExplorerView(explorerView);
+  setExplorerView(explorer.view());
   let sharedSource;
   try {
     sharedSource = sourceFromUrl();
@@ -5836,13 +2991,13 @@
   }
   if (sharedSource !== undefined) {
     const shared = createDotTab(sharedSource, {label: 'Shared'});
-    activeDotTabId = shared.id;
+    runtime.tabs.setActiveId('dot', shared.id);
   }
   if (!dotTabs.length) {
     const first = createDotTab(savedSession?.source ?? starter);
-    activeDotTabId = first.id;
+    runtime.tabs.setActiveId('dot', first.id);
   }
-  if (!activeDotTab()) activeDotTabId = dotTabs[0].id;
+  if (!activeDotTab()) runtime.tabs.setActiveId('dot', dotTabs[0].id);
   const initialDot = activeDotTab();
   editor.setSource(initialDot.source, {
     history: 'reset',
@@ -5852,16 +3007,16 @@
   renderDocumentTabs('dot');
   if (!svgTabs.length) {
     const first = createSvgTab();
-    activeSvgTabId = first.id;
+    runtime.tabs.setActiveId('svg', first.id);
   }
-  if (!activeSvgTab()) activeSvgTabId = svgTabs[0].id;
+  if (!activeSvgTab()) runtime.tabs.setActiveId('svg', svgTabs[0].id);
   syncAllRefs();
   try {
-    selectSvgTab(activeSvgTabId, false, false);
+    selectSvgTab(runtime.tabs.activeId('svg'), false, false);
   } catch (_) {
-    svgTabs = [];
+    runtime.tabs.setList('svg', []);
     const first = createSvgTab();
-    activeSvgTabId = first.id;
+    runtime.tabs.setActiveId('svg', first.id);
     selectSvgTab(first.id, false, false);
   }
   newNodeCategory.value = 'basic-shapes';
@@ -5872,6 +3027,49 @@
   if (autoRender.checked) render();
   refreshHelpVariant();
   if (initialProblem) showClientProblem(initialProblem);
+  }
+
+  window.urui.boot({
+    onReady: bootGraphViz,
+    status: (_area, label) => setState(_area, label),
+    tabs: {
+      create: (kind, ...args) => kind === 'dot'
+        ? createDotTab(...args) : createSvgTab(...args),
+      close: (kind, id) => kind === 'dot'
+        ? closeDotTab(id) : closeSvgTab(id),
+      select: (kind, id, focus = false) => kind === 'dot'
+        ? selectDotTab(id, focus) : selectSvgTab(id, focus),
+      update: renderDocumentTabs,
+      list: documentTabs,
+      active: (kind) => kind === 'dot' ? activeDotTab() : activeSvgTab()
+    },
+    editor: {primary: () => editor, secondary: () => svgEditor},
+    explorer: {
+      show: setExplorerView,
+      refreshTree: refreshFileTree,
+      addRef,
+      openDocs: openDocsTab
+    },
+    dialog: {
+      help: setHelpOpen,
+      error: showClayError,
+      confirm: (...args) => window.confirm(...args),
+      prompt: (...args) => window.prompt(...args)
+    },
+    session: {
+      save: saveSession,
+      queue: queueSaveSession,
+      get: loadSession,
+      set: saveSession
+    },
+    files: runtime.files,
+    shortcuts: runtime.shortcuts,
+    layout: {
+      paneWidth: runtime.layout.paneWidth,
+      explorerWidth: runtime.layout.explorerWidth
+    },
+    problem: {show: showProblem, clear: setEditorProblem}
+  });
   '''
 ::
 ++  error-json

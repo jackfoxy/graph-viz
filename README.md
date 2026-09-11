@@ -46,8 +46,11 @@ through the editor adapter in `desk/lib/gviz-web.hoon`.
 
 ## Install from source
 
-The desk is self-contained and has no frontend build step. On a development
-ship, create and mount a desk:
+The checked-in `desk/` is self-contained: urui is vendored as ordinary files,
+and there is no frontend build step. Do not run urui's `stage-desk.sh` for
+graph-viz; that script assembles urui's test fixture, not consumer desks.
+
+On a development ship, create and mount a desk:
 
 ```hoon
 |merge %graph-viz our %base
@@ -66,6 +69,19 @@ Open `/apps/graph-viz` through the ship's HTTP interface. Installation starts
 both `%graph-viz` (noun API) and `%graph-viz-web` (browser editor), as declared
 in `desk.bill`. Direct-site metadata lives in `desk.docket-0`; no glob is
 required.
+
+A urui checkout is not needed to build or install graph-viz. Clone urui beside
+this repository only when updating or verifying the shared sources:
+
+```bash
+bin/sync.sh
+bin/verify-sync.sh --strict
+```
+
+Sync overwrites the paths it owns, records their hashes in `.urui-sync.json`,
+and leaves graph-viz application files alone. Review local changes before
+syncing. Both commands fail immediately with an actionable diagnostic when
+`../urui` is absent; building, testing, and installing remain standalone.
 
 ## Testing
 
@@ -92,15 +108,32 @@ VERE=~/piers/urbit tests/browser/run-real.sh
 ```
 
 Set `GVIZ_URL=http://localhost:8080` instead to test an installed desk.
+Both the installed-desk form and the default source-compiled Playwright server
+run without a sibling urui checkout; the compiler reads the synced sources in
+this repository.
 
-The Ace Windows/Linux shortcut inventory is checked independently with:
+The application shortcut manifest and its collision with urui's synced Ace
+Windows/Linux inventory are checked with:
 
 ```bash
 npm run test:shortcuts
 ```
 
-Compile the current Hoon-generated page and run the complete pinned Chromium
-suite, including all shortcut, undo/redo, and macro cases, with:
+The baseline inventory and its full accounting test live in the sibling urui
+checkout and run there with the same command.
+
+`tests/browser/run-real.sh` executes **14 Chromium cases**: what only this
+application can show — v1 session compatibility, Clay file lifecycle and
+failure handling, parse diagnostics, templates, auto-render, SVG Ace editing,
+visual editing, its own chords and preview focus, the shared CSS cascade, and
+its Ace configuration. The desk suite additionally checks the emitted urui
+adapter wiring and the Clay browse-failure response. Generic Ace and shell
+behavior — the chord baseline, macros, undo/redo, tabs, lifecycle, the editor
+surface and the shortcut boundaries — is proved once in urui, against its
+fixture (`../urui/tests/browser/run-real.sh`, **50 cases**).
+
+Compile the current Hoon-generated page and run this application's pinned
+Chromium suite with:
 
 ```bash
 npm ci
