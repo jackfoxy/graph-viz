@@ -26,14 +26,13 @@ The vendored runtime is limited to:
 - `license.txt`: upstream BSD-3-Clause license.
 
 No worker, language mode, source map, snippet, or alternate keybinding is
-shipped here. Consumers own their language modes; Graph-viz keeps
-`mode-dot.js` beside these synced files. The generic text mode is built into
-Ace. Configure each editor session from the consumer's worker policy.
+shipped here. Consumers keep their language modes beside these synced files.
+The generic text mode is built into Ace. Configure each editor session from
+the consumer's worker policy.
 
 `urui-ace.hoon ++config-js` generates each consumer's module paths and
 loader configuration. Consumers serve that cord at their own configuration
-URL and import the vendored files through explicit Ford imports. Graph-viz
-keeps its existing `/apps/graph-viz/ace/graph-viz-config.js` URL.
+URL and import the vendored files through explicit Ford imports.
 
 These nine files are the canonical source for manual `bin/sync.sh` copies.
 Application modes and generated configuration are not part of the sync

@@ -13,7 +13,7 @@
   ::  Identity and namespace of the consuming application.
   ::
   ::  Example:
-  ::    [%graph-viz 'Graph Viz' '/apps/graph-viz' 'graph-viz.session.v1' 1]
+  ::    [%sample 'Sample' '/apps/sample' 'sample.session.v1' 1]
   $:  name=@tas
       title=@t
       base=@t

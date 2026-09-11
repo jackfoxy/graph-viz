@@ -2,11 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-if [[ -x "$ROOT/../urui/bin/verify-sync.sh" ]]; then
-  "$ROOT/../urui/bin/verify-sync.sh" --dest "$ROOT" --quiet || true
-else
-  echo 'urui checkout not found at ../urui — clone it beside this repo to check sync status' >&2
-fi
+"$ROOT/bin/verify-sync.sh" --quiet || true
 
 cd "$ROOT"
 exec ./node_modules/.bin/playwright test \

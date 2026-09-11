@@ -74,13 +74,14 @@ A urui checkout is not needed to build or install graph-viz. Clone urui beside
 this repository only when updating or verifying the shared sources:
 
 ```bash
-../urui/bin/sync.sh --dest "$PWD"
-../urui/bin/verify-sync.sh --dest "$PWD" --strict
+bin/sync.sh
+bin/verify-sync.sh --strict
 ```
 
 Sync overwrites the paths it owns, records their hashes in `.urui-sync.json`,
 and leaves graph-viz application files alone. Review local changes before
-syncing.
+syncing. Both commands fail immediately with an actionable diagnostic when
+`../urui` is absent; building, testing, and installing remain standalone.
 
 ## Testing
 
@@ -107,9 +108,9 @@ VERE=~/piers/urbit tests/browser/run-real.sh
 ```
 
 Set `GVIZ_URL=http://localhost:8080` instead to test an installed desk.
-This installed-desk form also runs without a sibling urui checkout. The
-source-compiled Playwright server currently imports urui's shared assembler
-from `../urui`; clone urui beside graph-viz for that form.
+Both the installed-desk form and the default source-compiled Playwright server
+run without a sibling urui checkout; the compiler reads the synced sources in
+this repository.
 
 The application shortcut manifest and its collision with urui's synced Ace
 Windows/Linux inventory are checked with:

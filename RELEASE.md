@@ -12,7 +12,7 @@ With urui cloned beside graph-viz, require every managed copy to match its
 source and record the exact source revision in the release notes:
 
 ```bash
-../urui/bin/verify-sync.sh --dest "$PWD" --strict
+bin/verify-sync.sh --strict
 git -C ../urui status --short
 git -C ../urui rev-parse HEAD
 ```
@@ -21,8 +21,7 @@ The status command must print nothing. Use a release-note line of the form
 `urui source revision: <40-char SHA>`.
 `.urui-sync.json` records content hashes, not this revision. If verification
 reports drift, resolve local consumer changes, run
-`../urui/bin/sync.sh --dest "$PWD"`, and inspect the resulting diff before
-continuing.
+`bin/sync.sh`, and inspect the resulting diff before continuing.
 
 ## Automated verification
 

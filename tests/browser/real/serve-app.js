@@ -6,19 +6,19 @@ const vm = require('node:vm');
 const {spawn} = require('node:child_process');
 
 const root = path.resolve(__dirname, '../../..');
-const uruiAssembler = path.resolve(
-  root, '../urui/tests/browser/serve-app.js'
-);
-const missingUrui = [
-  'urui checkout not found at ../urui',
-  'clone it beside this repo to check sync status'
-].join(' — ');
+
+function readSource(filename) {
+  return fs.readFileSync(filename, 'utf8').replace(/^\/[+-].*\n/gm, '');
+}
 
 function assemble(bindings, expression) {
-  if (!fs.existsSync(uruiAssembler)) {
-    throw new Error(missingUrui);
+  const lines = [];
+  for (const [face, relative] of bindings) {
+    lines.push(`=+  ^=  ${face}`);
+    lines.push(readSource(path.resolve(root, relative)));
   }
-  return require(uruiAssembler).assemble(bindings, expression, root);
+  lines.push(expression);
+  return lines.join('\n');
 }
 
 function findVere() {
