@@ -132,3 +132,26 @@ test('parse diagnostics use exact Ace annotations and markers', async ({
     return aceEditor.session.getAnnotations().length;
   })).toBe(0);
 });
+
+test('Clay load failure opens a modal and restores focus', async ({page}) => {
+  await installBackend(page, {
+    dotLoad: {
+      status: 500,
+      contentType: 'text/plain',
+      body: 'Clay load failed'
+    }
+  });
+  await page.addInitScript(() => {
+    window.prompt = () => 'missing/txt';
+  });
+  await page.goto('/apps/graph-viz/');
+  await page.locator('#load-dot').click();
+
+  await expect(page.locator('#clay-error-modal')).toBeVisible();
+  await expect(page.locator('#clay-error-message'))
+    .toHaveText('Error: Clay load failed');
+  await expect(page.locator('#close-clay-error')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#clay-error-modal')).toBeHidden();
+  await expect(page.locator('#load-dot')).toBeFocused();
+});

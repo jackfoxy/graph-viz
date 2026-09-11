@@ -1,5 +1,29 @@
 # Release checklist
 
+## Source integrity
+
+Run this before installing Node dependencies. It must print nothing:
+
+```bash
+find . -path ./.git -prune -o -type l -print
+```
+
+With urui cloned beside graph-viz, require every managed copy to match its
+source and record the exact source revision in the release notes:
+
+```bash
+../urui/bin/verify-sync.sh --dest "$PWD" --strict
+git -C ../urui status --short
+git -C ../urui rev-parse HEAD
+```
+
+The status command must print nothing. Use a release-note line of the form
+`urui source revision: <40-char SHA>`.
+`.urui-sync.json` records content hashes, not this revision. If verification
+reports drift, resolve local consumer changes, run
+`../urui/bin/sync.sh --dest "$PWD"`, and inspect the resulting diff before
+continuing.
+
 ## Automated verification
 
 Run from the repository root with Node 20+, Graphviz, and a Vere binary that
@@ -28,7 +52,8 @@ operations, Help tabs, fullscreen, and persistence.
 
 ## Installed-desk smoke
 
-Use a fresh ship with no internet access after copying the desk:
+Copy this repository's `desk/` directly into a fresh ship; do not stage it
+through urui. With no internet access after copying the desk:
 
 1. Commit and install `%graph-viz`; open `/apps/graph-viz`.
 2. Confirm every `/apps/graph-viz/ace/` request succeeds and no external
@@ -55,7 +80,8 @@ git status --short
 
 Confirm the Ace version, file list, hashes, and license in
 `desk/web/ace/README.md`; inspect the complete diff; and commit only the
-intended release changes.
+intended release changes. Confirm the release notes contain the urui source
+revision printed by the source-integrity gate.
 
 ## Work unit 13 verification
 

@@ -262,6 +262,15 @@
     (expect-eq !>('missing Clay path') !>((response-body -.out)))
   ==
 ::
+++  test-web-clay-browse-failure
+  =/  req
+    (file-request '/apps/graph-viz/file/dot/browse' 'missing' ~)
+  =/  out  (poke-http req)
+  ;:  weld
+    (expect-eq !>(500) !>((response-status -.out)))
+    (expect-eq !>('Clay browse failed') !>((response-body -.out)))
+  ==
+::
 ++  test-browse-path
   ;:  weld
     %+  expect-eq

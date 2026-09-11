@@ -62,6 +62,40 @@
     (expect !>(?=(~ (find needle html))))
   (weld present-tests absent-tests)
 ::
+++  test-urui-integration
+  =/  html  (trip page:web)
+  =/  js  (trip javascript:web)
+  =/  html-needles=(list tape)
+    :~  "id=\"explorer-pane\""
+        "id=\"editor-pane\""
+        "id=\"preview-pane\""
+        "id=\"dot-document-tabs\""
+        "id=\"svg-document-tabs\""
+        "id=\"explorer-tabs\""
+        "id=\"help-panel\""
+        "id=\"clay-error-modal\""
+        "id=\"file-context-menu\""
+        "id=\"render\""
+        "id=\"template\""
+        "id=\"inspector\""
+    ==
+  =/  exactly-once
+    |=  [needle=tape haystack=tape]
+    ^-  ?
+    =/  offset=(unit @ud)  (find needle haystack)
+    ?~  offset  %.n
+    ?=(~ (find needle (slag +(u.offset) haystack)))
+  ;:  weld
+    %-  zing
+    %+  turn  html-needles
+    |=  needle=tape
+    (expect !>(?=(^ (find needle html))))
+  ::
+    (expect !>((exactly-once "window.URUI_CONFIG = " js)))
+    (expect !>((exactly-once "window.urui = " js)))
+    (expect !>((exactly-once "window.urui.boot(" js)))
+  ==
+::
 ++  test-theme-switcher
   =/  style  (trip css:web)
   ;:  weld
