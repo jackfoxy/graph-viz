@@ -16,6 +16,26 @@ const baseline = JSON.parse(fs.readFileSync(
   'utf8'
 ));
 
+test('synced baseline retains complete shortcut accounting', () => {
+  const bindings = baseline.rows.flatMap((row) => row.bindings);
+  const uses = new Map();
+  for (const binding of bindings) {
+    uses.set(binding, (uses.get(binding) || 0) + 1);
+  }
+  const applicationBindings = new Set(
+    manifest.application.map((entry) => entry.binding)
+  );
+  assert.equal(baseline.rows.length, 100);
+  assert.equal(bindings.length, 102);
+  assert.equal(uses.size, 97);
+  assert.equal(baseline.rows.filter((row) => !row.bindings.length).length, 5);
+  assert.equal([...uses.values()].filter((count) => count > 1).length, 5);
+  assert.deepEqual(
+    [...applicationBindings].filter((binding) => uses.has(binding)),
+    ['Ctrl-Enter']
+  );
+});
+
 test('manifest finalizes Graph Viz and Ace shortcut ownership', () => {
   assert.deepEqual(
     manifest.application.map((entry) => entry.binding),

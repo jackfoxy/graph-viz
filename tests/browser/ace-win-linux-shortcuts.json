@@ -50,7 +50,7 @@
         {"binding":"Ctrl-U","rows":["Other: Change to upper case","Other: To uppercase"]}
       ],
       "overrides": [
-        {"binding":"Ctrl-Enter","owner":"Graph Viz","action":"Render now","aceAction":"Enter full screen"}
+        {"binding":"Ctrl-Enter","owner":"urui fixture","action":"Echo","aceAction":"Enter full screen"}
       ],
       "compatibilityAliases": [
         {"binding":"Ctrl-T","command":"transposeletters","pinnedAceBinding":"Alt-Shift-X"}

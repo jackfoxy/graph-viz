@@ -16,6 +16,7 @@
   "desk/web/ace/license.txt": "a8b0af9a37e6f9a558daf7eb0ef74e73204b94260e7e750736683d7cf80fab2d",
   "desk/web/ace/theme-github.js": "1d90a51f71dadc7b1ae9d30aa8653f30e663b0e6c496e096313b2c980ed6bd13",
   "desk/web/ace/theme-monokai.js": "1344ec08c6f1c15f92e12e82182ce33a43f3f2c98d874b377a94617f5090100f",
+  "tests/browser/ace-win-linux-shortcuts.json": "3c905305d95a8afd4d11f871cd8d33f8506ba3b69a1572b00ea955a1c738c08c",
   "tests/browser/doubles/README.md": "1557293200c7d9ed76e81dbc8838162a88a5556bb4d803156f7fa00aea922829",
   "tests/browser/doubles/ace.js": "b9070d7c4ca9a38bb30f2fe2ebc64ef59b8f329880204ee3937511015511cef6",
   "tests/browser/doubles/dom.js": "a872463e860e1e3584edea33f50a84069bd2c23492d387f72caa6aabe540a059",

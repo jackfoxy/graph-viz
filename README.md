@@ -93,11 +93,15 @@ VERE=~/piers/urbit tests/browser/run-real.sh
 
 Set `GVIZ_URL=http://localhost:8080` instead to test an installed desk.
 
-The Ace Windows/Linux shortcut inventory is checked independently with:
+The application shortcut manifest and its collision with urui's synced Ace
+Windows/Linux inventory are checked with:
 
 ```bash
 npm run test:shortcuts
 ```
+
+The baseline inventory and its full accounting test live in the sibling urui
+checkout and run there with the same command.
 
 `tests/browser/run-real.sh` executes **14 Chromium cases**: what only this
 application can show — parse diagnostics, templates, auto-render, SVG Ace
