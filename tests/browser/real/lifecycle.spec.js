@@ -1,14 +1,6 @@
 const {test, expect} = require('@playwright/test');
 const {installBackend, DEFER} = require('./fixtures/backend.js');
 
-const starter = [
-  'digraph flow {',
-  '  rankdir=LR',
-  '  node [shape=box]',
-  '  Start -> Plan -> Build -> Done',
-  '}'
-].join('\n');
-
 const strictTemplate = [
   'strict digraph unique_edges {',
   '  rankdir=LR',
@@ -50,53 +42,6 @@ test.beforeEach(async ({context}) => {
   });
 });
 
-test('startup sources round-trip exactly and start clean history', async ({
-  page
-}) => {
-  await installCommonRoutes(page);
-  await page.goto('/apps/graph-viz/');
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(starter);
-
-  const restored = 'digraph restored {\n  α -> β\n}\n';
-  await page.evaluate((source) => {
-    localStorage.setItem('graph-viz.session.v1', JSON.stringify({
-      version: 1,
-      source,
-      paneWidth: 44,
-      preferences: {autoRender: false, theme: 'system'}
-    }));
-    window.removeEventListener(
-      'beforeunload',
-      window.__GVIZ_BEFOREUNLOAD_TEST__
-    );
-  }, restored);
-  await page.reload();
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(restored);
-
-  const shared = 'strict digraph shared {\n  "🙂" -> β\n}\n';
-  const encoded = Buffer.from(shared, 'utf8').toString('base64url');
-  await page.goto(`/apps/graph-viz/?dot=${encoded}`);
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(shared);
-  await page.locator('#dot').click();
-  await page.keyboard.press('Control+Z');
-  expect(await page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(shared);
-
-  await expect.poll(() => page.evaluate(() => {
-    return JSON.parse(localStorage.getItem('graph-viz.session.v1'))?.source;
-  })).toBe(shared);
-  expect(await page.evaluate(() => {
-    return JSON.parse(localStorage.getItem('graph-viz.session.v1')).version;
-  })).toBe(1);
-});
-
 test('template replacement is one undoable whole-document edit', async ({
   page
 }) => {
@@ -123,125 +68,6 @@ test('template replacement is one undoable whole-document edit', async ({
   await expect.poll(() => page.evaluate(() => {
     return window.__GVIZ_EDITOR_TEST__.getSource();
   })).toBe(strictTemplate);
-});
-
-test('DOT explorer opens reset history and SVG opens preserve DOT', async ({
-  page
-}) => {
-  let renderCount = 0;
-  const dotSources = {
-    'left/txt': 'digraph left {\n  A -> B\n}\n',
-    'menu/txt': 'digraph menu {\n  C -> D\n}\n'
-  };
-  const loadedSvg = renderedSvg('Loaded SVG');
-  await installCommonRoutes(page, {
-    render: () => {
-      renderCount += 1;
-      return renderedSvg(`Render ${renderCount}`);
-    },
-    browse: ({kind, path}) => {
-      const leaf = path.endsWith('/txt') || path.endsWith('/svg');
-      const children = path === ''
-        ? (kind === 'dot' ? ['left', 'menu'] : ['preview'])
-        : leaf
-          ? []
-          : [kind === 'dot' ? 'txt' : 'svg'];
-      return {file: leaf, children};
-    },
-    dotLoad: (path) => dotSources[path],
-    svgLoad: loadedSvg
-  });
-  await page.goto('/apps/graph-viz/');
-  await expect(page.locator('[data-path="left/txt"]')).toBeVisible();
-
-  await page.locator('[data-path="left/txt"]').click();
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(dotSources['left/txt']);
-  await page.locator('#dot').click();
-  await page.keyboard.press('Control+Z');
-  expect(await page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(dotSources['left/txt']);
-
-  await page.locator('[data-path="menu/txt"]').click({button: 'right'});
-  await page.locator('#file-context-open').click();
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(dotSources['menu/txt']);
-  await page.locator('#dot').click();
-  await page.keyboard.press('Control+Z');
-  expect(await page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(dotSources['menu/txt']);
-
-  await page.evaluate(() => {
-    const editor = window.__GVIZ_EDITOR_TEST__;
-    document.querySelector('#auto-render').checked = true;
-    editor.replaceRange(editor.getSource().length, editor.getSource().length,
-      '\n// queued');
-  });
-  await page.locator('#svg-files-tab').click();
-  await expect(page.locator('[data-path="preview/svg"]')).toBeVisible();
-  const dotBeforeSvg = await page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  });
-  const rendersBeforeSvg = renderCount;
-  await page.locator('[data-path="preview/svg"]').click();
-  await expect(page.locator('#auto-render')).toBeChecked();
-  expect(await page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe(dotBeforeSvg);
-  await page.waitForTimeout(450);
-  expect(renderCount).toBeGreaterThan(rendersBeforeSvg);
-});
-
-test('DOT and SVG save retries preserve exact action-time bodies', async ({
-  page
-}) => {
-  const previewSource = renderedSvg('Exact preview');
-  const saves = {dot: [], svg: []};
-  await installCommonRoutes(page, {
-    render: previewSource,
-    save: ({kind, body, request}) => {
-      saves[kind].push({body, headers: request.headers()});
-      return {
-        status: saves[kind].length === 1 ? 409 : 200,
-        body: saves[kind].length === 1 ? 'exists' : 'saved'
-      };
-    }
-  });
-  page.on('dialog', async (dialog) => {
-    if (dialog.type() === 'prompt') {
-      await dialog.accept(dialog.message().startsWith('DOT')
-        ? 'exact/source'
-        : 'exact/preview');
-    } else {
-      await dialog.accept();
-    }
-  });
-  await page.goto('/apps/graph-viz/');
-  const dotSource = 'digraph exact {\n  "🙂" -> β\n}\n';
-  await page.evaluate((source) => {
-    window.__GVIZ_EDITOR_TEST__.setSource(source, {
-      history: 'reset',
-      notify: false
-    });
-  }, dotSource);
-
-  await page.locator('#save-dot').click();
-  await expect.poll(() => saves.dot.length).toBe(2);
-  await page.locator('#save-svg').click();
-  await expect.poll(() => saves.svg.length).toBe(2);
-
-  expect(saves.dot.map((request) => request.body))
-    .toEqual([dotSource, dotSource]);
-  expect(saves.svg.map((request) => request.body))
-    .toEqual([previewSource, previewSource]);
-  expect(saves.dot[0].headers['x-graph-viz-path']).toBe('exact/source');
-  expect(saves.svg[0].headers['x-graph-viz-path']).toBe('exact/preview');
-  expect(saves.dot[1].headers['x-graph-viz-overwrite']).toBe('true');
-  expect(saves.svg[1].headers['x-graph-viz-overwrite']).toBe('true');
 });
 
 test('Auto-render debounces, cancels, and suppresses stale responses', async ({

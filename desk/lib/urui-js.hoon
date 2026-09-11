@@ -683,6 +683,7 @@
   }
 
   function explorerTabButtons() {
+    if (!elements.explorerTabs) return [];
     return Array.from(elements.explorerTabs.querySelectorAll('[role="tab"]'));
   }
 
@@ -870,6 +871,8 @@
   }
 
   function renderExplorerTabs(variant) {
+    //  a consumer without an explorer strip has nothing to render into
+    if (!elements.explorerTabs || !elements.explorerPane) return;
     const docs = variant === 'docs';
     const flag = docs ? '[data-docs-tab]' : '[data-ref-tab]';
     const panels = docs ? '.docs-explorer-panel' : '.ref-explorer-panel';

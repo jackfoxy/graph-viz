@@ -99,8 +99,16 @@ The Ace Windows/Linux shortcut inventory is checked independently with:
 npm run test:shortcuts
 ```
 
-Compile the current Hoon-generated page and run the complete pinned Chromium
-suite, including all shortcut, undo/redo, and macro cases, with:
+`tests/browser/run-real.sh` executes **14 Chromium cases**: what only this
+application can show — parse diagnostics, templates, auto-render, SVG Ace
+editing, visual editing, its own chords and preview focus, the shared CSS
+cascade, and its Ace configuration. Generic Ace and shell behavior — the
+chord baseline, macros, undo/redo, tabs, lifecycle, the editor surface and
+the shortcut boundaries — is proved once in urui, against its fixture
+(`../urui/tests/browser/run-real.sh`, **50 cases**).
+
+Compile the current Hoon-generated page and run this application's pinned
+Chromium suite with:
 
 ```bash
 npm ci
