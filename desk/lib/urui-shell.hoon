@@ -4,6 +4,13 @@
 ::  strips, help panel, dialogs, and asset tags.  Consumer marl is spliced
 ::  into the named slots without interpretation.
 ::
+::  A $pane is an ordered stack of bands and ++pane walks that stack,
+::  dispatching on each $band-item.  Band order is the whole layout
+::  language: a %heading listed before the %tabs band is a heading above
+::  the tabs, listed after it a heading below them.  Every derived id
+::  follows one scheme — `{pane}-{band}` on a band, `{pane}-{band}-toggle`
+::  on its reveal control, `{pane}-{level}-tabs` on a depth-0 tab strip.
+::
 /-  urui
 /+  ujs=urui-js
 |%
@@ -11,19 +18,35 @@
 ++  build
   ::  The whole document for one application.
   ::
+  ::  The full frame is the one with an explorer, and the explorer is a
+  ::  reference pane whose tab band carries a %views level.  A spec
+  ::  without one gets the compact frame.
+  ::
   ::  Example:
   ::    ++  page  (build:shell spec)
   |=  spec=shell-spec:urui
   ^-  manx
-  ?~  permanent-views.app-config.spec
-    (compact spec)
-  (full spec)
+  ?:  (has-views reference.panes.spec)
+    (full spec)
+  (compact spec)
+::
+++  has-views
+  ::  Does this pane's tab band carry a %views level?
+  |=  =pane:urui
+  ^-  ?
+  %+  lien  bands.pane
+  |=  =band:urui
+  ^-  ?
+  ?.  ?=([%tabs *] item.band)  |
+  %+  lien  levels.item.band
+  |=(level=tab-level:urui =(%views source.level))
 ::
 ++  full
   ::  Full application shell with explorer, workspace, and dialogs.
   |=  spec=shell-spec:urui
   ^-  manx
-  =/  id  app-id.app-config.spec
+  =/  config  app-config.spec
+  =/  id  app-id.config
   =/  style-tags=marl
     %+  turn  styles.spec
     style-tag
@@ -53,7 +76,7 @@
         ;*  toolbar.spec
       ==
       ;main#workbench.workbench
-        ;+  (explorer spec)
+        ;+  (pane reference.panes.spec config)
         ;button#explorer-resizer.explorer-resizer
           =type              "button"
           =role              "separator"
@@ -62,7 +85,7 @@
           ;span.sr-only: Resize explorer
         ==
         ;section#workspace.workspace
-          ;+  (workspace-area editor.areas.spec app-config.spec)
+          ;+  (pane editor.panes.spec config)
           ;div#splitter.splitter
             =role              "separator"
             =tabindex          "0"
@@ -70,7 +93,7 @@
             =aria-label        "Resize editor and preview"
             ;span.sr-only: Resize editor and preview
           ==
-          ;+  (workspace-area result.areas.spec app-config.spec)
+          ;+  (pane result.panes.spec config)
         ==
       ==
       ;+  (help-panel spec)
@@ -82,10 +105,11 @@
   ==
 ::
 ++  compact
-  ::  Three-area frame for applications with no permanent explorer views.
+  ::  Three-pane frame for applications with no explorer.
   |=  spec=shell-spec:urui
   ^-  manx
-  =/  id  app-id.app-config.spec
+  =/  config  app-config.spec
+  =/  id  app-id.config
   =/  style-tags=marl
     %+  turn  styles.spec
     style-tag
@@ -109,9 +133,9 @@
         ==
       ==
       ;main.app-shell
-        ;+  (section reference.areas.spec)
-        ;+  (section editor.areas.spec)
-        ;+  (section result.areas.spec)
+        ;+  (pane reference.panes.spec config)
+        ;+  (pane editor.panes.spec config)
+        ;+  (pane result.panes.spec config)
       ==
       ;div.app-dialogs
         ;*  dialogs.spec
@@ -134,21 +158,272 @@
     ;+  ;/  chars
   ==
 ::
-++  explorer
-  |=  spec=shell-spec:urui
+++  pane
+  ::  One pane: its bands, stacked in the order the consumer gave them.
+  ::
+  ::  A pane with a %views level is the explorer aside; every other pane
+  ::  is a section.  `data-role` is what the runtime finds a pane by and
+  ::  `data-mode` is what forbids it a `+` control, so both shapes carry
+  ::  the pair.
+  |=  [=pane:urui config=app-config:urui]
   ^-  manx
-  =/  area  reference.areas.spec
-  =/  views  permanent-views.app-config.spec
-  =/  kinds  kinds.app-config.spec
-  ;aside.explorer-pane
-    =id          (trip id.area)
-    =aria-label  (trip label.area)
-    =data-role   (trip role.area)
+  =/  nodes=marl  (pane-bands pane config)
+  =/  pane-id  (trip id.pane)
+  =/  pane-label  (trip label.pane)
+  =/  as-role  (trip role.pane)
+  =/  as-mode  (trip mode.pane)
+  ?:  (has-views pane)
+    ;aside.explorer-pane
+      =id           pane-id
+      =role         "region"
+      =aria-label   pane-label
+      =data-role    as-role
+      =data-mode    as-mode
+      ;*  nodes
+    ==
+  ;section
+    =id          pane-id
+    =class       (pane-class role.pane)
+    =role        "region"
+    =aria-label  pane-label
+    =data-role   as-role
+    =data-mode   as-mode
+    ;*  nodes
+  ==
+::
+++  pane-class
+  ::  The frame classes the stylesheet already names.  The result pane
+  ::  is `.preview-pane`: it is the preview in every consumer so far, and
+  ::  renaming it would move css that %shell and two consumers share.
+  |=  =pane-role:urui
+  ^-  tape
+  ?-  pane-role
+    %reference  "pane reference-pane"
+    %editor     "pane editor-pane"
+    %result     "pane preview-pane"
+  ==
+::
+++  pane-bands
+  |=  [=pane:urui config=app-config:urui]
+  ^-  marl
+  ?~  bands.pane  ~
+  %+  weld  (band-nodes pane i.bands.pane config)
+  $(bands.pane t.bands.pane)
+::
+++  band-nodes
+  ::  One band: its reveal toggle, when it has one, and then the band.
+  ::
+  ::  The toggle is the band's sibling rather than its child, because a
+  ::  hidden band would otherwise hide the only control that reveals it.
+  ::  A band with `key=~` is pinned open and renders no toggle at all.
+  |=  [=pane:urui =band:urui config=app-config:urui]
+  ^-  marl
+  =/  wrapper-id  (trip (joined id.pane `@t`name.band))
+  =/  wrapper-class  "pane-band {(item-class item.band)}"
+  =/  band-name  (trip name.band)
+  =/  inner=marl  (item-nodes pane band config)
+  =/  wrapper=manx
+    ?:  open.reveal.band
+      ;div(class wrapper-class, id wrapper-id, data-band band-name)
+        ;*  inner
+      ==
+    ;div(class wrapper-class, id wrapper-id, data-band band-name, hidden "")
+      ;*  inner
+    ==
+  ?~  key.reveal.band  ~[wrapper]
+  :~  (band-toggle wrapper-id reveal.band)
+      wrapper
+  ==
+::
+++  item-class
+  ::  The band wrapper's second class, by item shape.  A %heading band is
+  ::  `.pane-header` itself: the header is one band, not a band around
+  ::  one.
+  |=  item=band-item:urui
+  ^-  tape
+  ?-  -.item
+    %label     "pane-band-label"
+    %heading   "pane-header"
+    %controls  "pane-band-controls"
+    %tabs      "pane-band-tabs"
+    %panel     "pane-band-panel"
+  ==
+::
+++  band-toggle
+  ::  `{pane}-{band}-toggle`, controlling the band it precedes.  The
+  ::  glyph is the stylesheet's; the accessible name is the consumer's.
+  |=  [wrapper-id=tape =reveal:urui]
+  ^-  manx
+  =/  toggle-id  "{wrapper-id}-toggle"
+  =/  toggle-label  (trip label.reveal)
+  ?:  open.reveal
+    ;button.icon-button.band-toggle
+      =id             toggle-id
+      =type           "button"
+      =aria-controls  wrapper-id
+      =aria-expanded  "true"
+      =title          toggle-label
+      ;span.sr-only:"{toggle-label}"
+    ==
+  ;button.icon-button.band-toggle
+    =id             toggle-id
+    =type           "button"
+    =aria-controls  wrapper-id
+    =aria-expanded  "false"
+    =title          toggle-label
+    ;span.sr-only:"{toggle-label}"
+  ==
+::
+++  item-nodes
+  ::  One band's contents.  A %controls band's marl is spliced bare: the
+  ::  wrapper is already the row, and a second div would be a layer the
+  ::  consumer cannot name.
+  |=  [=pane:urui =band:urui config=app-config:urui]
+  ^-  marl
+  ?-  -.item.band
+      %label
+    :~  ;span.pane-label:"{(trip text.item.band)}"
+    ==
+  ::
+      %heading
+    %:  heading-band
+      pane
+      title.item.band
+      status-id.item.band
+      actions.item.band
+      config
+    ==
+  ::
+      %controls  marl.item.band
+      %tabs      (tabs-band pane levels.item.band config)
+  ::
+      %panel
+    %:  panel-band
+      id.item.band
+      host.item.band
+      body.item.band
+    ==
+  ==
+::
+++  heading-band
+  ::  Title, status line, and right-justified actions.
+  ::
+  ::  An editor pane's title carries `{kind}-source-heading`: the id an
+  ::  Ace host labels itself by, and the one id in the shell derived from
+  ::  a $doc-kind rather than from a band.
+  |=  $:  =pane:urui
+          title=(unit @t)
+          status-id=(unit @t)
+          actions=marl
+          config=app-config:urui
+      ==
+  ^-  marl
+  =/  titled=marl
+    ?~  title  ~
+    ?:  ?&(=(%editor role.pane) ?=(^ kind.pane))
+      =/  heading-id  (trip (joined `@t`u.kind.pane 'source-heading'))
+      :~  ;h2.pane-title(id heading-id):"{(trip u.title)}"
+      ==
+    :~  ;h2.pane-title:"{(trip u.title)}"
+    ==
+  =/  status=marl
+    ?~  status-id  ~
+    :~  ;span.status.pane-status
+          =id    (trip u.status-id)
+          =role  "status"
+          ;+  ;/  (trip (initial-status role.pane statuses.config))
+        ==
+    ==
+  =/  acted=marl
+    ?~  actions  ~
+    :~  ;div.pane-actions
+          ;*  actions
+        ==
+    ==
+  ;:  weld  titled  status  acted  ==
+::
+++  panel-band
+  ::  The tab panel: the Ace host urui manages, then the consumer's own
+  ::  marl.  Deeper tab strips are generated into this element by the
+  ::  runtime, so its id is the one a consumer addresses a panel by.
+  ::
+  ::  `panel` is cast before ++weld sees it: weld casts its product to
+  ::  its second argument, so a bare Sail literal there would be the type
+  ::  the Ace host has to nest in.
+  |=  [id=@t host=(unit editor:urui) body=marl]
+  ^-  marl
+  =/  panel=marl
+    :~  ;div.pane-body(id (trip id))
+          ;*  body
+        ==
+    ==
+  (weld (editor-host host) panel)
+::
+++  editor-host
+  ::  An Ace host is an empty `.editor-host` carrying the mode; the
+  ::  adapter the consumer builds mounts into it by id.  The hidden span
+  ::  is there because a tall-attribute element must have children.
+  |=  value=(unit editor:urui)
+  ^-  marl
+  ?~  value  ~
+  =/  host  u.value
+  :~  ;div.editor-host
+        =id          (trip id.host)
+        =aria-label  (trip label.host)
+        =data-mode   (trip mode.host)
+        ;span(hidden "");
+      ==
+  ==
+::
+++  tabs-band
+  ::  The depth-0 strip, and only that one.  Deeper levels are config the
+  ::  runtime reads: it generates their strips inside the active panel of
+  ::  the level above, once per open parent tab.
+  |=  [=pane:urui levels=(list tab-level:urui) config=app-config:urui]
+  ^-  marl
+  ?~  levels  ~
+  ?:  =(%views source.i.levels)
+    (views-strip pane i.levels config)
+  :~  (tab-strip pane i.levels)
+  ==
+::
+++  tab-strip
+  ::  `{pane}-{level}-tabs`, empty: every strip but the explorer's is
+  ::  filled by the runtime, which needs the session before it can know
+  ::  what the tabs are.  The hidden span is there because a
+  ::  tall-attribute element must have children.
+  ::
+  ::  `.document-tabs` rides along with `.tab-strip` until %tabs css
+  ::  moves to `[data-depth]`; the two name the same strip.
+  |=  [=pane:urui level=tab-level:urui]
+  ^-  manx
+  ;div.tab-strip.document-tabs
+    =id           (trip (strip-id id.pane name.level))
+    =role         "tablist"
+    =aria-label   (trip label.level)
+    =data-depth   "0"
+    =data-source  (trip `@t`source.level)
+    ;span(hidden "");
+  ==
+::
+++  views-strip
+  ::  The explorer: the seeded strip, the collapse control urui owns, and
+  ::  one panel per seeded view.
+  ::
+  ::  `fixed` seeds the strip and the runtime appends documentation and
+  ::  reference tabs to it, keyed by view name — so a view renamed here
+  ::  is a view the session drops.
+  |=  [=pane:urui level=tab-level:urui config=app-config:urui]
+  ^-  marl
+  =/  header=manx
     ;div.explorer-header
-      ;div#explorer-tabs.explorer-tabs
-        =role        "tablist"
-        =aria-label  (trip label.area)
-        ;*  (explorer-tabs views &)
+      ;div.explorer-tabs
+        =id           (trip (strip-id id.pane name.level))
+        =role         "tablist"
+        =aria-label   (trip label.level)
+        =data-depth   "0"
+        =data-source  "views"
+        ;*  (explorer-tabs fixed.level &)
       ==
       ;button#explorer-collapse.icon-button.explorer-collapse
         =type           "button"
@@ -157,9 +432,8 @@
         ‹
       ==
     ==
-    ;*  (explorer-panels views kinds &)
-    ;*  body.area
-  ==
+  :-  header
+  (explorer-panels fixed.level kinds.config &)
 ::
 ++  explorer-tabs
   ::  Ids are derived from the view name — `{view}-tab` controlling
@@ -203,10 +477,10 @@
   $(views t.views, first |)
 ::
 ++  explorer-panels
-  ::  Each permanent view gets one file tree, `{view}-tree`, labelled
-  ::  after the $doc-kind in the same position: the first view owns the
-  ::  first kind.  `aria-busy` stays true until the runtime's first
-  ::  browse response replaces the placeholder.
+  ::  Each seeded view gets one file tree, `{view}-tree`, labelled after
+  ::  the $doc-kind in the same position: the first view owns the first
+  ::  kind.  `aria-busy` stays true until the runtime's first browse
+  ::  response replaces the placeholder.
   |=  [views=(list [@tas @t]) kinds=(list doc-kind:urui) first=?]
   ^-  marl
   ?~  views  ~
@@ -243,85 +517,6 @@
     ==
   :-  panel
   $(views t.views, kinds ?~(kinds ~ t.kinds), first |)
-::
-++  workspace-area
-  ::  The ++full-shell equivalent of ++section: adds the document-tab
-  ::  strip and a heading id keyed to the area's $doc-kind, which the
-  ::  editor's Ace host needs to label itself.
-  |=  [area=area:urui config=app-config:urui]
-  ^-  manx
-  =/  pane-class
-    ?:  =(%editor role.area)  "pane editor-pane"
-    "pane preview-pane"
-  =/  heading=marl
-    ?~  heading.area  ~
-    ?:  ?&  =(%editor role.area)  ?=(^ kind.area)  ==
-      =/  heading-id  (trip (cat 3 `@t`u.kind.area '-source-heading'))
-      :~  ;h2(id heading-id):"{(trip u.heading.area)}"
-      ==
-    :~  ;h2:"{(trip u.heading.area)}"
-    ==
-  =/  status=marl
-    ?~  status-id.area  ~
-    :~  ;span.status
-          =id  (trip u.status-id.area)
-          ;+  ;/  (trip (initial-status role.area statuses.config))
-        ==
-    ==
-  ;section
-    =id          (trip id.area)
-    =class       pane-class
-    =data-role   (trip role.area)
-    ;div.pane-header
-      ;*  heading
-      ;*  status
-      ;*  controls.area
-    ==
-    ;*  (document-strip area config)
-    ;*  body.area
-    ;*  (secondary-host secondary.area)
-  ==
-::
-++  document-strip
-  ::  The strip is `{kind}-document-tabs`; the runtime fills it.  An area
-  ::  that asks for a strip without naming a kind gets the plain
-  ::  `{area}-tabs` element instead.  The hidden span is there because a
-  ::  tall-attribute element must have children.
-  |=  [area=area:urui config=app-config:urui]
-  ^-  marl
-  ?.  strip.area  ~
-  ?~  kind.area
-    :~  ;div.tab-strip(id "{(trip id.area)}-tabs", role "tablist");
-    ==
-  =/  kind  (find-kind u.kind.area kinds.config)
-  =/  label=@t  ?~(kind `@t`u.kind.area label.u.kind)
-  =/  tabs-id  (cat 3 `@t`u.kind.area '-document-tabs')
-  :~  ;div.document-tabs
-        =id          (trip tabs-id)
-        =role        "tablist"
-        =aria-label  "Open {(trip label)} documents"
-        ;span(hidden "");
-      ==
-  ==
-::
-++  secondary-host
-  ::  An Ace host is an empty `.editor-host` carrying the mode; the
-  ::  adapter the consumer builds mounts into it by id.  The hidden span
-  ::  is there because a tall-attribute element must have children.
-  |=  value=(unit editor:urui)
-  ^-  marl
-  ?~  value  ~
-  =/  editor  u.value
-  =/  host-id  (trip id.editor)
-  =/  host-label  (trip label.editor)
-  =/  host-mode  (trip mode.editor)
-  :~  ;div.editor-host
-        =id          host-id
-        =aria-label  host-label
-        =data-mode   host-mode
-        ;span(hidden "");
-      ==
-  ==
 ::
 ++  help-panel
   |=  spec=shell-spec:urui
@@ -392,7 +587,7 @@
   ::  (conventionally "ready"); every other pane starts on the third
   ::  (conventionally "empty") — a fixed position in the consumer's own
   ::  status list, not something urui can name generically.
-  |=  [role=area-role:urui statuses=(list [@tas @t])]
+  |=  [role=pane-role:urui statuses=(list [@tas @t])]
   ^-  @t
   ?~  statuses  ''
   =/  first-label=@t  +.i.statuses
@@ -403,60 +598,15 @@
   ?~  rest  first-label
   +.i.rest
 ::
-++  find-kind
-  |=  [name=@tas kinds=(list doc-kind:urui)]
-  ^-  (unit doc-kind:urui)
-  ?~  kinds  ~
-  ?:  =(name name.i.kinds)  `i.kinds
-  $(kinds t.kinds)
+++  joined
+  ::  `{a}-{b}`, the one way the shell derives an id from two names.
+  |=  [a=@t b=@t]
+  ^-  @t
+  (rap 3 ~[a '-' b])
 ::
-++  section
-  ::  One area: pane header, optional tab strip, consumer body.
-  ::
-  ::  Used by ++compact (the frame for applications with no permanent
-  ::  explorer views); ++full uses ++workspace-area instead, which also
-  ::  renders the document-tab strip. Kept separate from ++compact
-  ::  because its three call sites would otherwise repeat twenty lines
-  ::  of Sail.
-  |=  =area:urui
-  ^-  manx
-  =/  title=marl
-    ?~  heading.area  ~
-    :~  ;h2.pane-title:"{(trip u.heading.area)}"
-    ==
-  =/  status=marl
-    ?~  status-id.area  ~
-    :~  ;span.pane-status(id (trip u.status-id.area), role "status");
-    ==
-  =/  strip=marl
-    ?.  strip.area  ~
-    :~  ;div.tab-strip(id "{(trip id.area)}-tabs", role "tablist");
-    ==
-  =/  host=marl
-    ?~  secondary.area  ~
-    =/  ace  u.secondary.area
-    =/  ace-id  (trip id.ace)
-    =/  ace-label  (trip label.ace)
-    =/  ace-mode  (trip mode.ace)
-    ::  a tall-attribute element must have children; this one has none
-    :~  ;div.editor-host(id ace-id, aria-label ace-label, data-mode ace-mode);
-    ==
-  ;section.pane
-    =id  (trip id.area)
-    =role  "region"
-    =aria-label  (trip label.area)
-    =data-role  (trip role.area)
-    ;header.pane-header
-      ;*  title
-      ;*  status
-      ;div.pane-actions
-        ;*  controls.area
-      ==
-    ==
-    ;*  strip
-    ;*  host
-    ;div.pane-body
-      ;*  body.area
-    ==
-  ==
+++  strip-id
+  ::  `{pane}-{level}-tabs`, the id every depth-0 tab strip carries.
+  |=  [pane-id=@t level=@tas]
+  ^-  @t
+  (rap 3 ~[pane-id '-' `@t`level '-tabs'])
 --
