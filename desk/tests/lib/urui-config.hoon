@@ -44,7 +44,6 @@
       ~[[%ready 'Ready']]
       docs-root=`'/docs/probe/'
       share-param=`[name='text' max=12.288 param-max=16.384]
-      ~[[%text-files 'Text Files']]
       :*  base='/apps/probe/ace'
           global='probeAce'
           version='1.44.0'
@@ -56,7 +55,124 @@
       ==
   ==
 ::
-++  source  (trip (emit:config app))
+++  pinned
+  |=  [name=@tas item=band-item:urui]
+  ^-  band:urui
+  [name [key=~ open=& label=''] item]
+::
+++  reference-level
+  ^-  tab-level:urui
+  :*  name=%view
+      label='Probe views'
+      source=%views
+      kind=~
+      fixed=~[[%text-files 'Text Files'] [%note-files 'Note Files']]
+      add=~
+      close=|
+      reorder=&
+  ==
+::
+++  editor-level
+  ^-  tab-level:urui
+  :*  name=%document
+      label='Text documents'
+      source=%documents
+      kind=`%text
+      fixed=~
+      add=`'New text tab'
+      close=&
+      reorder=&
+  ==
+::
+++  result-levels
+  ^-  (list tab-level:urui)
+  :~  :*  name=%view
+          label='Result views'
+          source=%fixed
+          kind=~
+          fixed=~[[%results 'Results'] [%messages 'Messages']]
+          add=~
+          close=|
+          reorder=|
+      ==
+      :*  name=%set
+          label='Result sets'
+          source=%dynamic
+          kind=~
+          fixed=~
+          add=~
+          close=|
+          reorder=|
+      ==
+  ==
+::
+++  host
+  ^-  editor:urui
+  :*  id='probe-editor-host'
+      label='Probe editor host'
+      mode='ace/mode/text'
+      wrap=&
+      read-only=|
+      max-bytes=262.144
+  ==
+::
+++  reference-pane
+  ^-  pane:urui
+  :*  role=%reference
+      id='probe-reference'
+      label='Probe reference'
+      mode=%read-only
+      kind=~
+      :~  (pinned %ship [%label 'zod'])
+          (pinned %tabs [%tabs ~[reference-level]])
+          (pinned %body [%panel 'probe-reference-panel' ~ ~])
+      ==
+  ==
+::
+++  editor-pane
+  ^-  pane:urui
+  :*  role=%editor
+      id='probe-editor'
+      label='Probe editor'
+      mode=%read-write
+      kind=`%text
+      :~  %+  pinned  %head
+          [%heading `'Source' `'probe-status' ~[;button#config-action;]]
+          %+  pinned  %controls
+          [%controls ~[;button#config-control;]]
+          (pinned %tabs [%tabs ~[editor-level]])
+          (pinned %body [%panel 'probe-editor-panel' `host ~])
+      ==
+  ==
+::
+++  result-pane
+  ^-  pane:urui
+  :*  role=%result
+      id='probe-result'
+      label='Probe result'
+      mode=%read-write
+      kind=~
+      :~  :*  name=%tabs
+              reveal=[key=`'resultTabs' open=| label='Result tabs']
+              item=[%tabs result-levels]
+          ==
+          (pinned %body [%panel 'probe-result-panel' ~ ~])
+      ==
+  ==
+::
+++  spec
+  ^-  shell-spec:urui
+  :*  app
+      brand=~
+      toolbar=~
+      [reference-pane editor-pane result-pane]
+      help=~
+      dialogs=~
+      styles=~
+      scripts=~
+  ==
+::
+++  source  (trip (emit:config spec))
 ::
 ++  has
   |=  value=tape
@@ -120,11 +236,43 @@
   ==
 ::
 ++  test-config-emits-optional-values
+  =/  views=tape
+    ;:  weld
+      (trip '\22permanentViews\22:[{\22label\22:\22Text Files\22,')
+      (trip '\22name\22:\22text-files\22},{\22label\22:\22Note Files\22,')
+      (trip '\22name\22:\22note-files\22}]')
+    ==
   ;:  weld
     (expect !>((has "\"docsRoot\":\"/docs/probe/\"")))
     (expect !>((has (trip '\22shareParam\22:{'))))
     (expect !>((has "\"paramMax\":16384")))
-    (expect !>((has (trip '\22permanentViews\22:[{'))))
+    (expect !>((has views)))
+  ==
+::
+++  test-panes-json
+  ;:  weld
+    (expect !>((has (trip '\22panes\22:{'))))
+    (expect !>((has "\"role\":\"reference\"")))
+    (expect !>((has "\"mode\":\"read-only\"")))
+    (expect !>((has "\"kind\":null")))
+    (expect !>((has "\"kind\":\"label\"")))
+    (expect !>((has "\"text\":\"zod\"")))
+    (expect !>((has "\"source\":\"views\"")))
+    (expect !>((has "\"source\":\"documents\"")))
+    (expect !>((has "\"source\":\"fixed\"")))
+    (expect !>((has "\"source\":\"dynamic\"")))
+    (expect !>((has "\"add\":\"New text tab\"")))
+    (expect !>((has "\"kind\":\"heading\"")))
+    (expect !>((has "\"statusId\":\"probe-status\"")))
+    (expect !>((has "\"kind\":\"controls\"")))
+    (expect !>((has "\"kind\":\"panel\"")))
+    (expect !>((has "\"id\":\"probe-editor-host\"")))
+    (expect !>((has "\"readOnly\":false")))
+    (expect !>((has "\"maxBytes\":262144")))
+    (expect !>((has "\"key\":\"resultTabs\"")))
+    (expect !>((has "\"open\":false")))
+    (expect-eq !>(%.n) !>((has "config-action")))
+    (expect-eq !>(%.n) !>((has "config-control")))
   ==
 ::
 ++  test-config-emits-ace-settings

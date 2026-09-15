@@ -37,8 +37,14 @@
       `[name='source' max=12.288 param-max=16.384]
   ==
 ::
+++  fixture-spec
+  ^-  shell-spec:urui
+  %*  .  *shell-spec:urui
+    app-config  fixture-config
+  ==
+::
 ++  config-source
-  (trip (emit:ucfg fixture-config))
+  (trip (emit:ucfg fixture-spec))
 ::
 ++  core-source
   (trip core:ujs)

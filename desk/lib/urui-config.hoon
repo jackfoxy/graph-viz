@@ -1,4 +1,4 @@
-::  urui-config: $app-config -> window.URUI_CONFIG.
+::  urui-config: $shell-spec -> window.URUI_CONFIG.
 ::
 ::  The browser runtime reads every consumer-specific value through this
 ::  one json object; nothing in urui's javascript names a consumer.
@@ -8,30 +8,158 @@
 ++  emit
   ::  Emit `window.URUI_CONFIG = {...};` for one application.
   ::
-  |=  =app-config:urui
+  |=  spec=shell-spec:urui
   ^-  @t
   %+  rap  3
   :~  'window.URUI_CONFIG = '
-      (en:json:html (config-json app-config))
+      (en:json:html (config-json spec))
       ';\0a'
   ==
 ::
 ++  config-json
-  |=  =app-config:urui
+  |=  spec=shell-spec:urui
+  ^-  json
+  =/  config  app-config.spec
+  =/  panes  panes.spec
+  =/  views  (permanent-views reference.panes)
+  %-  pairs:enjs:format
+  :~  ['appId' (app-id-json app-id.config)]
+      ['kinds' a+(turn kinds.config doc-kind-json)]
+      ['endpoints' (endpoints-json endpoints.config)]
+      ['limits' (limits-json limits.config)]
+      ['slots' a+(turn slots.config slot-json)]
+      ['shortcuts' a+(turn shortcuts.config shortcut-json)]
+      ['statuses' a+(turn statuses.config status-json)]
+      ['docsRoot' (unit-text-json docs-root.config)]
+      ['shareParam' (share-json share-param.config)]
+      ['panes' (panes-json panes)]
+      ['permanentViews' a+(turn views view-json)]
+      ['ace' (ace-json ace-spec.config)]
+  ==
+::
+++  panes-json
+  |=  [reference=pane:urui editor=pane:urui result=pane:urui]
   ^-  json
   %-  pairs:enjs:format
-  :~  ['appId' (app-id-json app-id.app-config)]
-      ['kinds' a+(turn kinds.app-config doc-kind-json)]
-      ['endpoints' (endpoints-json endpoints.app-config)]
-      ['limits' (limits-json limits.app-config)]
-      ['slots' a+(turn slots.app-config slot-json)]
-      ['shortcuts' a+(turn shortcuts.app-config shortcut-json)]
-      ['statuses' a+(turn statuses.app-config status-json)]
-      ['docsRoot' (unit-text-json docs-root.app-config)]
-      ['shareParam' (share-json share-param.app-config)]
-      ['permanentViews' a+(turn permanent-views.app-config view-json)]
-      ['ace' (ace-json ace-spec.app-config)]
+  :~  ['reference' (pane-json reference)]
+      ['editor' (pane-json editor)]
+      ['result' (pane-json result)]
   ==
+::
+++  pane-json
+  |=  pane=pane:urui
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['role' s+`@t`role.pane]
+      ['id' s+id.pane]
+      ['label' s+label.pane]
+      ['mode' s+`@t`mode.pane]
+      ['kind' (unit-term-json kind.pane)]
+      ['bands' a+(turn bands.pane band-json)]
+  ==
+::
+++  band-json
+  |=  band=band:urui
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['name' s+name.band]
+      ['reveal' (reveal-json reveal.band)]
+      ['item' (band-item-json item.band)]
+  ==
+::
+++  reveal-json
+  |=  value=reveal:urui
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['key' (unit-text-json key.value)]
+      ['open' b+open.value]
+      ['label' s+label.value]
+  ==
+::
+++  band-item-json
+  |=  item=band-item:urui
+  ^-  json
+  ?-  -.item
+      %label
+    %-  pairs:enjs:format
+    :~  ['kind' s+'label']
+        ['text' s+text.item]
+    ==
+  ::
+      %heading
+    %-  pairs:enjs:format
+    :~  ['kind' s+'heading']
+        ['title' (unit-text-json title.item)]
+        ['statusId' (unit-text-json status-id.item)]
+    ==
+  ::
+      %controls
+    %-  pairs:enjs:format
+    ~[['kind' s+'controls']]
+  ::
+      %tabs
+    %-  pairs:enjs:format
+    :~  ['kind' s+'tabs']
+        ['levels' a+(turn levels.item tab-level-json)]
+    ==
+  ::
+      %panel
+    %-  pairs:enjs:format
+    :~  ['kind' s+'panel']
+        ['id' s+id.item]
+        ['host' (unit-editor-json host.item)]
+    ==
+  ==
+::
+++  tab-level-json
+  |=  level=tab-level:urui
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['name' s+name.level]
+      ['label' s+label.level]
+      ['source' s+`@t`source.level]
+      ['kind' (unit-term-json kind.level)]
+      ['fixed' a+(turn fixed.level view-json)]
+      ['add' (unit-text-json add.level)]
+      ['close' b+close.level]
+      ['reorder' b+reorder.level]
+  ==
+::
+++  unit-editor-json
+  |=  value=(unit editor:urui)
+  ^-  json
+  ?~  value  ~
+  (editor-json u.value)
+::
+++  editor-json
+  |=  editor=editor:urui
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' s+id.editor]
+      ['label' s+label.editor]
+      ['mode' s+mode.editor]
+      ['wrap' b+wrap.editor]
+      ['readOnly' b+read-only.editor]
+      ['maxBytes' (number max-bytes.editor)]
+  ==
+::
+++  permanent-views
+  ::  The first %views level in the reference pane seeds the explorer.
+  |=  pane=pane:urui
+  ^-  (list [@tas @t])
+  =/  bands=(list band:urui)  bands.pane
+  |-
+  ?~  bands  ~
+  ?.  ?=([%tabs *] item.i.bands)
+    $(bands t.bands)
+  (views-level levels.item.i.bands)
+::
+++  views-level
+  |=  levels=(list tab-level:urui)
+  ^-  (list [@tas @t])
+  ?~  levels  ~
+  ?:  =(%views source.i.levels)  fixed.i.levels
+  $(levels t.levels)
 ::
 ++  app-id-json
   |=  id=app-id:urui
