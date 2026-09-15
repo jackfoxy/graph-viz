@@ -101,6 +101,32 @@ test.beforeEach(async ({context, page}) => {
   await installBackend(page, {browse: true});
 });
 
+test('attribute band reveal state survives reload', async ({page}) => {
+  await page.goto('/apps/graph-viz/');
+  const nodeBand = page.locator('#preview-pane-node-attributes');
+  const edgeBand = page.locator('#preview-pane-edge-attributes');
+  const nodeToggle = page.locator('#preview-pane-node-attributes-toggle');
+  const edgeToggle = page.locator('#preview-pane-edge-attributes-toggle');
+
+  await expect(nodeBand).toBeHidden();
+  await expect(edgeBand).toBeHidden();
+  await nodeToggle.click();
+  await edgeToggle.click();
+  await nodeToggle.click();
+  await expect(nodeBand).toBeHidden();
+  await expect(edgeBand).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('graph-viz.session.v1'));
+    return saved?.paneBands;
+  })).toEqual({nodeAttrs: false, edgeAttrs: true});
+
+  await page.reload();
+  await expect(nodeBand).toBeHidden();
+  await expect(edgeBand).toBeVisible();
+  await expect(nodeToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(edgeToggle).toHaveAttribute('aria-expanded', 'true');
+});
+
 test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {
   const renderBodies = [];
   await installBackend(page, {

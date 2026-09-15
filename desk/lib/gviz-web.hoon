@@ -64,6 +64,7 @@
 ++  slots
   ^-  (list slot:urui)
   :~  ['source' %app %scalar ~]
+      ['paneBands' %urui %record ~]
       ['paneWidth' %urui %scalar ~]
       ['explorerWidth' %urui %scalar ~]
       ['explorerOpen' %urui %scalar ~]
@@ -135,6 +136,20 @@
   ^-  band:urui
   [name [key=~ open=& label=''] item]
 ::
+++  node-attribute-band
+  ^-  band:urui
+  :*  name=%node-attributes
+      [key=`'nodeAttrs' open=| label='Node attributes']
+      [%controls node-attributes]
+  ==
+::
+++  edge-attribute-band
+  ^-  band:urui
+  :*  name=%edge-attributes
+      [key=`'edgeAttrs' open=| label='Edge attributes']
+      [%controls edge-attributes]
+  ==
+::
 ++  reference-pane
   ::  The explorer, read-only.  Its %views level seeds the strip with the
   ::  two file trees and the runtime appends documentation and reference
@@ -201,6 +216,8 @@
       :~  (pinned %head [%heading `'Preview' `'render-status' ~])
           (pinned %controls [%controls result-controls])
           (pinned %tabs [%tabs ~[result-level]])
+          node-attribute-band
+          edge-attribute-band
           (pinned %body [%panel 'preview-body' ~ result-body])
       ==
   ==
@@ -382,24 +399,9 @@
             ;span: Label
             ;input#attr-label(type "text", maxlength "200");
           ==
-          ;label#shape-control.control
-            ;span: Shape
-            ;select#attr-shape
-              ;option(value ""): Default
-              ;option(value "box"): Box
-              ;option(value "ellipse"): Ellipse
-              ;option(value "circle"): Circle
-              ;option(value "diamond"): Diamond
-              ;option(value "point"): Point
-            ==
-          ==
           ;label.control
             ;span: Color
             ;input#attr-color(type "text", placeholder "#2563eb");
-          ==
-          ;label#fill-control.control
-            ;span: Fill color
-            ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
           ==
           ;label.control
             ;span: Line style
@@ -410,70 +412,6 @@
               ;option(value "dotted"): Dotted
               ;option(value "bold"): Bold
               ;option(value "invis"): Invisible
-            ==
-          ==
-          ;div#edge-controls.edge-controls(hidden "")
-            ;label.control
-              ;span: Pen width
-              ;input#attr-penwidth(type "number", min "0", step "any");
-            ==
-            ;label.control
-              ;span: Arrowhead
-              ;select#attr-arrowhead
-                ;option(value ""): Default
-                ;option(value "normal"): Normal
-                ;option(value "empty"): Empty
-                ;option(value "vee"): Vee
-                ;option(value "dot"): Dot
-                ;option(value "diamond"): Diamond
-                ;option(value "none"): None
-              ==
-            ==
-            ;label.control
-              ;span: Arrowtail
-              ;select#attr-arrowtail
-                ;option(value ""): Default
-                ;option(value "normal"): Normal
-                ;option(value "empty"): Empty
-                ;option(value "vee"): Vee
-                ;option(value "dot"): Dot
-                ;option(value "diamond"): Diamond
-                ;option(value "none"): None
-              ==
-            ==
-            ;label.control
-              ;span: Arrow size
-              ;input#attr-arrowsize(type "number", min "0", step "any");
-            ==
-            ;label.control
-              ;span: Direction
-              ;select#attr-dir
-                ;option(value ""): Default
-                ;option(value "forward"): Forward
-                ;option(value "back"): Back
-                ;option(value "both"): Both
-                ;option(value "none"): None
-              ==
-            ==
-            ;label.control
-              ;span: Minimum length
-              ;input#attr-minlen(type "number", min "0", step "1");
-            ==
-            ;label.control
-              ;span: Weight
-              ;input#attr-weight(type "number", min "0", step "1");
-            ==
-            ;label.control
-              ;span: Font name
-              ;input#attr-fontname(type "text", maxlength "80");
-            ==
-            ;label.control
-              ;span: Font size
-              ;input#attr-fontsize(type "number", min "0", step "any");
-            ==
-            ;label.control
-              ;span: Font color
-              ;input#attr-fontcolor(type "text", placeholder "#18181b");
             ==
           ==
           ;div.attribute-actions
@@ -540,6 +478,93 @@
           =role        "region"
           =aria-label  "SVG source editor"
           ;span(hidden "");
+        ==
+      ==
+  ==
+::
+++  node-attributes
+  ^-  marl
+  :~  ;label#shape-control.control
+        ;span: Shape
+        ;select#attr-shape
+          ;option(value ""): Default
+          ;option(value "box"): Box
+          ;option(value "ellipse"): Ellipse
+          ;option(value "circle"): Circle
+          ;option(value "diamond"): Diamond
+          ;option(value "point"): Point
+        ==
+      ==
+      ;label#fill-control.control
+        ;span: Fill color
+        ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
+      ==
+  ==
+::
+++  edge-attributes
+  ^-  marl
+  :~  ;div#edge-controls.edge-controls
+        ;label.control
+          ;span: Pen width
+          ;input#attr-penwidth(type "number", min "0", step "any");
+        ==
+        ;label.control
+          ;span: Arrowhead
+          ;select#attr-arrowhead
+            ;option(value ""): Default
+            ;option(value "normal"): Normal
+            ;option(value "empty"): Empty
+            ;option(value "vee"): Vee
+            ;option(value "dot"): Dot
+            ;option(value "diamond"): Diamond
+            ;option(value "none"): None
+          ==
+        ==
+        ;label.control
+          ;span: Arrowtail
+          ;select#attr-arrowtail
+            ;option(value ""): Default
+            ;option(value "normal"): Normal
+            ;option(value "empty"): Empty
+            ;option(value "vee"): Vee
+            ;option(value "dot"): Dot
+            ;option(value "diamond"): Diamond
+            ;option(value "none"): None
+          ==
+        ==
+        ;label.control
+          ;span: Arrow size
+          ;input#attr-arrowsize(type "number", min "0", step "any");
+        ==
+        ;label.control
+          ;span: Direction
+          ;select#attr-dir
+            ;option(value ""): Default
+            ;option(value "forward"): Forward
+            ;option(value "back"): Back
+            ;option(value "both"): Both
+            ;option(value "none"): None
+          ==
+        ==
+        ;label.control
+          ;span: Minimum length
+          ;input#attr-minlen(type "number", min "0", step "1");
+        ==
+        ;label.control
+          ;span: Weight
+          ;input#attr-weight(type "number", min "0", step "1");
+        ==
+        ;label.control
+          ;span: Font name
+          ;input#attr-fontname(type "text", maxlength "80");
+        ==
+        ;label.control
+          ;span: Font size
+          ;input#attr-fontsize(type "number", min "0", step "any");
+        ==
+        ;label.control
+          ;span: Font color
+          ;input#attr-fontcolor(type "text", placeholder "#18181b");
         ==
       ==
   ==
@@ -674,11 +699,6 @@
     gap: 0.5rem;
     grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
     padding: 0.5rem 0.75rem;
-  }
-
-  #shape-control[hidden], #fill-control[hidden],
-  #edge-controls[hidden] {
-    display: none;
   }
 
   .preview-shell {
@@ -976,9 +996,6 @@
   const clearSelection = document.querySelector('#clear-selection');
   const deleteSelection = document.querySelector('#delete-selection');
   const attributeForm = document.querySelector('#attribute-form');
-  const shapeControl = document.querySelector('#shape-control');
-  const fillControl = document.querySelector('#fill-control');
-  const edgeControls = document.querySelector('#edge-controls');
   const attrLabel = document.querySelector('#attr-label');
   const attrShape = document.querySelector('#attr-shape');
   const attrColor = document.querySelector('#attr-color');
@@ -2229,9 +2246,6 @@
       attrStyle.value = ['solid', 'dashed', 'dotted', 'bold', 'invis']
         .find((style) => styles.includes(style)) || '';
       const isNode = selected.kind === 'node';
-      shapeControl.hidden = !isNode;
-      fillControl.hidden = !isNode;
-      edgeControls.hidden = isNode;
       const sourceShape = isNode ? get('shape') : '';
       attrShape.dataset.sourceShape = sourceShape;
       attrShape.value = nodeShapes.includes(sourceShape) ? sourceShape : '';

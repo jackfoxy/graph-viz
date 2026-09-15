@@ -161,9 +161,6 @@ module.exports = async (env) => {
   assert.equal(elements['#selection-kind'].textContent, 'Edge');
   assert.equal(elements['#selection-id'].textContent, 'Beta->Gamma');
   assert.equal(elements['#attribute-form'].hidden, false);
-  assert.equal(elements['#shape-control'].hidden, true);
-  assert.equal(elements['#fill-control'].hidden, true);
-  assert.equal(elements['#edge-controls'].hidden, false);
   elements['#attr-label'].value = 'next';
   elements['#attr-color'].value = 'blue';
   elements['#attr-style'].value = 'dashed';

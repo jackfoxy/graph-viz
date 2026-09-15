@@ -30,6 +30,8 @@
         "source-auto-render"
         "id=\"template\""
         "id=\"inspector\""
+        "id=\"preview-pane-node-attributes-toggle\""
+        "id=\"preview-pane-edge-attributes-toggle\""
         "LLM skill files"
         "gviz-dot-syntax"
         "gviz-gall-api"
@@ -198,6 +200,7 @@
         "\"key\":\"activeSvgTabId\""
         "\"key\":\"view\",\"kind\":null,\"owner\":\"app\""
         "\"key\":\"preferences.autoRender\",\"kind\":null"
+        "\"key\":\"paneBands\",\"kind\":null"
     ==
   %-  zing
   %+  turn  needles
@@ -231,6 +234,8 @@
     (expect !>(?=(^ (find "id=\"add-node\"" html))))
     (expect !>(?=(^ (find "id=\"draw-edge\"" html))))
     (expect !>(?=(^ (find "id=\"attribute-form\"" html))))
+    (expect !>(?=(^ (find "id=\"preview-pane-node-attributes\"" html))))
+    (expect !>(?=(^ (find "id=\"preview-pane-edge-attributes\"" html))))
     (expect !>(?=(^ (find "id=\"edge-controls\"" html))))
     (expect !>(?=(^ (find "id=\"attr-arrowhead\"" html))))
     (expect !>(?=(^ (find "id=\"attr-arrowtail\"" html))))
@@ -244,7 +249,9 @@
     (expect !>(?=(^ (find "id=\"attr-fontcolor\"" html))))
     (expect !>(?=(^ (find "id=\"attr-change-all\"" html))))
     (expect !>(?=(^ (find "id=\"attr-use-default\"" html))))
-    (expect !>(?=(^ (find "#shape-control[hidden]" (trip css:web)))))
+    (expect !>(?=(~ (find "shapeControl.hidden" js))))
+    (expect !>(?=(~ (find "fillControl.hidden" js))))
+    (expect !>(?=(~ (find "edgeControls.hidden" js))))
     (expect !>(?=(^ (find "id=\"delete-selection\"" html))))
     (expect !>(?=(^ (find "addVisualNode" js))))
     (expect !>(?=(^ (find "nodeShapeCategories" js))))
