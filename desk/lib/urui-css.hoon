@@ -153,6 +153,46 @@
     min-width: 0;
   }
 
+  .pane-band { min-height: 0; min-width: 0; }
+
+  .pane-band-label {
+    color: var(--muted);
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .pane-band-controls {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .pane-band-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .pane-band[hidden] { display: none; }
+
+  .band-toggle {
+    align-self: flex-end;
+    flex: 0 0 auto;
+    height: 2rem;
+    margin: 0.25rem 0.5rem;
+    width: 2rem;
+  }
+
+  .band-toggle::before { content: '\25b8'; }
+
+  .band-toggle[aria-expanded='true']::before { content: '\25be'; }
+
   .pane-header {
     align-items: center;
     border-bottom: 1px solid var(--border);
@@ -186,29 +226,6 @@
     min-height: 0;
     overflow: hidden;
     position: relative;
-  }
-
-  #dot {
-    background: var(--surface);
-    border: 0;
-    font: 0.9rem/1.55 ui-monospace, monospace;
-    height: 100%;
-    min-height: 12rem;
-    outline: none;
-    width: 100%;
-  }
-
-  #dot.ace_focus, #dot:focus-within {
-    box-shadow: inset 0 0 0 2px var(--accent);
-    outline: 3px solid var(--focus);
-    outline-offset: -3px;
-  }
-
-  #dot .ace_marker-layer .ace-error-marker {
-    background: var(--editor-error);
-    border-bottom: 2px solid var(--danger);
-    box-sizing: border-box;
-    position: absolute;
   }
 
   .editor-load-error {
@@ -530,13 +547,37 @@
     z-index: 1;
   }
 
-  .document-tabs {
+  .tab-strip[data-depth='0'] {
+    --tab-font-size: 0.75rem;
+    --tab-add-font-size: 1rem;
+    --tab-height: 2.25rem;
+    --tab-max-width: 14rem;
+    --tab-strip-height: 2.55rem;
+  }
+
+  .tab-strip[data-depth='1'] {
+    --tab-font-size: 0.7rem;
+    --tab-add-font-size: 0.9rem;
+    --tab-height: 2rem;
+    --tab-max-width: 12rem;
+    --tab-strip-height: 2.3rem;
+  }
+
+  .tab-strip[data-depth='2'] {
+    --tab-font-size: 0.65rem;
+    --tab-add-font-size: 0.8rem;
+    --tab-height: 1.75rem;
+    --tab-max-width: 10rem;
+    --tab-strip-height: 2.05rem;
+  }
+
+  .tab-strip {
     align-items: flex-start;
     border-bottom: 1px solid var(--border);
     display: flex;
-    flex: 0 0 2.55rem;
-    height: 2.55rem;
-    min-height: 2.55rem;
+    flex: 0 0 var(--tab-strip-height, 2.55rem);
+    height: var(--tab-strip-height, 2.55rem);
+    min-height: var(--tab-strip-height, 2.55rem);
     min-width: 0;
     overscroll-behavior-inline: contain;
     overflow-x: auto;
@@ -544,23 +585,23 @@
   }
 
   .explorer-tabs::-webkit-scrollbar,
-  .document-tabs::-webkit-scrollbar {
+  .tab-strip::-webkit-scrollbar {
     height: 0.3rem;
   }
 
   .explorer-tabs::-webkit-scrollbar-track,
-  .document-tabs::-webkit-scrollbar-track {
+  .tab-strip::-webkit-scrollbar-track {
     background: transparent;
   }
 
   .explorer-tabs::-webkit-scrollbar-thumb,
-  .document-tabs::-webkit-scrollbar-thumb {
+  .tab-strip::-webkit-scrollbar-thumb {
     background: var(--muted);
     border-radius: 999px;
   }
 
   @supports (-moz-appearance: none) {
-    .explorer-tabs, .document-tabs {
+    .explorer-tabs, .tab-strip {
       scrollbar-color: var(--muted) transparent;
       scrollbar-width: thin;
     }
@@ -571,7 +612,7 @@
     border-right: 1px solid var(--border);
     display: inline-flex;
     flex: 0 0 auto;
-    height: 2.25rem;
+    height: var(--tab-height, 2.25rem);
   }
 
   .document-tab-control.active {
@@ -587,14 +628,14 @@
     border: 0;
     border-radius: 0;
     color: var(--muted);
-    font-size: 0.75rem;
-    height: 2.25rem;
-    min-height: 2.25rem;
+    font-size: var(--tab-font-size, 0.75rem);
+    height: var(--tab-height, 2.25rem);
+    min-height: var(--tab-height, 2.25rem);
     padding-block: 0;
   }
 
   .document-tab {
-    max-width: 14rem;
+    max-width: var(--tab-max-width, 14rem);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -606,14 +647,14 @@
   }
 
   .document-tab-close {
-    font: 700 0.75rem/1 ui-monospace, monospace;
+    font: 700 var(--tab-font-size, 0.75rem)/1 ui-monospace, monospace;
     padding: 0.25rem 0.55rem;
   }
 
   .document-tab-add {
     color: var(--ink);
-    font-size: 1rem;
-    min-width: 2.25rem;
+    font-size: var(--tab-add-font-size, 1rem);
+    min-width: var(--tab-height, 2.25rem);
     padding: 0.25rem 0.65rem;
   }
 

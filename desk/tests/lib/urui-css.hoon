@@ -96,6 +96,44 @@
   |=  needle=tape
   (expect !>(?=(^ (find needle style))))
 ::
+++  test-pane-band-rules
+  =/  style  (trip shell:ucss)
+  =/  needles=(list @t)
+    :~  '.pane-band {'
+        '.pane-band-label {'
+        '.pane-band[hidden]'
+        '.band-toggle {'
+        '.band-toggle[aria-expanded=\'true\']::before'
+    ==
+  %-  zing
+  %+  turn  needles
+  |=  needle=@t
+  (expect !>(?=(^ (find (trip needle) style))))
+::
+++  test-tab-depth-rules
+  =/  style  (trip tabs:ucss)
+  =/  needles=(list @t)
+    :~  '.tab-strip[data-depth=\'0\']'
+        '.tab-strip[data-depth=\'1\']'
+        '.tab-strip[data-depth=\'2\']'
+        '--tab-strip-height: 2.55rem'
+        '--tab-strip-height: 2.3rem'
+        '--tab-strip-height: 2.05rem'
+        '.document-tab-add {'
+    ==
+  %-  zing
+  %+  turn  needles
+  |=  needle=@t
+  (expect !>(?=(^ (find (trip needle) style))))
+::
+++  test-add-control-belongs-to-tabs
+  =/  tabs-style  (trip tabs:ucss)
+  =/  controls-style  (trip controls:ucss)
+  ;:  weld
+    (expect !>(?=(^ (find ".document-tab-add" tabs-style))))
+    (expect !>(?=(~ (find ".document-tab-add" controls-style))))
+  ==
+::
 ++  test-shared-sections-exclude-app-rules
   =/  style
     %-  trip
@@ -104,7 +142,7 @@
         %tabs  %dialogs  %responsive
     ==
   =/  selectors=(list @t)
-    :~  '.preview'  '.inspector'  '.zoom-'  '.fullscreen'
+    :~  '#dot'  '.preview'  '.inspector'  '.zoom-'  '.fullscreen'
         '.visual-tools'  '.attribute-form'  '#shape-control'
         '#svg-source'  'filter: invert(1)'
     ==
