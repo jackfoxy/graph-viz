@@ -9,9 +9,16 @@ const renderedSvg = [
   '<title>Rendered</title><circle cx="5" cy="5" r="4"/></svg>'
 ].join('');
 
+//  a kind's strip is the one its %documents level declared: graph-viz
+//  puts the dot kind in the editor pane and the svg kind in the preview
+const stripFor = (kind) => {
+  return kind === 'dot'
+    ? '#editor-pane-document-tabs'
+    : '#preview-pane-document-tabs';
+};
+
 function documentLabels(page, kind) {
-  return page.locator(`#${kind}-document-tabs .document-tab`)
-    .allTextContents();
+  return page.locator(`${stripFor(kind)} .document-tab`).allTextContents();
 }
 
 test('v1 session restores and survives Clay edit, save, and reload', async ({
@@ -53,10 +60,14 @@ test('v1 session restores and survives Clay edit, save, and reload', async ({
     'pipeline.dot',
     'overview.dot'
   ]);
-  await expect(page.getByRole('tab', {name: 'overview.dot', exact: true}))
+  //  scoped to the document strip: the restored session also puts a
+  //  reference tab with this label in the explorer
+  await expect(page.locator(stripFor('dot'))
+    .getByRole('tab', {name: 'overview.dot', exact: true}))
     .toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('#dot-document-tabs .active .document-tab-close'))
-    .toHaveText('O');
+  await expect(page.locator(
+    `${stripFor('dot')} .active .document-tab-close`
+  )).toHaveText('O');
   await expect.poll(() => page.locator('#preview svg')
     .evaluate((svg) => svg.style.transform))
     .toBe('translate(-48px, 22px) scale(1.35)');
@@ -87,7 +98,7 @@ test('v1 session restores and survives Clay edit, save, and reload', async ({
       '\n// edited'
     );
   });
-  await expect(page.locator('#dot-document-tabs .active .document-tab-close'))
+  await expect(page.locator('#editor-pane-document-tabs .active .document-tab-close'))
     .toHaveText('O');
   await page.locator('#save-dot').click();
   await expect.poll(() => saves.length).toBe(1);
@@ -96,7 +107,7 @@ test('v1 session restores and survives Clay edit, save, and reload', async ({
     path: 'clay/txt',
     body: editedSource
   });
-  await expect(page.locator('#dot-document-tabs .active .document-tab-close'))
+  await expect(page.locator('#editor-pane-document-tabs .active .document-tab-close'))
     .toHaveText('X');
   await expect.poll(() => page.evaluate(() => {
     const session = JSON.parse(localStorage.getItem('graph-viz.session.v1'));

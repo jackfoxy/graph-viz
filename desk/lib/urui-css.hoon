@@ -8,8 +8,12 @@
 ::  selectors can override base control dimensions. Put %responsive last.
 ::
 ::  The frame ++compact emits is deliberately unstyled here — no rule
-::  names .pane-title, .pane-actions, or .pane-body — and so is the Ace
-::  host, .editor-host.  A consumer of the compact shell brings its own.
+::  names .pane-title or .pane-actions — and so is the Ace host,
+::  .editor-host.  A consumer of the compact shell brings its own.
+::
+::  .pane-body is the exception: every %panel band emits one, in both
+::  frames, and what a consumer puts inside it expects to be a flex item
+::  of a filled column.  Sizing it is urui's job, not the consumer's.
 ::
 |%
 ::
@@ -177,6 +181,14 @@
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .pane-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
   }
 
   .pane-band[hidden] { display: none; }

@@ -609,14 +609,15 @@
   }
 
   //  Swap the attached content panel for the one this path names; the
-  //  one it replaces keeps whatever the consumer put in it.
+  //  one it replaces keeps whatever the consumer put in it.  Answers
+  //  whether anything moved.
   function attachContent(paneId, host) {
     const next = levelContent(paneId, panePath(paneId));
-    if (attachedContent.get(paneId) === next) return next;
+    if (attachedContent.get(paneId) === next) return false;
     attachedContent.get(paneId)?.remove();
     host.append(next);
     attachedContent.set(paneId, next);
-    return next;
+    return true;
   }
 
   function renderLevelStrip(paneId, depth) {
@@ -657,20 +658,36 @@
   function renderDeepLevels(paneId) {
     const levels = paneLevels(paneId);
     if (levels.length < 2) return;
+    //  Building the chain adds strips to the pane body and so moves
+    //  whatever else shares it — an Ace host, say — and that one time
+    //  earns an editor refresh.  Re-filling a strip or swapping the
+    //  content panel does not: they replace elements in place, and an
+    //  unearned refresh costs a scroll position and a cursor the user
+    //  did not ask to lose.  A consumer whose panels differ in height
+    //  around an editor calls `runtime.refreshEditors` itself.
+    const built = !chainHosts.has(paneId);
     const deepest = levelChain(paneId);
     for (let depth = 1; depth < levels.length; depth += 1) {
       renderLevelStrip(paneId, depth);
     }
     if (deepest) attachContent(paneId, deepest);
-    refreshEditors();
+    if (built) refreshEditors();
   }
 
-  //  A document store owns its own depth-0 strip; this is how the
-  //  levels under it follow the tab that store just selected.
+  //  A document store owns its own depth-0 strip; these two are how the
+  //  levels under it follow the tab that store just selected.  The path
+  //  moves first — ++selectTab calls ++syncStorePath before its
+  //  onActivate hook — so a consumer that fills a %dynamic level from
+  //  that hook files its tabs under the parent path they belong to.
+  function syncStorePath(name) {
+    const found = levelForKind(name);
+    if (found) writePathSegment(found.paneId, found.depth, activeTabId(name));
+  }
+
   function syncLevelsBelow(name) {
     const found = levelForKind(name);
     if (!found) return;
-    writePathSegment(found.paneId, found.depth, activeTabId(name));
+    syncStorePath(name);
     renderDeepLevels(found.paneId);
   }
 
@@ -1184,6 +1201,9 @@
     if (capture) captureTab(name);
     const previousId = activeTabId(name);
     store(name).activeId = id;
+    //  before the hook, not after: a consumer filling a level below
+    //  this one needs the pane's path to already name the new tab
+    syncStorePath(name);
     tabHooks(name).onActivate?.(tab, {...choices, previousId});
     renderTabs(name);
     changed();
@@ -2301,6 +2321,10 @@
         case 'paneWidth': setPaneWidth(value, false); break;
         case 'explorerWidth': setExplorerWidth(value); break;
         case 'explorerOpen': setExplorerOpen(value, false); break;
+        //  assigned, not applied: the docs and reference tabs this view
+        //  may name are restored further down the same loop, and
+        //  ++setExplorerView re-validates once they are all there
+        case 'explorerView': explorerView = value; break;
         case 'explorerOrder': explorerOrder = value; break;
         case 'docsTabs': docsTabs.splice(0, docsTabs.length, ...value); break;
         case 'nextDocs': nextDocs = value; break;

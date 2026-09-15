@@ -13,7 +13,12 @@ const selectors = [
   '#dot', '#editor', '#result-editor', '#editor-load-error', '#template',
   '#render', '#echo', '#error', '#preview', '#fixture-result',
   '#dot-document-tabs', '#svg-document-tabs',
-  '#text-document-tabs', '#note-document-tabs',
+  //  pane strips are `{pane}-{level}-tabs`; graph-viz's land with W10.1
+  '#editor-pane-document-tabs', '#result-pane-document-tabs',
+  //  the panel each pane's generated levels are built under
+  '#explorer-body', '#editor-body', '#result-body',
+  //  a revealable band and the toggle urui-shell draws beside it
+  '#editor-pane-controls', '#editor-pane-controls-toggle',
   '#zoom-out', '#zoom-in', '#fullscreen-zoom-out', '#fullscreen-zoom-in',
   '#svg-source', '#toggle-svg-source', '#copy-svg', '#fullscreen-svg',
   '#preview-shell', '#render-status', '#source-status', '#result-status',
@@ -25,7 +30,7 @@ const selectors = [
   '#fallback-help-content', '#docs-help-content', '#docs-help-nav',
   '#workbench', '#explorer', '#explorer-pane', '#editor-pane',
   '#preview-pane', '#result-pane',
-  '#explorer-tabs', '#explorer-resizer',
+  '#explorer-tabs', '#explorer-view-tabs', '#explorer-resizer',
   '#explorer-collapse',
   '#dot-files-tab', '#svg-files-tab',
   '#text-files-tab', '#note-files-tab',
@@ -264,22 +269,37 @@ function createDom() {
   elements['#clay-error-modal'].hidden = true;
   elements['#editor-load-error'].hidden = true;
 
-  for (const [name, view, panel] of [
-    ['#dot-files-tab', 'dot-files', '#dot-files-panel'],
-    ['#svg-files-tab', 'svg-files', '#svg-files-panel']
+  //  Each consumer seeds its own explorer strip: graph-viz's two file
+  //  trees in `#explorer-tabs`, the fixture's in `#explorer-view-tabs`.
+  //  Only one of the two is the strip a booted application finds.
+  for (const [strip, seeded] of [
+    ['#explorer-tabs', [
+      ['#dot-files-tab', 'dot-files', '#dot-files-panel'],
+      ['#svg-files-tab', 'svg-files', '#svg-files-panel']
+    ]],
+    ['#explorer-view-tabs', [
+      ['#text-files-tab', 'text-files', '#text-files-panel'],
+      ['#note-files-tab', 'note-files', '#note-files-panel']
+    ]]
   ]) {
-    const wrapper = new Element();
-    const tab = elements[name];
-    tab.dataset.explorerView = view;
-    tab.setAttribute('role', 'tab');
-    tab.setAttribute('aria-controls', panel.slice(1));
-    wrapper.append(tab);
-    elements['#explorer-tabs'].append(wrapper);
+    for (const [name, view, panel] of seeded) {
+      const wrapper = new Element();
+      const tab = elements[name];
+      tab.dataset.explorerView = view;
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-controls', panel.slice(1));
+      wrapper.append(tab);
+      elements[strip].append(wrapper);
+    }
   }
   elements['#explorer-pane'].append(
     elements['#explorer-tabs'],
+    elements['#explorer-view-tabs'],
     elements['#dot-files-panel'],
-    elements['#svg-files-panel']
+    elements['#svg-files-panel'],
+    elements['#text-files-panel'],
+    elements['#note-files-panel'],
+    elements['#explorer-body']
   );
 
   function documentDescendants() {

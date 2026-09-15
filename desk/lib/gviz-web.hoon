@@ -58,9 +58,6 @@
       ==
       docs-root=`'/docs/d/graph-viz/'
       share-param=`[name='dot' max=12.288 param-max=16.384]
-      :~  [%dot-files 'DOT Files']
-          [%svg-files 'SVG Files']
-      ==
       ace-spec
   ==
 ::
@@ -119,7 +116,7 @@
   :*  config
       brand
       toolbar
-      [reference-area editor-area result-area]
+      [reference-pane editor-pane result-pane]
       help
       dialogs=~
       styles=~[css]
@@ -132,46 +129,94 @@
       ==
   ==
 ::
-++  reference-area
-  ^-  area:urui
+++  pinned
+  ::  A band the user cannot hide: no reveal key, so no toggle.
+  |=  [name=@tas item=band-item:urui]
+  ^-  band:urui
+  [name [key=~ open=& label=''] item]
+::
+++  reference-pane
+  ::  The explorer, read-only.  Its %views level seeds the strip with the
+  ::  two file trees and the runtime appends documentation and reference
+  ::  tabs to it; `permanent-views` used to say this from $app-config.
+  ^-  pane:urui
   :*  role=%reference
       id='explorer-pane'
       label='Graph Viz explorer'
-      heading=~
-      status-id=~
+      mode=%read-only
       kind=~
-      strip=|
-      controls=~
-      body=~
-      secondary=~
+      :~  (pinned %tabs [%tabs ~[reference-level]])
+          (pinned %body [%panel 'explorer-body' ~ ~])
+      ==
   ==
 ::
-++  editor-area
-  ^-  area:urui
+++  reference-level
+  ^-  tab-level:urui
+  :*  name=%view
+      label='Graph Viz explorer'
+      source=%views
+      kind=~
+      :~  [%dot-files 'DOT Files']
+          [%svg-files 'SVG Files']
+      ==
+      add=~
+      close=|
+      reorder=&
+  ==
+::
+++  editor-pane
+  ^-  pane:urui
   :*  role=%editor
       id='editor-pane'
       label='DOT editor'
-      heading=`'DOT source'
-      status-id=`'source-status'
+      mode=%read-write
       kind=`%dot
-      strip=&
-      controls=editor-controls
-      body=editor-body
-      secondary=~
+      :~  (pinned %head [%heading `'DOT source' `'source-status' ~])
+          (pinned %controls [%controls editor-controls])
+          (pinned %tabs [%tabs ~[editor-level]])
+          (pinned %body [%panel 'editor-body' ~ editor-body])
+      ==
   ==
 ::
-++  result-area
-  ^-  area:urui
+++  editor-level
+  ::  `add` is declared here now, not hooked from javascript.
+  ^-  tab-level:urui
+  :*  name=%document
+      label='Open DOT documents'
+      source=%documents
+      kind=`%dot
+      fixed=~
+      add=`'Add empty DOT tab'
+      close=&
+      reorder=&
+  ==
+::
+++  result-pane
+  ^-  pane:urui
   :*  role=%result
       id='preview-pane'
       label='SVG preview'
-      heading=`'Preview'
-      status-id=`'render-status'
+      mode=%read-write
       kind=`%svg
-      strip=&
-      controls=result-controls
-      body=result-body
-      secondary=~
+      :~  (pinned %head [%heading `'Preview' `'render-status' ~])
+          (pinned %controls [%controls result-controls])
+          (pinned %tabs [%tabs ~[result-level]])
+          (pinned %body [%panel 'preview-body' ~ result-body])
+      ==
+  ==
+::
+++  result-level
+  ::  No `+`: an SVG tab is produced by rendering a DOT tab, never by
+  ::  the user asking for an empty one.
+  ^-  tab-level:urui
+  :*  name=%document
+      label='Open SVG documents'
+      source=%documents
+      kind=`%svg
+      fixed=~
+      add=~
+      close=&
+      reorder=&
   ==
 ::
 ++  brand
@@ -577,6 +622,9 @@
 ++  app-css
   ::  Graph preview, zoom, inspector and fullscreen rules.
   ::
+  ::  `#dot` is here rather than in urui's %shell section: that block
+  ::  named a consumer id inside urui, and W9.5 moved it out.
+  ::
   ^-  @t
   '''
   .zoom-controls { display: inline-flex; gap: 0.25rem; }
@@ -757,6 +805,22 @@
       drop-shadow(0 0 5px var(--selection-active));
   }
 
+  #dot {
+    background: var(--surface);
+    border: 0;
+    font: 0.9rem/1.55 ui-monospace, monospace;
+    height: 100%;
+    min-height: 12rem;
+    outline: none;
+    width: 100%;
+  }
+
+  #dot.ace_focus, #dot:focus-within {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
+  }
+
   #svg-source {
     background: var(--surface-alt);
     border: 0;
@@ -838,7 +902,7 @@
 ++  javascript
   ^-  @t
   %+  rap  3
-  :~  (emit:ucfg config)
+  :~  (emit:ucfg spec)
       core:ujs
       app-js
   ==
@@ -1035,7 +1099,6 @@
     },
     tabs: {
       dot: {
-        add: 'Add empty DOT tab',
         validate: (candidate, base) => {
           const start = Number(candidate.selection?.start);
           const end = Number(candidate.selection?.end);

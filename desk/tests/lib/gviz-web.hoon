@@ -69,9 +69,10 @@
     :~  "id=\"explorer-pane\""
         "id=\"editor-pane\""
         "id=\"preview-pane\""
-        "id=\"dot-document-tabs\""
-        "id=\"svg-document-tabs\""
-        "id=\"explorer-tabs\""
+        ::  a strip is `{pane}-{level}-tabs` now, not `{kind}-document-tabs`
+        "id=\"editor-pane-document-tabs\""
+        "id=\"preview-pane-document-tabs\""
+        "id=\"explorer-pane-view-tabs\""
         "id=\"help-panel\""
         "id=\"clay-error-modal\""
         "id=\"file-context-menu\""

@@ -49,8 +49,16 @@ async function installRoutes(page, state) {
   });
 }
 
+//  a kind's strip is the one its %documents level declared: graph-viz
+//  puts the dot kind in the editor pane and the svg kind in the preview
+const stripFor = (kind) => {
+  return kind === 'dot'
+    ? '#editor-pane-document-tabs'
+    : '#preview-pane-document-tabs';
+};
+
 function tabControl(page, kind, label) {
-  return page.locator(`#${kind}-document-tabs .document-tab-control`)
+  return page.locator(`${stripFor(kind)} .document-tab-control`)
     .filter({has: page.getByRole('tab', {name: label, exact: true})});
 }
 
