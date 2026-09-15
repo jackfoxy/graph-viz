@@ -63,6 +63,7 @@
         '\27update\27, \27list\27, \27active\27'
         '\27primary\27, \27secondary\27'
         '\27show\27, \27refreshTree\27, \27addRef\27, \27openDocs\27'
+        '\27get\27, \27set\27, \27select\27, \27panel\27, \27reveal\27'
         '\27save\27, \27queue\27, \27get\27, \27set\27'
         '\27browse\27, \27load\27, \27save\27, \27delete\27'
         '\27paneWidth\27, \27explorerWidth\27'
@@ -290,6 +291,70 @@
     tests
     (expect !>(?=(~ (find "dotTabs" source))))
     (expect !>(?=(~ (find "svgTabs" source))))
+  ==
+::
+++  test-pane-contract
+  ::  `config.panes` is the whole declaration: three panes, each an
+  ::  ordered list of bands, one of them a stack of tab levels.  The
+  ::  runtime reads names out of it and spells none of them itself.
+  =/  source  (trip runtime:ujs)
+  =/  needles=(list tape)
+    :~  "config.panes"
+        "'reference', 'editor', 'result'"
+        "`$\{paneId}-$\{levelName}-tabs`"
+        "`#$\{paneId}-$\{name}-toggle`"
+        "band.item?.kind !== 'tabs'"
+        "return band.item?.kind === kind"
+        "paneItem(paneId, 'panel')"
+        ::  mode, not a level, is what forbids the `+` and the close
+        "mode === 'read-only'"
+        "function levelAddLabel"
+        "function levelCloses"
+        "if (paneReadOnly(paneId)) return undefined"
+        ::  the four sources a level's tabs come from
+        "level.source === 'fixed'"
+        "level.source === 'dynamic'"
+        "level.source === 'documents'"
+        "item.source === 'views'"
+        ::  reveal is keyed by the band's own reveal.key
+        "paneBands[reveal.key]"
+        "case 'paneBands':"
+        "case 'panePaths':"
+        "function validBandRecord"
+        "function validPathRecord"
+        ::  depth, the generated chain, and the cached content panel
+        "function levelChain"
+        "function renderDeepLevels"
+        "pane-levels"
+        "pane-level-content"
+        "dataset.paneTab"
+        "dataset.paneDepth"
+        "strip.dataset.depth = String(depth)"
+        "function levelContent"
+        "function attachContent"
+        ::  the consumer's four hooks and the store binding
+        "options.panes?.onSelect"
+        "options.panes?.onAdd"
+        "options.panes?.onClose"
+        "options.panes?.onRendered"
+        "function levelForKind"
+        "function setLevelTabs"
+        "function selectLevel"
+    ==
+  =/  tests=tang
+    %-  zing
+    %+  turn  needles
+    |=  needle=tape
+    (expect !>((has needle source)))
+  ;:  weld
+    tests
+    (expect !>((has "\"panes\"" config-source)))
+    (expect !>((has "panes: methods('panes', [" core-source)))
+    ::  the `+` is declared, never hooked
+    (expect !>(?=(~ (find "tabHooks(name).add" source))))
+    ::  and no pane, band, or level name is spelled in the runtime
+    (expect !>(?=(~ (find "explorer-view-tabs" source))))
+    (expect !>(?=(~ (find "editorControls" source))))
   ==
 ::
 ++  test-explorer-contract

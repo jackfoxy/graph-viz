@@ -107,6 +107,9 @@
           explorer: methods('explorer', [
             'show', 'refreshTree', 'addRef', 'openDocs'
           ]),
+          panes: methods('panes', [
+            'get', 'set', 'select', 'panel', 'reveal'
+          ]),
           dialog: Object.freeze({
             help: (...args) => invoke('dialog', 'help', args),
             error: (...args) => invoke('dialog', 'error', args),
@@ -139,7 +142,8 @@
   ::
   ::  The runtime owns the frame urui emits — theme, status lines, the
   ::  two resizers, explorer collapse, the help panel, the Clay error
-  ::  dialog, document tabs, the explorer (permanent views, docs tabs,
+  ::  dialog, the panes (their bands, reveal toggles, and every tab
+  ::  level), document tabs, the explorer (permanent views, docs tabs,
   ::  ref tabs, the Clay file tree and its context menu), and session
   ::  persistence, Clay file operations, and shortcut dispatch.
   ::  It reads its policy from `window.URUI_CONFIG` and reaches the frame
@@ -182,7 +186,7 @@
     explorerPane: role('reference'),
     explorerResizer: document.querySelector('#explorer-resizer'),
     explorerCollapse: document.querySelector('#explorer-collapse'),
-    explorerTabs: document.querySelector('#explorer-tabs'),
+    explorerTabs: explorerStrip(),
     editorPane: role('editor'),
     resultPane: role('result'),
     themeControl: document.querySelector('#theme'),
@@ -228,6 +232,539 @@
       refreshQueued = false;
       for (const item of editors()) item.refresh?.();
     });
+  }
+
+
+  // ---- panes --------------------------------------------------------
+  //
+  // `config.panes` declares three panes as ordered bands.  urui-shell
+  // emitted the band wrappers, the depth-0 tab strips, and the reveal
+  // toggles; this section makes them live.  Nothing here names a pane,
+  // a band, or a level: every name arrives in the declaration.
+  //
+  // A level's tabs come from one of four sources.  %documents is the
+  // document store above and %views the explorer below — each keeps its
+  // own machinery and the level only points at it.  %fixed and %dynamic
+  // are rendered here, the first from `level.fixed`, the second from
+  // whatever `runtime.panes.set` was last given for that parent path.
+  //
+  // Depth 0 renders into the strip urui-shell emitted.  A deeper level
+  // is generated under the pane's panel, one strip per depth, along the
+  // selected path only.  A content panel is cached by its whole path,
+  // so what a consumer filled survives its parent tab being switched
+  // away and back.
+  //
+  // Two urui-owned record slots persist the result: `paneBands`, keyed
+  // by each band's own `reveal.key`, and `panePaths`, the selected tab
+  // at each depth, keyed by pane id.  A consumer reacts through
+  // `options.panes`: onSelect, onAdd, onClose, and onRendered.
+  const paneRoles = ['reference', 'editor', 'result'];
+  const panes = paneRoles
+    .map((role) => (config.panes || {})[role])
+    .filter(Boolean);
+  const paneById = new Map(panes.map((pane) => [pane.id, pane]));
+  const dynamicTabs = new Map();
+  const levelPanels = new Map();
+  const chainHosts = new Map();
+  const attachedContent = new Map();
+  let panePaths = {};
+  let paneBands = {};
+
+  //  `elements` is built above this section, so both of these read
+  //  `config.panes` rather than the index below it: a const in the
+  //  temporal dead zone is not reachable from a hoisted function.
+  function explorerLevel() {
+    //  the role list is spelled out again rather than read from
+    //  `paneRoles`: that const is still in its dead zone up there
+    for (const role of ['reference', 'editor', 'result']) {
+      const pane = (config.panes || {})[role];
+      for (const band of pane?.bands || []) {
+        if (band.item?.kind !== 'tabs') continue;
+        const level = (band.item.levels || []).find((item) => {
+          return item.source === 'views';
+        });
+        if (level) return {paneId: pane.id, level};
+      }
+    }
+    return undefined;
+  }
+
+  function explorerStrip() {
+    const found = explorerLevel();
+    if (!found) return null;
+    return document.querySelector(
+      `#${stripId(found.paneId, found.level.name)}`
+    );
+  }
+
+  function stripId(paneId, levelName) {
+    return `${paneId}-${levelName}-tabs`;
+  }
+
+  function paneBandList(paneId) {
+    return paneById.get(paneId)?.bands || [];
+  }
+
+  function paneBand(paneId, name) {
+    return paneBandList(paneId).find((band) => band.name === name);
+  }
+
+  function paneItem(paneId, kind) {
+    return paneBandList(paneId).find((band) => {
+      return band.item?.kind === kind;
+    })?.item;
+  }
+
+  function paneLevels(paneId) {
+    return paneItem(paneId, 'tabs')?.levels || [];
+  }
+
+  function paneLevel(paneId, depth) {
+    return paneLevels(paneId)[depth];
+  }
+
+  function paneDepthOf(paneId, levelName) {
+    return paneLevels(paneId).findIndex((level) => level.name === levelName);
+  }
+
+  function paneBody(paneId) {
+    const id = paneItem(paneId, 'panel')?.id;
+    return id ? document.querySelector(`#${id}`) : null;
+  }
+
+  //  A read-only pane refuses the `+` control and every close control,
+  //  whatever its levels declare.
+  function paneReadOnly(paneId) {
+    return paneById.get(paneId)?.mode === 'read-only';
+  }
+
+  function stripFor(paneId, levelName) {
+    return document.querySelector(`#${stripId(paneId, levelName)}`);
+  }
+
+  //  A %documents level is bound to one document store by its kind;
+  //  this is how that store finds the strip it renders into.
+  function levelForKind(name) {
+    for (const pane of panes) {
+      const levels = paneLevels(pane.id);
+      const depth = levels.findIndex((level) => {
+        return level.source === 'documents' && level.kind === name;
+      });
+      if (depth >= 0) return {paneId: pane.id, depth, level: levels[depth]};
+    }
+    return undefined;
+  }
+
+  //  ---- reveal
+  //
+  //  `reveal.key` names the field in the `paneBands` record, so a band
+  //  renamed in the markup keeps the state the user already chose.  A
+  //  band with no key is pinned open and urui-shell drew no toggle.
+  function bandIsOpen(paneId, name) {
+    const reveal = paneBand(paneId, name)?.reveal;
+    if (!reveal?.key) return true;
+    const stored = paneBands[reveal.key];
+    return typeof stored === 'boolean' ? stored : reveal.open !== false;
+  }
+
+  function applyBand(paneId, name) {
+    const open = bandIsOpen(paneId, name);
+    const band = document.querySelector(`#${paneId}-${name}`);
+    if (band) band.hidden = !open;
+    const toggle = document.querySelector(`#${paneId}-${name}-toggle`);
+    if (toggle) toggle.setAttribute('aria-expanded', String(open));
+    return open;
+  }
+
+  function applyBands() {
+    for (const pane of panes) {
+      for (const band of pane.bands || []) {
+        if (band.reveal?.key) applyBand(pane.id, band.name);
+      }
+    }
+  }
+
+  function revealBand(paneId, name, open, persist = true) {
+    const reveal = paneBand(paneId, name)?.reveal;
+    if (!reveal?.key) return undefined;
+    paneBands[reveal.key] = open === undefined
+      ? !bandIsOpen(paneId, name)
+      : Boolean(open);
+    const next = applyBand(paneId, name);
+    refreshEditors();
+    if (persist) changed();
+    return next;
+  }
+
+  //  ---- paths
+  //
+  //  One path per pane: the selected tab id at each depth.  A '/' is
+  //  the separator, so a tab id may not contain one.
+  function panePath(paneId) {
+    return panePaths[paneId] || [];
+  }
+
+  function pathKey(paneId, path) {
+    return [paneId, ...path].join('/');
+  }
+
+  function dynamicKey(paneId, levelName, parentPath) {
+    return [paneId, levelName, ...parentPath].join('/');
+  }
+
+  function writePathSegment(paneId, depth, id, truncate = false) {
+    const path = truncate
+      ? panePath(paneId).slice(0, depth)
+      : panePath(paneId).slice();
+    path[depth] = id;
+    panePaths[paneId] = path;
+    return path;
+  }
+
+  function validLevelTab(candidate) {
+    if (!candidate || typeof candidate !== 'object') return undefined;
+    const id = String(candidate.id ?? '');
+    if (!id || id.includes('/') || id.length > 200) return undefined;
+    return {
+      id,
+      label: String(candidate.label ?? id),
+      title: candidate.title === undefined
+        ? undefined
+        : String(candidate.title)
+    };
+  }
+
+  function levelTabs(paneId, depth, parentPath) {
+    const level = paneLevel(paneId, depth);
+    if (!level) return [];
+    if (level.source === 'fixed') {
+      return (level.fixed || []).map((view) => {
+        return {id: view.name, label: view.label};
+      });
+    }
+    if (level.source === 'dynamic') {
+      return dynamicTabs.get(dynamicKey(paneId, level.name, parentPath))
+        || [];
+    }
+    if (level.source === 'documents') {
+      return tabList(level.kind).map((tab) => {
+        return {id: tab.id, label: tab.label, title: tab.path || tab.label};
+      });
+    }
+    return [];
+  }
+
+  function selectedAt(paneId, depth, tabs) {
+    const wanted = panePath(paneId)[depth];
+    if (tabs.some((tab) => tab.id === wanted)) return wanted;
+    return tabs[0]?.id;
+  }
+
+  //  ---- rendering
+  //
+  //  `level.add` is the `+` control's label and `level.close` asks for
+  //  a close control; both are refused outright by a read-only pane.
+  function levelAddLabel(paneId, level) {
+    if (paneReadOnly(paneId)) return undefined;
+    return level?.add || undefined;
+  }
+
+  function levelCloses(paneId, level) {
+    return Boolean(level?.close) && !paneReadOnly(paneId);
+  }
+
+  function levelKeydown(event, paneId, depth) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End']
+      .includes(event.key)) return;
+    event.preventDefault();
+    const parentPath = panePath(paneId).slice(0, depth);
+    const tabs = levelTabs(paneId, depth, parentPath);
+    if (!tabs.length) return;
+    const current = tabs.findIndex((tab) => {
+      return tab.id === event.currentTarget.dataset.paneTab;
+    });
+    let next = current;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else if (event.key === 'ArrowLeft') {
+      next = (current - 1 + tabs.length) % tabs.length;
+    } else {
+      next = (current + 1) % tabs.length;
+    }
+    selectLevel(paneId, depth, tabs[next].id, {focus: true});
+  }
+
+  function focusLevelTab(paneId, depth, id) {
+    const level = paneLevel(paneId, depth);
+    stripFor(paneId, level?.name)
+      ?.querySelector(`[data-pane-tab="${id}"]`)?.focus();
+  }
+
+  function levelTabControl(paneId, depth, level, tab, activeId) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'document-tab-control';
+    wrapper.classList.toggle('active', tab.id === activeId);
+    wrapper.setAttribute('role', 'presentation');
+    const control = document.createElement('button');
+    control.type = 'button';
+    control.className = 'document-tab';
+    control.dataset.paneTab = tab.id;
+    control.dataset.paneDepth = String(depth);
+    control.setAttribute('role', 'tab');
+    control.setAttribute('aria-selected', String(tab.id === activeId));
+    control.tabIndex = tab.id === activeId ? 0 : -1;
+    control.textContent = tab.label;
+    control.title = tab.title || tab.label;
+    control.addEventListener('click', () => {
+      selectLevel(paneId, depth, tab.id);
+    });
+    control.addEventListener('keydown', (event) => {
+      levelKeydown(event, paneId, depth);
+    });
+    wrapper.append(control);
+    if (levelCloses(paneId, level)) {
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'document-tab-close';
+      close.textContent = 'X';
+      close.title = 'Close tab';
+      close.setAttribute('aria-label', `Close ${tab.label}`);
+      close.addEventListener('click', (event) => {
+        event.stopPropagation?.();
+        closeLevelTab(paneId, depth, tab.id);
+      });
+      wrapper.append(close);
+    }
+    return wrapper;
+  }
+
+  function levelAddControl(paneId, depth, level, label) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'document-tab-control document-tab-add-control';
+    wrapper.setAttribute('role', 'presentation');
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'document-tab-add';
+    add.setAttribute('aria-label', label);
+    add.title = label;
+    add.textContent = '+';
+    add.addEventListener('click', () => {
+      options.panes?.onAdd?.(paneId, level.name, panePath(paneId).slice(
+        0, depth
+      ));
+    });
+    wrapper.append(add);
+    return wrapper;
+  }
+
+  function newLevelStrip(paneId, level, depth) {
+    const strip = document.createElement('div');
+    strip.className = 'tab-strip';
+    strip.id = stripId(paneId, level.name);
+    strip.dataset.depth = String(depth);
+    strip.dataset.source = level.source;
+    strip.setAttribute('role', 'tablist');
+    strip.setAttribute('aria-label', level.label);
+    return strip;
+  }
+
+  //  The content panel for one whole path, created once and kept: a
+  //  consumer may have filled it for a tab that is not selected now.
+  function levelContent(paneId, path) {
+    const key = pathKey(paneId, path);
+    let panel = levelPanels.get(key);
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'pane-level-content';
+      panel.dataset.panePath = path.join('/');
+      levelPanels.set(key, panel);
+    }
+    return panel;
+  }
+
+  //  The generated chain under the pane body: one strip per level below
+  //  depth 0, nested, the deepest of them holding the content panel.
+  //  Built once and kept — a strip is an element a consumer may be
+  //  holding — and filled by ++renderLevelStrip on every render.
+  function levelChain(paneId) {
+    const existing = chainHosts.get(paneId);
+    if (existing) return existing;
+    const body = paneBody(paneId);
+    const levels = paneLevels(paneId);
+    if (!body || levels.length < 2) return undefined;
+    let host = document.createElement('div');
+    host.className = 'pane-levels';
+    body.append(host);
+    for (let depth = 1; depth < levels.length; depth += 1) {
+      host.append(newLevelStrip(paneId, levels[depth], depth));
+      if (depth + 1 >= levels.length) break;
+      const next = document.createElement('div');
+      next.className = 'pane-level';
+      next.dataset.depth = String(depth + 1);
+      host.append(next);
+      host = next;
+    }
+    chainHosts.set(paneId, host);
+    return host;
+  }
+
+  //  Swap the attached content panel for the one this path names; the
+  //  one it replaces keeps whatever the consumer put in it.
+  function attachContent(paneId, host) {
+    const next = levelContent(paneId, panePath(paneId));
+    if (attachedContent.get(paneId) === next) return next;
+    attachedContent.get(paneId)?.remove();
+    host.append(next);
+    attachedContent.set(paneId, next);
+    return next;
+  }
+
+  function renderLevelStrip(paneId, depth) {
+    const level = paneLevel(paneId, depth);
+    const strip = stripFor(paneId, level?.name);
+    if (!strip) return undefined;
+    const parentPath = panePath(paneId).slice(0, depth);
+    const tabs = levelTabs(paneId, depth, parentPath);
+    const active = selectedAt(paneId, depth, tabs);
+    //  an empty level ends the path rather than putting a hole in it
+    if (active === undefined) panePaths[paneId] = parentPath;
+    else writePathSegment(paneId, depth, active);
+    strip.replaceChildren();
+    for (const tab of tabs) {
+      strip.append(levelTabControl(paneId, depth, level, tab, active));
+    }
+    const label = levelAddLabel(paneId, level);
+    if (label) strip.append(levelAddControl(paneId, depth, level, label));
+    options.panes?.onRendered?.(paneId, level.name, depth);
+    return active;
+  }
+
+  //  Render one pane end to end: its depth-0 strip through whichever
+  //  machinery owns it, then every generated level below.
+  function renderPane(paneId) {
+    const levels = paneLevels(paneId);
+    if (!levels.length) return;
+    const first = levels[0];
+    //  ++renderTabs ends in ++syncLevelsBelow, which renders the rest
+    if (first.source === 'documents') {
+      renderTabs(first.kind);
+      return;
+    }
+    if (first.source !== 'views') renderLevelStrip(paneId, 0);
+    renderDeepLevels(paneId);
+  }
+
+  function renderDeepLevels(paneId) {
+    const levels = paneLevels(paneId);
+    if (levels.length < 2) return;
+    const deepest = levelChain(paneId);
+    for (let depth = 1; depth < levels.length; depth += 1) {
+      renderLevelStrip(paneId, depth);
+    }
+    if (deepest) attachContent(paneId, deepest);
+    refreshEditors();
+  }
+
+  //  A document store owns its own depth-0 strip; this is how the
+  //  levels under it follow the tab that store just selected.
+  function syncLevelsBelow(name) {
+    const found = levelForKind(name);
+    if (!found) return;
+    writePathSegment(found.paneId, found.depth, activeTabId(name));
+    renderDeepLevels(found.paneId);
+  }
+
+  function renderPanes() {
+    for (const pane of panes) renderPane(pane.id);
+  }
+
+  //  ---- selection
+  //
+  //  A %documents or %views level keeps its own selection; every other
+  //  level is selected here, and selecting one drops the path below it.
+  function selectLevel(paneId, depth, id, choices = {}) {
+    const level = paneLevel(paneId, depth);
+    if (!level) return undefined;
+    if (level.source === 'documents') {
+      return selectTab(level.kind, id, choices);
+    }
+    if (level.source === 'views') return setExplorerView(id, choices.focus);
+    writePathSegment(paneId, depth, id, true);
+    renderPane(paneId);
+    options.panes?.onSelect?.(paneId, level.name, id, panePath(paneId));
+    changed();
+    if (choices.focus) focusLevelTab(paneId, depth, id);
+    return id;
+  }
+
+  function selectPanePath(paneId, path) {
+    if (!Array.isArray(path)) return undefined;
+    panePaths[paneId] = path.map((id) => String(id));
+    renderPane(paneId);
+    changed();
+    return panePath(paneId);
+  }
+
+  function closeLevelTab(paneId, depth, id) {
+    const level = paneLevel(paneId, depth);
+    if (!levelCloses(paneId, level)) return undefined;
+    if (level.source === 'dynamic') {
+      const parentPath = panePath(paneId).slice(0, depth);
+      const key = dynamicKey(paneId, level.name, parentPath);
+      const tabs = (dynamicTabs.get(key) || []).filter((tab) => {
+        return tab.id !== id;
+      });
+      dynamicTabs.set(key, tabs);
+      levelPanels.delete(pathKey(paneId, [...parentPath, id]));
+      if (panePath(paneId)[depth] === id) {
+        writePathSegment(paneId, depth, tabs[0]?.id, true);
+      }
+    }
+    renderPane(paneId);
+    options.panes?.onClose?.(paneId, level.name, id);
+    changed();
+    return id;
+  }
+
+  //  Replace one level's tabs wholesale, under one parent path.
+  function setLevelTabs(paneId, levelName, tabs, parentPath) {
+    const depth = paneDepthOf(paneId, levelName);
+    if (depth < 0) return undefined;
+    const parent = parentPath || panePath(paneId).slice(0, depth);
+    const valid = (Array.isArray(tabs) ? tabs : [])
+      .map(validLevelTab)
+      .filter(Boolean);
+    dynamicTabs.set(dynamicKey(paneId, levelName, parent), valid);
+    renderPane(paneId);
+    return valid;
+  }
+
+  //  ---- the session record
+  function validBandRecord(raw) {
+    if (!raw || typeof raw !== 'object') return {};
+    const record = {};
+    for (const pane of panes) {
+      for (const band of pane.bands || []) {
+        const key = band.reveal?.key;
+        if (key && typeof raw[key] === 'boolean') record[key] = raw[key];
+      }
+    }
+    return record;
+  }
+
+  function validPathRecord(raw) {
+    if (!raw || typeof raw !== 'object') return {};
+    const record = {};
+    for (const pane of panes) {
+      const path = raw[pane.id];
+      if (!Array.isArray(path)) continue;
+      const depth = paneLevels(pane.id).length;
+      record[pane.id] = path.slice(0, depth).filter((id) => {
+        return typeof id === 'string' && id && !id.includes('/')
+          && id.length <= 200;
+      });
+    }
+    return record;
   }
 
   // ---- theme --------------------------------------------------------
@@ -410,7 +947,10 @@
   //   afterActivate(…)           react after render and persistence
   //   onClose(tab)               react to a tab leaving the store
   //   empty()                    react to the store just emptying
-  //   add                        label for the `+` control, absent for none
+  //
+  //  The `+` control is not a hook: its label is the `add` field of the
+  //  %documents level the kind is bound to, and a read-only pane has
+  //  none whatever the level says.
   const kinds = config.kinds || [];
   const kindByName = new Map(kinds.map((kind) => [kind.name, kind]));
   const stores = new Map(kinds.map((kind) => [kind.name, {
@@ -483,8 +1023,11 @@
     return tab;
   }
 
+  //  the strip a kind renders into is the one its %documents level
+  //  declared, `{pane}-{level}-tabs`
   function tabContainer(name) {
-    return document.querySelector(`#${name}-document-tabs`);
+    const found = levelForKind(name);
+    return found ? stripFor(found.paneId, found.level.name) : null;
   }
 
   function focusTab(name, id) {
@@ -566,6 +1109,8 @@
   function renderTabs(name) {
     const container = tabContainer(name);
     if (!container) return;
+    const bound = levelForKind(name);
+    const closes = levelCloses(bound?.paneId, bound?.level);
     const activeId = activeTabId(name);
     container.replaceChildren();
     for (const tab of tabList(name)) {
@@ -583,22 +1128,25 @@
       control.title = tab.path || tab.label;
       control.addEventListener('click', () => selectTab(name, tab.id));
       control.addEventListener('keydown', (event) => tabKeydown(event, name));
-      const close = document.createElement('button');
-      close.type = 'button';
-      close.className = 'document-tab-close';
-      const dirty = tabDirty(name, tab);
-      close.textContent = dirty ? 'O' : 'X';
-      close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
-      close.setAttribute('aria-label', `Close ${tab.label}`);
-      close.addEventListener('click', (event) => {
-        event.stopPropagation?.();
-        closeTab(name, tab.id);
-      });
-      wrapper.append(control, close);
+      wrapper.append(control);
+      if (closes) {
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'document-tab-close';
+        const dirty = tabDirty(name, tab);
+        close.textContent = dirty ? 'O' : 'X';
+        close.title = dirty ? 'Unsaved changes; close tab' : 'Close tab';
+        close.setAttribute('aria-label', `Close ${tab.label}`);
+        close.addEventListener('click', (event) => {
+          event.stopPropagation?.();
+          closeTab(name, tab.id);
+        });
+        wrapper.append(close);
+      }
       enableTabDrag(wrapper, name, tab.id);
       container.append(wrapper);
     }
-    const addLabel = tabHooks(name).add;
+    const addLabel = bound && levelAddLabel(bound.paneId, bound.level);
     if (addLabel) {
       const wrapper = document.createElement('div');
       wrapper.className = 'document-tab-control document-tab-add-control';
@@ -615,6 +1163,7 @@
     }
     updateRefActions();
     options.onTabsRendered?.(name);
+    syncLevelsBelow(name);
   }
 
   function addEmptyTab(name) {
@@ -707,6 +1256,15 @@
 
   function treeForKind(name) {
     return document.querySelector(`#${viewForKind(name)}-tree`);
+  }
+
+  //  the seeded panels live inside the tabs band urui-shell emitted, so
+  //  a created panel joins them there rather than beside the band
+  function explorerPanelHost() {
+    const seeded = firstView
+      ? document.querySelector(`#${firstView}-panel`)
+      : null;
+    return seeded?.parentElement || elements.explorerPane;
   }
 
   function docsTabById(id) {
@@ -900,7 +1458,7 @@
       frame.addEventListener('error', disableDocsExplorer);
       panel.append(frame);
     }
-    elements.explorerPane.append(panel);
+    explorerPanelHost().append(panel);
     if (docs) syncExplorerTabOrder();
     else updateRefContent(tab);
   }
@@ -914,7 +1472,7 @@
     for (const node of elements.explorerTabs.querySelectorAll(flag)) {
       node.remove();
     }
-    for (const node of elements.explorerPane.querySelectorAll(panels)) {
+    for (const node of explorerPanelHost().querySelectorAll(panels)) {
       node.remove();
     }
     for (const tab of docs ? docsTabs : refTabs) {
@@ -1525,6 +2083,8 @@
       case 'nextDocs': return nextDocs;
       case 'refTabs': return refTabs;
       case 'nextRef': return nextRef;
+      case 'paneBands': return paneBands;
+      case 'panePaths': return panePaths;
       case 'preferences.theme': return selectedTheme();
       default: return undefined;
     }
@@ -1695,6 +2255,12 @@
           record[slot.key] = order;
           break;
         }
+        case 'paneBands':
+          record[slot.key] = validBandRecord(raw);
+          break;
+        case 'panePaths':
+          record[slot.key] = validPathRecord(raw);
+          break;
         case 'preferences.theme':
           record[slot.key] = validTheme(raw);
           break;
@@ -1740,6 +2306,8 @@
         case 'nextDocs': nextDocs = value; break;
         case 'refTabs': refTabs.splice(0, refTabs.length, ...value); break;
         case 'nextRef': nextRef = value; break;
+        case 'paneBands': paneBands = value; applyBands(); break;
+        case 'panePaths': panePaths = value; break;
         case 'preferences.theme': applyTheme(value, false); break;
         default: break;
       }
@@ -1875,6 +2443,18 @@
       event.preventDefault();
       setPaneWidth(paneWidth() + (event.key === 'ArrowLeft' ? -2 : 2));
     });
+    //  a band the user may hide carries the toggle urui-shell drew for
+    //  it beside it, at `{pane}-{band}-toggle`
+    for (const pane of panes) {
+      for (const band of pane.bands || []) {
+        if (!band.reveal?.key) continue;
+        document.querySelector(`#${pane.id}-${band.name}-toggle`)
+          ?.addEventListener('click', () => {
+            revealBand(pane.id, band.name);
+          });
+      }
+    }
+    applyBands();
     for (const name of permanentViews) {
       const tab = document.querySelector(`#${name}-tab`);
       if (!tab) continue;
@@ -1955,6 +2535,30 @@
       enableDrag: enableTabDrag,
       dragged: () => draggedTab,
       clearDragged: () => { draggedTab = undefined; }
+    },
+    panes: {
+      list: () => panes,
+      get: (paneId) => paneById.get(paneId),
+      levels: paneLevels,
+      strip: stripFor,
+      body: paneBody,
+      readOnly: paneReadOnly,
+      tabs: levelTabs,
+      addLabel: levelAddLabel,
+      closes: levelCloses,
+      set: setLevelTabs,
+      path: panePath,
+      select: selectPanePath,
+      selectLevel,
+      close: closeLevelTab,
+      panel: (paneId, path) => {
+        return levelContent(paneId, path || panePath(paneId));
+      },
+      render: renderPane,
+      renderAll: renderPanes,
+      reveal: revealBand,
+      isOpen: bandIsOpen,
+      applyBands
     },
     theme: {
       valid: validTheme,
