@@ -163,8 +163,6 @@ test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {
       offsets: window.__GVIZ_EDITOR_TEST__.getSelection(),
       start: {row: range.start.row, column: range.start.column},
       end: {row: range.end.row, column: range.end.column},
-      firstVisible: aceEditor.renderer.getFirstVisibleRow(),
-      lastVisible: aceEditor.renderer.getLastVisibleRow(),
       focused: document.activeElement.classList.contains('ace_text-input'),
       revision: aceEditor.session.getUndoManager().getRevision()
     };
@@ -180,8 +178,11 @@ test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {
     focused: true,
     revision: undoRevision
   });
-  expect(nodeSelection.firstVisible).toBeLessThanOrEqual(46);
-  expect(nodeSelection.lastVisible).toBeGreaterThanOrEqual(46);
+  await expect.poll(() => page.evaluate(() => {
+    const renderer = window.ace.edit(document.querySelector('#dot')).renderer;
+    return renderer.getFirstVisibleRow() <= 46
+      && renderer.getLastVisibleRow() >= 46;
+  })).toBe(true);
 
   await page.locator('#preview .edge')
     .filter({hasText: 'Alpha->Beta'}).click();

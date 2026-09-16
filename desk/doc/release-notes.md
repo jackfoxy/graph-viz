@@ -1,5 +1,7 @@
 # v1.0.2
 
+urui source revision: baaa7db676e30ee13b25fc678f8774c52bbed92b
+
   - use Ace editor
   - tabbed editor and render area
   - drag tabs to reposition
