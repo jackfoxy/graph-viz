@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 function visualSvg(source) {
   const nodes = ['Alpha', 'Beta', 'Gamma'];
@@ -97,25 +98,42 @@ test.beforeEach(async ({context, page}) => {
       return setItem.call(this, key, value);
     };
   });
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({file: false, children: []})
-    });
-  });
+  await installBackend(page, {browse: true});
+});
+
+test('attribute band reveal state survives reload', async ({page}) => {
+  await page.goto('/apps/graph-viz/');
+  const nodeBand = page.locator('#preview-pane-node-attributes');
+  const edgeBand = page.locator('#preview-pane-edge-attributes');
+  const nodeToggle = page.locator('#preview-pane-node-attributes-toggle');
+  const edgeToggle = page.locator('#preview-pane-edge-attributes-toggle');
+
+  await expect(nodeBand).toBeHidden();
+  await expect(edgeBand).toBeHidden();
+  await nodeToggle.click();
+  await edgeToggle.click();
+  await nodeToggle.click();
+  await expect(nodeBand).toBeHidden();
+  await expect(edgeBand).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('graph-viz.session.v1'));
+    return saved?.paneBands;
+  })).toEqual({nodeAttrs: false, edgeAttrs: true});
+
+  await page.reload();
+  await expect(nodeBand).toBeHidden();
+  await expect(edgeBand).toBeVisible();
+  await expect(nodeToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(edgeToggle).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {
   const renderBodies = [];
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    renderBodies.push(source);
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: visualSvg(source)
-    });
+  await installBackend(page, {
+    render: (source) => {
+      renderBodies.push(source);
+      return visualSvg(source);
+    }
   });
   await page.goto('/apps/graph-viz/');
   const filler = Array.from({length: 45}, (_, index) => {
@@ -145,8 +163,6 @@ test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {
       offsets: window.__GVIZ_EDITOR_TEST__.getSelection(),
       start: {row: range.start.row, column: range.start.column},
       end: {row: range.end.row, column: range.end.column},
-      firstVisible: aceEditor.renderer.getFirstVisibleRow(),
-      lastVisible: aceEditor.renderer.getLastVisibleRow(),
       focused: document.activeElement.classList.contains('ace_text-input'),
       revision: aceEditor.session.getUndoManager().getRevision()
     };
@@ -162,8 +178,11 @@ test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {
     focused: true,
     revision: undoRevision
   });
-  expect(nodeSelection.firstVisible).toBeLessThanOrEqual(46);
-  expect(nodeSelection.lastVisible).toBeGreaterThanOrEqual(46);
+  await expect.poll(() => page.evaluate(() => {
+    const renderer = window.ace.edit(document.querySelector('#dot')).renderer;
+    return renderer.getFirstVisibleRow() <= 46
+      && renderer.getLastVisibleRow() >= 46;
+  })).toBe(true);
 
   await page.locator('#preview .edge')
     .filter({hasText: 'Alpha->Beta'}).click();
@@ -195,14 +214,11 @@ test('visual actions are single edits with exact render and persistence', async 
   page
 }) => {
   const renderBodies = [];
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    renderBodies.push(source);
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: visualSvg(source)
-    });
+  await installBackend(page, {
+    render: (source) => {
+      renderBodies.push(source);
+      return visualSvg(source);
+    }
   });
   await page.goto('/apps/graph-viz/');
   await page.evaluate(() => {
@@ -274,14 +290,11 @@ test('visual actions are single edits with exact render and persistence', async 
 
 test('keyboard and visual edits keep independent undo order', async ({page}) => {
   const renderBodies = [];
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    renderBodies.push(source);
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: visualSvg(source)
-    });
+  await installBackend(page, {
+    render: (source) => {
+      renderBodies.push(source);
+      return visualSvg(source);
+    }
   });
   await page.goto('/apps/graph-viz/');
   const base = 'digraph mixed {\n  Alpha\n}\n// key: ';
