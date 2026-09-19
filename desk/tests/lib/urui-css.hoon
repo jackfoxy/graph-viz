@@ -119,6 +119,7 @@
         '--tab-strip-height: 2.55rem'
         '--tab-strip-height: 2.3rem'
         '--tab-strip-height: 2.05rem'
+        'border-top: 1px solid var(--border)'
         '.document-tab-add {'
     ==
   %-  zing

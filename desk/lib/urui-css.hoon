@@ -586,6 +586,7 @@
   .tab-strip {
     align-items: flex-start;
     border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
     display: flex;
     flex: 0 0 var(--tab-strip-height, 2.55rem);
     height: var(--tab-strip-height, 2.55rem);

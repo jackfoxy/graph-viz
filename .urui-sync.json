@@ -2,7 +2,7 @@
   "desk/lib/urui-ace.hoon": "cccc2a156342eb4beeb276169230baa80f9c681db917e16f2d97840682166ce0",
   "desk/lib/urui-clay.hoon": "2d092132e08ad9ec7d270d015cf4fdb4e2fd85e971197f91e651bc961c773ef0",
   "desk/lib/urui-config.hoon": "ee6912d73e492f69d562d9f2f6b713903731ee87db9d22524556c47ecbeac0ee",
-  "desk/lib/urui-css.hoon": "ff7b885b552cf765443b90746e092226bef75a78c6e5aa544c7fcb0df3253205",
+  "desk/lib/urui-css.hoon": "c8b7ebe1c90ea59861aa4d17f734145b0a061923e5f738a54b60984500f0632c",
   "desk/lib/urui-http.hoon": "204621cc2bf392564ed31f8a45aaab8d1811cdff5b439402cd5e14d86e470131",
   "desk/lib/urui-js.hoon": "b9c54f85979c8d2582562d403e8af43193353ce00460ac8a97d2c6be17997383",
   "desk/lib/urui-shell.hoon": "c1fadf18b093a096af44f64cd7a3742a0faf5e9867978fb9b88a1c78c12d12e4",

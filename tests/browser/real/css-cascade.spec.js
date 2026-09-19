@@ -20,6 +20,14 @@ for (const width of [1440, 390]) {
     await expect(collapse).toHaveCSS('flex-basis', '48px');
     await collapse.click();
 
+    for (const strip of [
+      '#editor-pane-document-tabs',
+      '#preview-pane-document-tabs'
+    ]) {
+      await expect(page.locator(strip)).toHaveCSS('border-top-width', '1px');
+      await expect(page.locator(strip)).toHaveCSS('border-top-style', 'solid');
+    }
+
     if (width < 760) {
       await expect(page.locator('#explorer-resizer')).toHaveCSS(
         'display', 'none'
