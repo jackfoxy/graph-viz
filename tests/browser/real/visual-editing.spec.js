@@ -101,30 +101,135 @@ test.beforeEach(async ({context, page}) => {
   await installBackend(page, {browse: true});
 });
 
-test('attribute band reveal state survives reload', async ({page}) => {
+test('clicking a node or edge reveals its attributes', async ({page}) => {
+  const renderBodies = [];
+  await installBackend(page, {
+    render: (source) => {
+      renderBodies.push(source);
+      return visualSvg(source);
+    }
+  });
   await page.goto('/apps/graph-viz/');
-  const nodeBand = page.locator('#preview-pane-node-attributes');
-  const edgeBand = page.locator('#preview-pane-edge-attributes');
-  const nodeToggle = page.locator('#preview-pane-node-attributes-toggle');
-  const edgeToggle = page.locator('#preview-pane-edge-attributes-toggle');
+  const inspector = page.locator('#inspector');
+  const form = page.locator('#attribute-form');
+  const nodeControls = page.locator('#node-controls');
+  const edgeControls = page.locator('#edge-controls');
 
-  await expect(nodeBand).toBeHidden();
-  await expect(edgeBand).toBeHidden();
-  await nodeToggle.click();
-  await edgeToggle.click();
-  await nodeToggle.click();
-  await expect(nodeBand).toBeHidden();
-  await expect(edgeBand).toBeVisible();
+  // No expand control exists for either group.
+  await expect(page.locator('#preview-pane-node-attributes')).toHaveCount(0);
+  await expect(page.locator('#preview-pane-edge-attributes')).toHaveCount(0);
+  await expect(inspector).toBeHidden();
+
+  await prepareSource(
+    page,
+    renderBodies,
+    'digraph pick { Alpha -> Beta }'
+  );
+  await expect(nodeControls).toBeHidden();
+  await expect(edgeControls).toBeHidden();
+
+  // A node click opens the node group and every shared control.
+  await page.locator('#preview .node').filter({hasText: 'Alpha'}).click();
+  await expect(inspector).toBeVisible();
+  await expect(form).toBeVisible();
+  await expect(nodeControls).toBeVisible();
+  await expect(edgeControls).toBeHidden();
+  for (const id of ['#attr-label', '#attr-color', '#attr-style',
+    '#attr-shape', '#attr-fillcolor']) {
+    await expect(page.locator(id)).toBeVisible();
+  }
+
+  // An edge click swaps to the edge group -- all of it, one display.
+  await page.locator('#preview .edge')
+    .filter({hasText: 'Alpha->Beta'}).click();
+  await expect(nodeControls).toBeHidden();
+  await expect(edgeControls).toBeVisible();
+  for (const id of ['#attr-label', '#attr-color', '#attr-style',
+    '#attr-penwidth', '#attr-arrowhead', '#attr-arrowtail',
+    '#attr-arrowsize', '#attr-dir', '#attr-minlen', '#attr-weight',
+    '#attr-fontname', '#attr-fontsize', '#attr-fontcolor']) {
+    await expect(page.locator(id)).toBeVisible();
+  }
+
+  // Clicking inside the attributes keeps them open.
+  await page.locator('#attr-label').click();
+  await expect(edgeControls).toBeVisible();
+
+  // Two selected nodes are the edge between them.  With none there yet,
+  // the edge group opens blank for the edge Apply would create.
+  await page.locator('#preview .node').filter({hasText: 'Beta'}).click();
+  await page.locator('#preview .node')
+    .filter({hasText: 'Gamma'}).click({modifiers: ['Shift']});
+  await expect(page.locator('#selection-kind')).toHaveText('New edge');
+  await expect(page.locator('#selection-id')).toHaveText('Beta->Gamma');
+  await expect(form).toBeVisible();
+  await expect(nodeControls).toBeHidden();
+  await expect(edgeControls).toBeVisible();
+  await expect(page.locator('#attr-penwidth')).toHaveValue('');
+
+  // An edge that already joins them wins, whichever way it points and
+  // whichever node was clicked first: Alpha -> Beta is in the source,
+  // and Beta then Alpha still finds it.
+  await page.locator('#preview .node').filter({hasText: 'Beta'}).click();
+  await page.locator('#preview .node')
+    .filter({hasText: 'Alpha'}).click({modifiers: ['Shift']});
+  await expect(page.locator('#selection-kind')).toHaveText('Edge');
+  await expect(page.locator('#selection-id')).toHaveText('Alpha->Beta');
+  await expect(form).toBeVisible();
+  await expect(nodeControls).toBeHidden();
+  await expect(edgeControls).toBeVisible();
+
+  // Dropping back to one node restores that node's group alone.
+  await page.locator('#preview .node').filter({hasText: 'Gamma'}).click();
+  await expect(form).toBeVisible();
+  await expect(nodeControls).toBeVisible();
+  await expect(edgeControls).toBeHidden();
+
+  // Clicking outside closes them.
+  await page.locator('#dot').click();
+  await expect(inspector).toBeHidden();
+  await expect(nodeControls).toBeHidden();
+  await expect(edgeControls).toBeHidden();
+});
+
+test('Apply on two selected nodes creates that edge', async ({page}) => {
+  const renderBodies = [];
+  await installBackend(page, {
+    render: (source) => {
+      renderBodies.push(source);
+      return visualSvg(source);
+    }
+  });
+  await page.goto('/apps/graph-viz/');
+  await page.evaluate(() => {
+    window.__GVIZ_EDITOR_TEST__.onChange(() => {
+      window.__GVIZ_VISUAL_CHANGE_COUNT__ += 1;
+    });
+  });
+  await prepareSource(page, renderBodies, 'digraph make {\n  Alpha\n  Beta\n}');
+
+  await page.locator('#preview .node').filter({hasText: 'Alpha'}).click();
+  await page.locator('#preview .node')
+    .filter({hasText: 'Beta'}).click({modifiers: ['Shift']});
+  await expect(page.locator('#selection-kind')).toHaveText('New edge');
+  await page.locator('#attr-label').fill('link');
+  await page.locator('#attr-penwidth').fill('2');
+  await page.locator('#apply-attributes').click();
+
   await expect.poll(() => page.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem('graph-viz.session.v1'));
-    return saved?.paneBands;
-  })).toEqual({nodeAttrs: false, edgeAttrs: true});
+    return window.__GVIZ_EDITOR_TEST__.getSource();
+  })).toContain('Alpha -> Beta');
+  const source = await page.evaluate(() => {
+    return window.__GVIZ_EDITOR_TEST__.getSource();
+  });
+  expect(source).toContain('label="link"');
+  expect(source).toContain('penwidth=2');
 
-  await page.reload();
-  await expect(nodeBand).toBeHidden();
-  await expect(edgeBand).toBeVisible();
-  await expect(nodeToggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(edgeToggle).toHaveAttribute('aria-expanded', 'true');
+  // One undoable edit, one render -- not a draw followed by an edit.
+  await expect.poll(() => page.evaluate(() => {
+    return window.__GVIZ_VISUAL_CHANGE_COUNT__;
+  })).toBe(1);
+  await expect.poll(() => renderBodies.length).toBe(1);
 });
 
 test('SVG node and edge selections reveal exact Ace ranges', async ({page}) => {

@@ -30,8 +30,6 @@
         "source-auto-render"
         "id=\"template\""
         "id=\"inspector\""
-        "id=\"preview-pane-node-attributes-toggle\""
-        "id=\"preview-pane-edge-attributes-toggle\""
         "LLM skill files"
         "gviz-dot-syntax"
         "gviz-gall-api"
@@ -234,9 +232,9 @@
     (expect !>(?=(^ (find "id=\"add-node\"" html))))
     (expect !>(?=(^ (find "id=\"draw-edge\"" html))))
     (expect !>(?=(^ (find "id=\"attribute-form\"" html))))
-    (expect !>(?=(^ (find "id=\"preview-pane-node-attributes\"" html))))
-    (expect !>(?=(^ (find "id=\"preview-pane-edge-attributes\"" html))))
+    (expect !>(?=(^ (find "id=\"node-controls\"" html))))
     (expect !>(?=(^ (find "id=\"edge-controls\"" html))))
+    (expect !>(?=(^ (find "revealAttributeGroup" js))))
     (expect !>(?=(^ (find "id=\"attr-arrowhead\"" html))))
     (expect !>(?=(^ (find "id=\"attr-arrowtail\"" html))))
     (expect !>(?=(^ (find "id=\"attr-arrowsize\"" html))))
@@ -249,9 +247,20 @@
     (expect !>(?=(^ (find "id=\"attr-fontcolor\"" html))))
     (expect !>(?=(^ (find "id=\"attr-change-all\"" html))))
     (expect !>(?=(^ (find "id=\"attr-use-default\"" html))))
-    (expect !>(?=(~ (find "shapeControl.hidden" js))))
-    (expect !>(?=(~ (find "fillControl.hidden" js))))
-    (expect !>(?=(~ (find "edgeControls.hidden" js))))
+    ::  The attribute groups are revealed by selecting a node or an
+    ::  edge and by nothing else: no reveal band, so no toggle and no
+    ::  `paneBands` key, and the two groups are never shown together.
+    (expect !>(?=(~ (find "nodeAttrs" js))))
+    (expect !>(?=(~ (find "edgeAttrs" js))))
+    (expect !>(?=(~ (find "attributes-toggle" html))))
+    (expect !>(?=(^ (find "nodeControls.hidden = kind !== 'node'" js))))
+    (expect !>(?=(^ (find "edgeControls.hidden = kind !== 'edge'" js))))
+    ::  Two selected nodes are the edge between them: the one already
+    ::  joining them either way, or the one Apply creates.
+    (expect !>(?=(^ (find "edgeForSelectedNodes" js))))
+    (expect !>(?=(^ (find "attributeTarget" js))))
+    (expect !>(?=(^ (find "closeAttributes" js))))
+    (expect !>(?=(^ (find "'New edge'" js))))
     (expect !>(?=(^ (find "id=\"delete-selection\"" html))))
     (expect !>(?=(^ (find "addVisualNode" js))))
     (expect !>(?=(^ (find "nodeShapeCategories" js))))

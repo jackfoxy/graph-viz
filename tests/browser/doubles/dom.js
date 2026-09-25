@@ -45,7 +45,7 @@ const selectors = [
   '#inspector',
   '#selection-kind', '#selection-id', '#clear-selection',
   '#delete-selection', '#attribute-form', '#shape-control', '#fill-control',
-  '#edge-controls',
+  '#node-controls', '#edge-controls',
   '#attr-label', '#attr-shape', '#attr-color', '#attr-fillcolor',
   '#attr-style', '#attr-penwidth', '#attr-arrowhead', '#attr-arrowtail',
   '#attr-arrowsize', '#attr-dir', '#attr-minlen', '#attr-weight',
@@ -352,7 +352,12 @@ function createDom() {
     }),
     createElement: (name) => new Element(name),
     addEventListener: (name, callback) => {
-      documentListeners[name] = callback;
+      // Chain, do not replace: urui's own document listeners and a
+      // consumer's coexist in a real browser, so they must here too.
+      const existing = documentListeners[name];
+      documentListeners[name] = existing
+        ? (event) => { existing(event); callback(event); }
+        : callback;
     },
     exitFullscreen: async () => {
       document.fullscreenElement = null;

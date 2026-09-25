@@ -220,7 +220,13 @@ module.exports = async (env) => {
   });
   assert(svg.groups[0].classList.contains('is-selected'));
   assert(svg.groups[1].classList.contains('is-selected'));
-  assert.equal(elements['#selection-id'].textContent, 'Alpha -> Beta');
+  // Two nodes name the edge between them; Alpha -> Beta is in the source,
+  // so its own attributes open.
+  assert.equal(elements['#selection-kind'].textContent, 'Edge');
+  assert.equal(elements['#selection-id'].textContent, 'Alpha->Beta');
+  assert.equal(elements['#attribute-form'].hidden, false);
+  assert.equal(elements['#node-controls'].hidden, true);
+  assert.equal(elements['#edge-controls'].hidden, false);
 
   elements['#preview'].listeners.click({
     target: svg.groups[2], shiftKey: true
@@ -228,6 +234,11 @@ module.exports = async (env) => {
   assert(svg.groups[0].classList.contains('is-selected'));
   assert(!svg.groups[1].classList.contains('is-selected'));
   assert(svg.groups[2].classList.contains('is-selected'));
-  assert.equal(elements['#selection-id'].textContent, 'Alpha -> Gamma');
+  // Alpha -> Gamma is not in the source: the same group opens blank for
+  // the edge Apply would create.
+  assert.equal(elements['#selection-kind'].textContent, 'New edge');
+  assert.equal(elements['#selection-id'].textContent, 'Alpha->Gamma');
+  assert.equal(elements['#edge-controls'].hidden, false);
+  assert.equal(elements['#attr-penwidth'].value, '');
   assert.equal(elements['#draw-edge'].disabled, false);
 };

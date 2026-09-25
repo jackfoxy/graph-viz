@@ -136,20 +136,6 @@
   ^-  band:urui
   [name [key=~ open=& label=''] item]
 ::
-++  node-attribute-band
-  ^-  band:urui
-  :*  name=%node-attributes
-      [key=`'nodeAttrs' open=| label='Node attributes']
-      [%controls node-attributes]
-  ==
-::
-++  edge-attribute-band
-  ^-  band:urui
-  :*  name=%edge-attributes
-      [key=`'edgeAttrs' open=| label='Edge attributes']
-      [%controls edge-attributes]
-  ==
-::
 ++  reference-pane
   ::  The explorer, read-only.  Its %views level seeds the strip with the
   ::  two file trees and the runtime appends documentation and reference
@@ -216,8 +202,6 @@
       :~  (pinned %head [%heading `'Preview' `'render-status' ~])
           (pinned %controls [%controls result-controls])
           (pinned %tabs [%tabs ~[result-level]])
-          node-attribute-band
-          edge-attribute-band
           (pinned %body [%panel 'preview-body' ~ result-body])
       ==
   ==
@@ -414,6 +398,8 @@
               ;option(value "invis"): Invisible
             ==
           ==
+          ;*  node-attributes
+          ;*  edge-attributes
           ;div.attribute-actions
             ;label.preference
               ;input#attr-change-all(type "checkbox");
@@ -483,27 +469,31 @@
   ==
 ::
 ++  node-attributes
+  ::  Revealed by selecting a node, never by a band toggle.
   ^-  marl
-  :~  ;label#shape-control.control
-        ;span: Shape
-        ;select#attr-shape
-          ;option(value ""): Default
-          ;option(value "box"): Box
-          ;option(value "ellipse"): Ellipse
-          ;option(value "circle"): Circle
-          ;option(value "diamond"): Diamond
-          ;option(value "point"): Point
+  :~  ;div#node-controls.node-controls(hidden "")
+        ;label#shape-control.control
+          ;span: Shape
+          ;select#attr-shape
+            ;option(value ""): Default
+            ;option(value "box"): Box
+            ;option(value "ellipse"): Ellipse
+            ;option(value "circle"): Circle
+            ;option(value "diamond"): Diamond
+            ;option(value "point"): Point
+          ==
         ==
-      ==
-      ;label#fill-control.control
-        ;span: Fill color
-        ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
+        ;label#fill-control.control
+          ;span: Fill color
+          ;input#attr-fillcolor(type "text", placeholder "#dbeafe");
+        ==
       ==
   ==
 ::
 ++  edge-attributes
+  ::  Revealed by selecting an edge, never by a band toggle.
   ^-  marl
-  :~  ;div#edge-controls.edge-controls
+  :~  ;div#edge-controls.edge-controls(hidden "")
         ;label.control
           ;span: Pen width
           ;input#attr-penwidth(type "number", min "0", step "any");
@@ -895,12 +885,18 @@
     grid-template-columns: repeat(5, minmax(5rem, 1fr)) auto;
   }
 
-  .edge-controls {
+  /* `display` beats the `hidden` attribute, so every grid here needs
+     its own [hidden] rule or `.hidden = true` is a no-op. */
+  .attribute-form[hidden] { display: none; }
+
+  .node-controls, .edge-controls {
     display: grid;
     gap: 0.5rem;
     grid-column: 1 / -1;
     grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   }
+
+  .node-controls[hidden], .edge-controls[hidden] { display: none; }
 
   .attribute-actions {
     align-items: center;
@@ -996,6 +992,8 @@
   const clearSelection = document.querySelector('#clear-selection');
   const deleteSelection = document.querySelector('#delete-selection');
   const attributeForm = document.querySelector('#attribute-form');
+  const nodeControls = document.querySelector('#node-controls');
+  const edgeControls = document.querySelector('#edge-controls');
   const attrLabel = document.querySelector('#attr-label');
   const attrShape = document.querySelector('#attr-shape');
   const attrColor = document.querySelector('#attr-color');
@@ -2233,7 +2231,9 @@
   }
 
   function populateAttributeForm(selected) {
+    const isNode = selected.kind === 'node';
     attributeForm.hidden = false;
+    revealAttributeGroup(isNode ? 'node' : 'edge');
     attrChangeAll.checked = false;
     attrUseDefault.checked = false;
     const statement = editableStatement(selected.kind, selected.identity);
@@ -2245,7 +2245,6 @@
       attrColor.value = get('color');
       attrStyle.value = ['solid', 'dashed', 'dotted', 'bold', 'invis']
         .find((style) => styles.includes(style)) || '';
-      const isNode = selected.kind === 'node';
       const sourceShape = isNode ? get('shape') : '';
       attrShape.dataset.sourceShape = sourceShape;
       attrShape.value = nodeShapes.includes(sourceShape) ? sourceShape : '';
@@ -2262,6 +2261,7 @@
       attrFontcolor.value = isNode ? '' : get('fontcolor');
     } catch (cause) {
       attributeForm.hidden = true;
+      revealAttributeGroup('');
       sourceStatus.textContent = cause.message;
     }
   }
@@ -2455,24 +2455,44 @@
     return insertRootStatement(source, writeStatementAttributes(parsed));
   }
 
+  // What Apply writes to: the single selection, or the edge two
+  // selected nodes describe.  A prospective edge has no statement yet,
+  // so `base` is the edge source insertRootStatement will write.
+  function attributeTarget() {
+    if (selectedItems.length === 1) {
+      const selected = selectedItems[0];
+      return {
+        kind: selected.kind,
+        identity: selected.identity,
+        base: dotIdSource(selected.identity)
+      };
+    }
+    const edge = edgeForSelectedNodes();
+    if (!edge) throw new Error('Select one node or edge to edit');
+    return {
+      kind: 'edge',
+      identity: edge.identity,
+      base: dotIdSource(edge.tail)
+        + ' ' + edge.operator + ' '
+        + dotIdSource(edge.head)
+    };
+  }
+
   function applySelectedAttributes(event) {
     event.preventDefault();
     try {
-      if (selectedItems.length !== 1) {
-        throw new Error('Select one node or edge to edit');
-      }
-      const selected = selectedItems[0];
+      const target = attributeTarget();
       const originalSource = editor.getSource();
       let source = originalSource;
       if (attrChangeAll.checked) {
-        source = changeAllAttributes(source, selected.kind);
+        source = changeAllAttributes(source, target.kind);
       } else {
-        let statement = editableStatement(selected.kind, selected.identity);
-        if (selected.kind === 'edge' && statement?.edges.length > 1) {
+        let statement = editableStatement(target.kind, target.identity);
+        if (target.kind === 'edge' && statement?.edges.length > 1) {
           source = splitEdgeStatement(source, statement);
           statement = editableStatement(
-            selected.kind,
-            selected.identity,
+            target.kind,
+            target.identity,
             source
           );
         }
@@ -2480,11 +2500,11 @@
           statement
             ? readStatementAttributes(statement, source)
             : {
-                base: dotIdSource(selected.identity),
+                base: target.base,
                 semicolon: false,
                 attributes: new Map()
               },
-          selected.kind
+          target.kind
         );
         const replacement = writeStatementAttributes(parsed);
         source = statement
@@ -2494,7 +2514,7 @@
           : insertRootStatement(source, replacement);
       }
       if (attrUseDefault.checked) {
-        source = addAttributeDefault(source, selected.kind);
+        source = addAttributeDefault(source, target.kind);
       }
       applyVisualMutation(originalSource, source);
     } catch (cause) {
@@ -2536,6 +2556,58 @@
     return group;
   }
 
+  // Selecting a node or an edge is the only thing that opens its
+  // attributes; kind '' closes both groups.
+  function revealAttributeGroup(kind) {
+    nodeControls.hidden = kind !== 'node';
+    edgeControls.hidden = kind !== 'edge';
+  }
+
+  function closeAttributes() {
+    attributeForm.hidden = true;
+    revealAttributeGroup('');
+  }
+
+  // The edge two selected nodes describe: the one already joining them,
+  // or the one Apply would create.  The lookup ignores direction --
+  // "connecting the two" is undirected, so selecting Alpha then Beta
+  // finds an existing Beta -> Alpha and edits that.  Only a brand new
+  // edge follows click order.
+  function edgeForSelectedNodes() {
+    if (selectedItems.length !== 2
+      || selectedItems.some((item) => item.kind !== 'node')) {
+      return undefined;
+    }
+    const [first, second] = selectedItems.map((item) => item.identity);
+    let operator;
+    let statements;
+    try {
+      const source = editor.getSource();
+      operator = graphBody(source).operator;
+      statements = dotStatements(source);
+    } catch (cause) {
+      return undefined;
+    }
+    const joining = (tail, head) => {
+      const identity = tail + operator + head;
+      const found = statements.some((statement) => {
+        return statement.kind === 'edge'
+          && statement.edges.includes(identity);
+      });
+      return found ? identity : undefined;
+    };
+    const forward = joining(first, second);
+    const backward = forward ? undefined : joining(second, first);
+    const existing = forward || backward;
+    return {
+      identity: existing || first + operator + second,
+      tail: backward ? second : first,
+      head: backward ? first : second,
+      operator,
+      exists: Boolean(existing)
+    };
+  }
+
   function clearVisualSelection() {
     for (const selected of selectedItems) {
       selected.element.classList.remove('is-selected');
@@ -2544,6 +2616,7 @@
     selectedItems = [];
     inspector.hidden = true;
     attributeForm.hidden = true;
+    revealAttributeGroup('');
     drawEdge.disabled = true;
     selectionKind.textContent = '';
     selectionId.textContent = '';
@@ -2555,16 +2628,32 @@
     deleteSelection.disabled = selectedItems.length !== 1;
     if (!selectedItems.length) {
       inspector.hidden = true;
-      attributeForm.hidden = true;
+      closeAttributes();
       return;
     }
     inspector.hidden = false;
-    if (selectedItems.length === 2) {
+    if (selectedItems.length > 2) {
+      // Unreachable while the selection caps at two; correct if it moves.
       selectionKind.textContent = 'Nodes';
       selectionId.textContent = selectedItems
         .map((item) => item.identity)
-        .join(' -> ');
-      attributeForm.hidden = true;
+        .join(', ');
+      closeAttributes();
+      return;
+    }
+    if (selectedItems.length === 2) {
+      const edge = edgeForSelectedNodes();
+      if (!edge) {
+        selectionKind.textContent = 'Nodes';
+        selectionId.textContent = selectedItems
+          .map((item) => item.identity)
+          .join(' -> ');
+        closeAttributes();
+        return;
+      }
+      selectionKind.textContent = edge.exists ? 'Edge' : 'New edge';
+      selectionId.textContent = edge.identity;
+      populateAttributeForm({kind: 'edge', identity: edge.identity});
       return;
     }
     const selected = selectedItems[0];
@@ -2990,6 +3079,16 @@
     } else if (event.target === preview || event.target === currentSvg) {
       clearVisualSelection();
     }
+  });
+
+  // Attributes close on any click outside them, except a click that
+  // selects another node or edge -- the preview listener above has
+  // already re-populated the form by the time this runs.
+  document.addEventListener('click', (event) => {
+    if (!selectedItems.length) return;
+    if (inspector.contains(event.target)) return;
+    if (visualGroup(event.target)) return;
+    clearVisualSelection();
   });
 
   preview.addEventListener('keydown', (event) => {
