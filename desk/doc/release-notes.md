@@ -1,3 +1,8 @@
+# v1.0.3
+
+- Optional Vim key bindings
+- Alternate screen formats
+
 # v1.0.2
 
 urui source revision: baaa7db676e30ee13b25fc678f8774c52bbed92b
