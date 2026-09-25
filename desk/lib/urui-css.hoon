@@ -400,14 +400,31 @@
   ::  resizer, and the file context menu.  Its tab strip is in %tabs.
   ^-  @t
   '''
+  /* The explorer's strip and its panels are one band -- the %views case
+     of %tabs -- and the pane's other bands (a %label, an unused %panel)
+     are siblings whose number and order the consumer chooses.  A
+     positional `grid-template-rows` cannot express that: it hands the
+     1fr to whichever band happens to be second.  So the pane is a flex
+     column and the band carrying the panels is the one that grows. */
   .explorer-pane {
     background: var(--surface);
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     min-width: 0;
     overflow: hidden;
   }
+
+  .explorer-pane > .pane-band-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* an explorer's %panel band is empty in every consumer so far; it
+     must not take the space the panels need */
+  .explorer-pane > .pane-band-panel { flex: 0 1 auto; }
 
   .explorer-header {
     align-items: stretch;
@@ -441,8 +458,7 @@
   }
 
   .explorer-panel {
-    grid-column: 1;
-    grid-row: 2;
+    flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
     overflow: hidden;
