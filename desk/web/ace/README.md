@@ -23,18 +23,20 @@ The vendored runtime is limited to:
   upstream `ext-settings_menu.js` URL;
 - `ext-prompt.js`: command palette used by `F1`;
 - `ext-beautify.js`: command used by `Ctrl-Shift-B`;
+- `keybinding-vim.js`: the Vim keymap the Settings modal selects, loaded
+  lazily by Ace from `basePath` the first time a consumer switches to it;
 - `license.txt`: upstream BSD-3-Clause license.
 
-No worker, language mode, source map, snippet, or alternate keybinding is
-shipped here. Consumers keep their language modes beside these synced files.
-The generic text mode is built into Ace. Configure each editor session from
-the consumer's worker policy.
+No worker, language mode, source map, or snippet is shipped here, and Vim is
+the only alternate keybinding. Consumers keep their language modes beside
+these synced files. The generic text mode is built into Ace. Configure each
+editor session from the consumer's worker policy.
 
 `urui-ace.hoon ++config-js` generates each consumer's module paths and
 loader configuration. Consumers serve that cord at their own configuration
 URL and import the vendored files through explicit Ford imports.
 
-These nine files are the canonical source for manual `bin/sync.sh` copies.
+These ten files are the canonical source for manual `bin/sync.sh` copies.
 Application modes and generated configuration are not part of the sync
 manifest. Do not modify a consumer copy of a managed file.
 
@@ -50,4 +52,5 @@ a8b0af9a37e6f9a558daf7eb0ef74e73204b94260e7e750736683d7cf80fab2d  license.txt
 62da2b859e0820645aac0151684de396373646b3087454e2782523658f176dd2  ext-prompt.js
 468f2641eaa626d2fd556d622f76a66db61e87f6594d67fc45c26abfde014413  ext-searchbox.js
 802b083bf50010f2fb48dfe5ca618e00e9f1b6c6b7c5641707fce9e7330dd422  ext-settings-menu.js
+17c172460c9a3bf1db2b9ea8c6d0e2ce28676e54edb37f4bfe595198e97042f6  keybinding-vim.js
 ```

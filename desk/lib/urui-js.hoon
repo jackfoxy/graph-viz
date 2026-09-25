@@ -923,13 +923,16 @@
     return keyModes.includes(candidate) ? candidate : 'ace';
   }
 
-  // Recorded and restored, but nothing reads it yet: the radios are
-  // declared inert until an editor adapter implements vim.
+  // Applied to every editor adapter that implements it, the same way
+  // the theme is.  An adapter without `setKeybindings` keeps its own
+  // keymap and the preference is still recorded.
   function setKeybindings(candidate, persist = true) {
     keybindings = validKeybindings(candidate);
+    document.documentElement.dataset.keybindings = keybindings;
     for (const choice of elements.keyChoices || []) {
       choice.checked = choice.value === keybindings;
     }
+    for (const item of editors()) item.setKeybindings?.(keybindings);
     if (persist) changed();
     return keybindings;
   }
@@ -3105,6 +3108,12 @@
   }
   aceEditor.commands.addCommands(beautify.commands);
   aceEditor.commands.bindKey('Ctrl-T', 'transposeletters');
+  //  The keymap is carried on the root element, the same way the
+  //  effective theme is, so an editor mounted at any point in the
+  //  session starts on the preference already in force.
+  if (document.documentElement.dataset.keybindings === 'vim') {
+    aceEditor.setKeyboardHandler('ace/keyboard/vim');
+  }
   textInput.setAttribute(
     'aria-label',
     options.label || 'Source editor'
@@ -3318,6 +3327,14 @@
     setTheme(effective) {
       aceEditor.setTheme(
         effective === 'dark' ? assets.darkTheme : assets.lightTheme
+      );
+    },
+    //  `null` is Ace's own keymap, not an absence of one.  The vim
+    //  handler is a module Ace fetches from basePath on first use, so
+    //  this is the only place that names it.
+    setKeybindings(mode) {
+      aceEditor.setKeyboardHandler(
+        mode === 'vim' ? 'ace/keyboard/vim' : null
       );
     },
     refresh: () => aceEditor.resize(true)

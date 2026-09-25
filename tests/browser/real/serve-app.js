@@ -155,6 +155,7 @@ async function main() {
     ['/apps/graph-viz/ace/theme-github.js', 'theme-github.js'],
     ['/apps/graph-viz/ace/theme-monokai.js', 'theme-monokai.js'],
     ['/apps/graph-viz/ace/ext-beautify.js', 'ext-beautify.js'],
+    ['/apps/graph-viz/ace/keybinding-vim.js', 'keybinding-vim.js'],
     ['/apps/graph-viz/ace/ext-prompt.js', 'ext-prompt.js'],
     ['/apps/graph-viz/ace/ext-searchbox.js', 'ext-searchbox.js'],
     [

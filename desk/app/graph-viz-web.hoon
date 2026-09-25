@@ -11,6 +11,7 @@
 /*  ace-prompt   %js   /web/ace/ext-prompt/js
 /*  ace-search   %js   /web/ace/ext-searchbox/js
 /*  ace-sets     %js   /web/ace/ext-settings-menu/js
+/*  ace-vim      %js   /web/ace/keybinding-vim/js
 /*  ace-lic      %txt  /web/ace/license/txt
 /*  docs-toc     %toc  /doc/toc
 |%
@@ -43,6 +44,7 @@
         ['/ace/ext-prompt.js' js ace-prompt]
         ['/ace/ext-searchbox.js' js ace-search]
         ['/ace/ext-settings_menu.js' js ace-sets]
+        ['/ace/keybinding-vim.js' js ace-vim]
         ['/ace/license.txt' text (of-wain:format ace-lic)]
     ==
   |=  [suffix=@t content-type=@t body=@t]

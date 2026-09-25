@@ -112,6 +112,8 @@ function createFakeAceEditor(host) {
     getValue: () => state.source,
     setOptions(options) { this.options = options; },
     setTheme(theme) { this.theme = theme; host.aceTheme = theme; },
+    setKeyboardHandler(handler) { this.keyboardHandler = handler || null; },
+    getKeyboardHandler() { return this.keyboardHandler || null; },
     focus: () => host.focus(),
     clearSelection() {
       state.anchorOffset = state.leadOffset;

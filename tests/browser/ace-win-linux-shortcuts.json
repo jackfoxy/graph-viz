@@ -8,6 +8,7 @@
     "acePlatform": "win",
     "hostPlatform": "linux",
     "keyboardLayout": "en-US",
+    "keymap": "ace-default",
     "status": "default-shortcuts-complete"
   },
   "coverage": {
