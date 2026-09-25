@@ -73,6 +73,7 @@
     ;body
       ;header.app-header
         ;*  brand.spec
+        ;+  settings-button
         ;*  toolbar.spec
       ==
       ;main#workbench.workbench
@@ -96,6 +97,7 @@
           ;+  (pane result.panes.spec config)
         ==
       ==
+      ;+  settings-modal
       ;+  (help-panel spec)
       ;+  context-menu
       ;+  error-dialog
@@ -129,6 +131,7 @@
       ;header.app-header
         ;*  brand.spec
         ;div.toolbar
+          ;+  settings-button
           ;*  toolbar.spec
         ==
       ==
@@ -137,6 +140,7 @@
         ;+  (pane editor.panes.spec config)
         ;+  (pane result.panes.spec config)
       ==
+      ;+  settings-modal
       ;div.app-dialogs
         ;*  dialogs.spec
       ==
@@ -517,6 +521,99 @@
     ==
   :-  panel
   $(views t.views, kinds ?~(kinds ~ t.kinds), first |)
+::
+++  settings-button
+  ::  Frame furniture, emitted before the consumer's toolbar marl so it
+  ::  sits left of whatever the consumer puts there.
+  ^-  manx
+  ;button#settings.settings-button
+    =type           "button"
+    =aria-expanded  "false"
+    =aria-haspopup  "dialog"
+    =title          "Settings"
+    ;span: Settings
+  ==
+::
+++  layout-glyph
+  ::  The screen-format pictograms are css boxes, not images: they take
+  ::  the frame's own border and accent colours in either theme.
+  |=  name=tape
+  ^-  manx
+  ;span
+    =class        "layout-glyph layout-glyph-{name}"
+    =aria-hidden  "true"
+    ;i.glyph-cell.glyph-a;
+    ;i.glyph-cell.glyph-b;
+    ;i.glyph-cell.glyph-c;
+  ==
+::
+++  layout-choice
+  ::  `name` is the value ++setLayout applies and persists.
+  |=  [name=tape label=tape]
+  ^-  manx
+  ;button
+    =type          "button"
+    =class         "layout-choice"
+    =id            "layout-{name}"
+    =data-layout   name
+    =aria-pressed  "false"
+    =title         label
+    =aria-label    label
+    ;+  (layout-glyph name)
+  ==
+::
+++  settings-modal
+  ::  urui-owned preferences. The theme control lives here, at the same
+  ::  `#theme` id the runtime has always bound, so moving it out of a
+  ::  consumer toolbar changes markup and nothing else.
+  ^-  manx
+  ;aside#settings-modal.help-panel
+    =hidden           ""
+    =role             "dialog"
+    =aria-modal       "true"
+    =aria-labelledby  "settings-title"
+    ;div.help-card.settings-card
+      ;div.pane-header
+        ;h2#settings-title: Settings
+        ;button#close-settings.icon-button.help-close
+          =type        "button"
+          =title       "Close"
+          =aria-label  "Close settings"
+          ;span.close-icon(aria-hidden "true");
+        ==
+      ==
+      ;label.settings-field
+        ;span.settings-label: Theme
+        ;select#theme(aria-label "Theme")
+          ;option(value "system"): System
+          ;option(value "light"): Light
+          ;option(value "dark"): Dark
+        ==
+      ==
+      ;fieldset.settings-field.settings-keys
+        ;legend.settings-label: Keybindings
+        ;label.preference
+          ;input#keys-ace(type "radio", name "keybindings", value "ace");
+          ;span: Ace keybindings
+        ==
+        ;label.preference
+          ;input#keys-vim(type "radio", name "keybindings", value "vim");
+          ;span: Vim keybindings
+        ==
+      ==
+      ;div.settings-field
+        ;span#screen-format-label.settings-label: Screen format
+        ;div.layout-choices
+          =role             "group"
+          =aria-labelledby  "screen-format-label"
+          ;+  %+  layout-choice  "columns"
+              "Reference, editor and render side by side"
+          ;+  %+  layout-choice  "rows"
+              "Reference beside editor stacked over render"
+        ==
+      ==
+    ==
+  ==
 ::
 ++  help-panel
   |=  spec=shell-spec:urui

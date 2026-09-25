@@ -82,6 +82,9 @@
       ['nextSvgTab' %urui %next `%svg]
       ['view' %app %record ~]
       ['preferences.theme' %urui %scalar ~]
+      ['preferences.layout' %urui %scalar ~]
+      ['preferences.keybindings' %urui %scalar ~]
+      ['paneHeight' %urui %scalar ~]
       ['preferences.autoRender' %app %scalar ~]
   ==
 ::
@@ -229,15 +232,9 @@
 ::
 ++  toolbar
   ^-  marl
+  ::  No theme control: urui's settings modal owns it, and emits the
+  ::  Settings button immediately left of whatever this marl starts with.
   :~  ;nav.toolbar(aria-label "Graph controls")
-        ;label.theme-control
-          ;span: Theme
-          ;select#theme(aria-label "Theme")
-            ;option(value "system"): System
-            ;option(value "light"): Light
-            ;option(value "dark"): Dark
-          ==
-        ==
         ;button#help(type "button", aria-expanded "false"): Help
       ==
   ==
@@ -906,12 +903,15 @@
 
   .preview-pane { flex-direction: column; }
 
+  .workspace[data-layout='rows'] .preview-pane {
+    border-top: 1px solid var(--border);
+  }
+
   @media (max-width: 760px) {
     .visual-tools, .attribute-form {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .preview-pane { border-top: 1px solid var(--border); }
   }
   '''
 ::

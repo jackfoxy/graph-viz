@@ -29,12 +29,21 @@ for (const width of [1440, 390]) {
     }
 
     if (width < 760) {
-      await expect(page.locator('#explorer-resizer')).toHaveCSS(
+      //  Narrow no longer restacks the panes or drops their dividers:
+      //  the screen format is the user's choice at every width, and
+      //  every divider stays draggable.
+      await expect(page.locator('#explorer-resizer')).not.toHaveCSS(
         'display', 'none'
       );
-      await expect(page.locator('#splitter')).toHaveCSS('display', 'none');
+      await expect(page.locator('#splitter')).not.toHaveCSS(
+        'display', 'none'
+      );
+      await expect(page.locator('#workspace')).toHaveAttribute(
+        'data-layout', 'columns'
+      );
+      //  the render pane's divider border belongs to the rows format
       await expect(page.locator('.preview-pane')).toHaveCSS(
-        'border-top-width', '1px'
+        'border-top-width', '0px'
       );
       const columns = await page.locator('.visual-tools').evaluate(element => {
         return getComputedStyle(element).gridTemplateColumns.split(' ').length;
@@ -42,7 +51,9 @@ for (const width of [1440, 390]) {
       expect(columns).toBe(2);
     }
 
+    await page.locator('#settings').click();
     await page.locator('#theme').selectOption('dark');
+    await page.locator('#close-settings').click();
     await expect(page.locator('html')).toHaveAttribute(
       'data-effective-theme', 'dark'
     );

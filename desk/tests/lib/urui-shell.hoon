@@ -214,15 +214,8 @@
         ==
     ==
   =/  fixture-toolbar=marl
+    ::  no theme control: urui's settings modal owns it now
     :~  ;nav.toolbar(aria-label "Fixture controls")
-          ;label.theme-control
-            ;span: Theme
-            ;select#theme(aria-label "Theme")
-              ;option(value "system"): System
-              ;option(value "light"): Light
-              ;option(value "dark"): Dark
-            ==
-          ==
           ;button#help(type "button", aria-expanded "false"): Help
         ==
     ==
@@ -358,7 +351,13 @@
         "probe-result-note-tabs"
         "probe-secondary"
         "editor-load-error"
+        "settings"
+        "settings-modal"
         "theme"
+        "keys-ace"
+        "keys-vim"
+        "layout-columns"
+        "layout-rows"
         "help"
         "help-panel"
         "fallback-help-content"
@@ -383,9 +382,12 @@
     (expect !>((has-node-id fixture-doc id)))
   ;:  weld
     id-tests
-    (expect-eq !>(2) !>((lent dialogs)))
+    (expect-eq !>(3) !>((lent dialogs)))
     (expect-eq !>("true") !>((attribute (snag 0 dialogs) %aria-modal)))
     (expect-eq !>("true") !>((attribute (snag 1 dialogs) %aria-modal)))
+    (expect-eq !>("true") !>((attribute (snag 2 dialogs) %aria-modal)))
+    ::  one theme control in the page, and it is urui's: a consumer that
+    ::  still emitted its own would double these options
     (expect-eq !>(3) !>((lent options)))
     (expect-eq !>("system") !>((attribute (snag 0 options) %value)))
     (expect-eq !>("light") !>((attribute (snag 1 options) %value)))
@@ -707,9 +709,10 @@
     %+  skim  (elements full-doc %div)
     |=(kid=manx =("menu" (attribute kid %role)))
   ;:  weld
-    (expect-eq !>(2) !>((lent dialogs)))
-    (expect-eq !>("help-panel") !>((attribute (snag 0 dialogs) %id)))
-    (expect-eq !>("clay-error-modal") !>((attribute (snag 1 dialogs) %id)))
+    (expect-eq !>(3) !>((lent dialogs)))
+    (expect-eq !>("settings-modal") !>((attribute (snag 0 dialogs) %id)))
+    (expect-eq !>("help-panel") !>((attribute (snag 1 dialogs) %id)))
+    (expect-eq !>("clay-error-modal") !>((attribute (snag 2 dialogs) %id)))
     (expect-eq !>(1) !>((lent menus)))
     (expect-eq !>("file-context-menu") !>((attribute (head menus) %id)))
   ==

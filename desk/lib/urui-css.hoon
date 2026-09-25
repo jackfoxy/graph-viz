@@ -130,6 +130,13 @@
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 
+  /* The header is `space-between`, so a third child would sit in the
+     middle of it.  `margin-left: auto` absorbs that slack instead: the
+     Settings button lands hard right, one header gap left of whatever
+     the consumer's toolbar begins with -- its Help button, by
+     convention -- so the two read as one group. */
+  .settings-button { margin-left: auto; }
+
   .workbench {
     display: grid;
     grid-template-columns: var(--explorer-width, 18rem) 0.6rem
@@ -148,6 +155,15 @@
       minmax(20rem, 1fr);
     min-height: 0;
     overflow: hidden;
+  }
+
+  /* Screen format. `columns` is the default and needs no rule; `rows`
+     turns the same three children into editor over render, so the
+     splitter it already contains becomes the horizontal one. */
+  .workspace[data-layout='rows'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(6rem, var(--editor-height)) 0.6rem
+      minmax(6rem, 1fr);
   }
 
   .pane {
@@ -260,7 +276,73 @@
     touch-action: none;
   }
 
+  .workspace[data-layout='rows'] .splitter { cursor: row-resize; }
+
   .splitter:hover, .splitter:focus { background: var(--accent); }
+
+  /* ---- settings ---------------------------------------------------- */
+
+  .settings-card { gap: 1rem; }
+
+  .settings-field {
+    align-items: start;
+    border: 0;
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+  }
+
+  .settings-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0;
+    text-transform: uppercase;
+  }
+
+  .settings-keys { display: grid; gap: 0.25rem; }
+
+  .layout-choices { display: flex; gap: 0.75rem; }
+
+  .layout-choice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    cursor: pointer;
+    padding: 0.4rem;
+  }
+
+  .layout-choice:hover { border-color: var(--accent); }
+
+  .layout-choice[aria-pressed='true'] {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  /* The pictograms: three boxes in a frame, arranged by layout. */
+  .layout-glyph {
+    display: grid;
+    gap: 2px;
+    height: 2.25rem;
+    width: 3rem;
+  }
+
+  .layout-glyph-columns { grid-template-columns: repeat(3, 1fr); }
+
+  .layout-glyph-rows {
+    grid-template-columns: 1fr 2fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .layout-glyph-rows .glyph-a { grid-row: 1 / 3; }
+
+  .glyph-cell {
+    background: var(--border);
+    border-radius: 1px;
+  }
+
+  .layout-choice[aria-pressed='true'] .glyph-cell { background: var(--accent); }
 
   .state-panel {
     align-content: center;
@@ -950,28 +1032,25 @@
     body { height: auto; min-height: 100%; }
 
     .app-header { align-items: stretch; flex-direction: column; }
+    /*  stacked, it is a full-width row like the toolbar below it */
+    .settings-button { margin-left: 0; }
     .toolbar { display: grid; grid-template-columns: repeat(3, 1fr); }
 
-    .workbench {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(12rem, 35vh) minmax(0, 1fr);
-      overflow: visible;
-    }
-
-    .workbench.explorer-collapsed {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: 3rem minmax(0, 1fr);
-    }
-
-    .explorer-resizer { display: none; }
+    /*  The reference pane stays vertical and to the left, and the
+        screen format stays whatever the user chose, at every width:
+        narrow no longer restacks the panes or drops their dividers.
+        Only the minimums relax, so three columns still fit. */
+    .workbench { overflow: visible; }
 
     .workspace {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(18rem, 45vh) minmax(20rem, 55vh);
+      grid-template-columns: minmax(0, var(--editor-width)) 0.6rem
+        minmax(0, 1fr);
       overflow: visible;
     }
 
-    .splitter { display: none; }
+    .workspace[data-layout='rows'] {
+      grid-template-columns: minmax(0, 1fr);
+    }
 
     .help-skill-links { grid-template-columns: minmax(0, 1fr); }
   }

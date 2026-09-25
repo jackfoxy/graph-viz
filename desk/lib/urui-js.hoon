@@ -174,6 +174,11 @@
   const dividerWidth = limits.divider ?? 10;
   const narrowMedia = matchMedia(`(max-width: ${limits.narrow ?? 760}px)`);
   const themes = ['system', 'light', 'dark'];
+  const layouts = ['columns', 'rows'];
+  const keyModes = ['ace', 'vim'];
+  let layout = 'columns';
+  let keybindings = 'ace';
+  let settingsReturnFocus = null;
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
   const statusLabels = new Map(
     (config.statuses || []).map((entry) => [entry.name, entry.label])
@@ -190,6 +195,12 @@
     editorPane: role('editor'),
     resultPane: role('result'),
     themeControl: document.querySelector('#theme'),
+    settingsToggle: document.querySelector('#settings'),
+    settingsModal: document.querySelector('#settings-modal'),
+    closeSettings: document.querySelector('#close-settings'),
+    layoutChoices: document.querySelectorAll?.('.layout-choice') ?? [],
+    keyChoices:
+      document.querySelectorAll?.('input[name="keybindings"]') ?? [],
     helpToggle: document.querySelector('#help'),
     helpPanel: document.querySelector('#help-panel'),
     closeHelp: document.querySelector('#close-help'),
@@ -865,6 +876,64 @@
     return next;
   }
 
+  // The rows layout sizes the same splitter on the other axis, and keeps
+  // its own fraction: a comfortable 44% column is rarely a comfortable
+  // 44% row, so switching format preserves how each was sized.
+  function paneHeight() {
+    const value = getComputedStyle(elements.workspace)
+      .getPropertyValue('--editor-height');
+    return clamp(parseFloat(value) || 50, paneMin, paneMax);
+  }
+
+  function setPaneHeight(height, persist = true) {
+    const next = clamp(height, paneMin, paneMax);
+    elements.workspace.style.setProperty('--editor-height', `${next}%`);
+    refreshEditors();
+    if (persist) changed();
+    return next;
+  }
+
+  function validLayout(candidate) {
+    return layouts.includes(candidate) ? candidate : 'columns';
+  }
+
+  // Screen format: `columns` is reference, editor and render side by
+  // side; `rows` is reference beside editor stacked over render.  The
+  // reference pane is vertical and leftmost either way -- only the
+  // workspace changes -- and the choice holds at every viewport width.
+  function setLayout(candidate, persist = true) {
+    layout = validLayout(candidate);
+    elements.workspace?.setAttribute('data-layout', layout);
+    elements.splitter?.setAttribute(
+      'aria-orientation',
+      layout === 'rows' ? 'horizontal' : 'vertical'
+    );
+    for (const choice of elements.layoutChoices || []) {
+      choice.setAttribute(
+        'aria-pressed',
+        String(choice.dataset?.layout === layout)
+      );
+    }
+    refreshEditors();
+    if (persist) changed();
+    return layout;
+  }
+
+  function validKeybindings(candidate) {
+    return keyModes.includes(candidate) ? candidate : 'ace';
+  }
+
+  // Recorded and restored, but nothing reads it yet: the radios are
+  // declared inert until an editor adapter implements vim.
+  function setKeybindings(candidate, persist = true) {
+    keybindings = validKeybindings(candidate);
+    for (const choice of elements.keyChoices || []) {
+      choice.checked = choice.value === keybindings;
+    }
+    if (persist) changed();
+    return keybindings;
+  }
+
   function maxExplorerWidth() {
     const bounds = elements.workbench.getBoundingClientRect();
     return Math.max(minExplorer, bounds.width - dividerWidth);
@@ -929,6 +998,23 @@
       elements.closeHelp.focus();
     }
     if (!open && restoreFocus) elements.helpToggle?.focus();
+  }
+
+  function settingsIsOpen() {
+    return Boolean(elements.settingsModal) && !elements.settingsModal.hidden;
+  }
+
+  function setSettingsOpen(open, restoreFocus = false) {
+    if (!elements.settingsModal) return;
+    if (open && !elements.settingsModal.contains(document.activeElement)) {
+      settingsReturnFocus = document.activeElement;
+    }
+    elements.settingsModal.hidden = !open;
+    elements.settingsToggle?.setAttribute('aria-expanded', String(open));
+    if (open) elements.closeSettings?.focus();
+    if (!open && restoreFocus) {
+      (settingsReturnFocus ?? elements.settingsToggle)?.focus?.();
+    }
   }
 
   function showError(cause) {
@@ -2106,6 +2192,9 @@
       case 'paneBands': return paneBands;
       case 'panePaths': return panePaths;
       case 'preferences.theme': return selectedTheme();
+      case 'preferences.layout': return layout;
+      case 'preferences.keybindings': return keybindings;
+      case 'paneHeight': return paneHeight();
       default: return undefined;
     }
   }
@@ -2284,6 +2373,12 @@
         case 'preferences.theme':
           record[slot.key] = validTheme(raw);
           break;
+        case 'preferences.layout':
+          record[slot.key] = validLayout(raw);
+          break;
+        case 'preferences.keybindings':
+          record[slot.key] = validKeybindings(raw);
+          break;
         default:
           record[slot.key] = raw;
       }
@@ -2333,6 +2428,9 @@
         case 'paneBands': paneBands = value; applyBands(); break;
         case 'panePaths': panePaths = value; break;
         case 'preferences.theme': applyTheme(value, false); break;
+        case 'preferences.layout': setLayout(value, false); break;
+        case 'preferences.keybindings': setKeybindings(value, false); break;
+        case 'paneHeight': setPaneHeight(value, false); break;
         default: break;
       }
     }
@@ -2454,19 +2552,46 @@
       setExplorerWidth(explorerWidth() + change, true);
     });
     elements.splitter?.addEventListener('pointerdown', (event) => {
-      if (narrowMedia.matches) return;
       elements.splitter.setPointerCapture(event.pointerId);
     });
     elements.splitter?.addEventListener('pointermove', (event) => {
       if (!elements.splitter.hasPointerCapture(event.pointerId)) return;
       const bounds = elements.workspace.getBoundingClientRect();
-      setPaneWidth(((event.clientX - bounds.left) / bounds.width) * 100);
+      if (layout === 'rows') {
+        setPaneHeight(((event.clientY - bounds.top) / bounds.height) * 100);
+      } else {
+        setPaneWidth(((event.clientX - bounds.left) / bounds.width) * 100);
+      }
     });
     elements.splitter?.addEventListener('keydown', (event) => {
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      const keys = layout === 'rows'
+        ? ['ArrowUp', 'ArrowDown']
+        : ['ArrowLeft', 'ArrowRight'];
+      if (!keys.includes(event.key)) return;
       event.preventDefault();
-      setPaneWidth(paneWidth() + (event.key === 'ArrowLeft' ? -2 : 2));
+      const step = event.key === keys[0] ? -2 : 2;
+      if (layout === 'rows') setPaneHeight(paneHeight() + step);
+      else setPaneWidth(paneWidth() + step);
     });
+    elements.settingsToggle?.addEventListener('click', () => {
+      setSettingsOpen(true);
+    });
+    elements.closeSettings?.addEventListener('click', () => {
+      setSettingsOpen(false, true);
+    });
+    elements.settingsModal?.addEventListener('click', (event) => {
+      if (event.target === elements.settingsModal) setSettingsOpen(false, true);
+    });
+    for (const choice of elements.layoutChoices || []) {
+      choice.addEventListener('click', () => {
+        setLayout(choice.dataset?.layout);
+      });
+    }
+    for (const choice of elements.keyChoices || []) {
+      choice.addEventListener('change', () => {
+        if (choice.checked) setKeybindings(choice.value);
+      });
+    }
     //  a band the user may hide carries the toggle urui-shell drew for
     //  it beside it, at `{pane}-{band}-toggle`
     for (const pane of panes) {
@@ -2479,6 +2604,10 @@
       }
     }
     applyBands();
+    //  the screen format is a dom attribute the stylesheet reads, so it
+    //  must be written once at boot even when no session restores it
+    setLayout(layout, false);
+    setKeybindings(keybindings, false);
     for (const name of permanentViews) {
       const tab = document.querySelector(`#${name}-tab`);
       if (!tab) continue;
@@ -2672,6 +2801,8 @@
     dialogs: {
       helpIsOpen,
       setHelpOpen,
+      setSettingsOpen,
+      setLayout,
       showError,
       hideError,
       errorIsOpen
@@ -2877,6 +3008,11 @@
       event.stopPropagation?.();
     };
     if (event.key === 'Escape') {
+      if (settingsIsOpen()) {
+        consume();
+        setSettingsOpen(false, true);
+        return;
+      }
       if (helpIsOpen()) {
         consume();
         setHelpOpen(false, true);
