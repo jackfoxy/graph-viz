@@ -166,6 +166,35 @@
       minmax(6rem, 1fr);
   }
 
+  /* Result collapse keeps the pane's heading and nothing else: a rail
+     beside the editor under `columns`, a strip below it under `rows`.
+     The divider custom properties are untouched, so expanding restores
+     whatever size the pane had. */
+  .workspace.result-collapsed {
+    grid-template-columns: minmax(0, 1fr) 0 3rem;
+  }
+
+  .workspace[data-layout='rows'].result-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 0 auto;
+  }
+
+  [data-role='result'].collapsed { flex-direction: column; }
+  [data-role='result'].collapsed > :not(.pane-header) { display: none; }
+
+  .workspace:not([data-layout='rows']) [data-role='result'].collapsed
+    .pane-header {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .workspace:not([data-layout='rows']) [data-role='result'].collapsed
+    .pane-header > :not(.pane-actions),
+  .workspace:not([data-layout='rows']) [data-role='result'].collapsed
+    .pane-actions > :not(.result-collapse) {
+    display: none;
+  }
+
   .pane {
     background: var(--surface);
     display: flex;
@@ -278,7 +307,12 @@
 
   .workspace[data-layout='rows'] .splitter { cursor: row-resize; }
 
+  .splitter.inactive,
+  .workspace[data-layout='rows'] .splitter.inactive { cursor: default; }
+
   .splitter:hover, .splitter:focus { background: var(--accent); }
+
+  .splitter.inactive:hover { background: var(--border); }
 
   /* ---- settings ---------------------------------------------------- */
 

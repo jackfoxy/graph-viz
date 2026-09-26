@@ -35,6 +35,8 @@
       ['panes' (panes-json panes)]
       ['permanentViews' a+(turn views view-json)]
       ['ace' (ace-json ace-spec.config)]
+      ['layout' s+`@t`layout.config]
+      ['resultCollapse' b+collapse.config]
   ==
 ::
 ++  panes-json

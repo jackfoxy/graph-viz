@@ -176,7 +176,8 @@
   const themes = ['system', 'light', 'dark'];
   const layouts = ['columns', 'rows'];
   const keyModes = ['ace', 'vim'];
-  let layout = 'columns';
+  //  the consumer's starting format; a saved preference replaces it
+  let layout = validLayout(config.layout);
   let keybindings = 'ace';
   let settingsReturnFocus = null;
   const themeMedia = matchMedia('(prefers-color-scheme: dark)');
@@ -194,6 +195,7 @@
     explorerTabs: explorerStrip(),
     editorPane: role('editor'),
     resultPane: role('result'),
+    resultCollapse: document.querySelector('#result-collapse'),
     themeControl: document.querySelector('#theme'),
     settingsToggle: document.querySelector('#settings'),
     settingsModal: document.querySelector('#settings-modal'),
@@ -216,6 +218,7 @@
     ...(options.elements || {})
   };
   let explorerOpen = true;
+  let resultOpen = true;
   let refreshQueued = false;
   let errorReturnFocus;
 
@@ -861,7 +864,10 @@
   // `#workspace`, and `--explorer-width`, pixels on `#workbench`.  Every
   // change refreshes the editors, batched one per frame.  Explorer
   // collapse is a class on the pane and the workbench plus the
-  // resizer's disabled state, not a width of zero.
+  // resizer's disabled state, not a width of zero.  Result collapse is
+  // the same idea on the workspace: `.result-collapsed` shrinks the
+  // result pane to its heading and idles the splitter, and leaves both
+  // divider positions alone so expanding restores the old size.
   function paneWidth() {
     const value = getComputedStyle(elements.workspace)
       .getPropertyValue('--editor-width');
@@ -914,9 +920,38 @@
         String(choice.dataset?.layout === layout)
       );
     }
-    refreshEditors();
+    applyResultLayout();
     if (persist) changed();
     return layout;
+  }
+
+  //  Only a page whose config asked for the control can collapse: a
+  //  saved `false` must not strand a pane that has no way back open.
+  function applyResultLayout() {
+    const control = elements.resultCollapse;
+    if (!control) resultOpen = true;
+    elements.resultPane?.classList.toggle('collapsed', !resultOpen);
+    elements.workspace?.classList.toggle('result-collapsed', !resultOpen);
+    elements.splitter?.classList.toggle('inactive', !resultOpen);
+    if (control) {
+      const label = config.panes?.result?.label || 'result pane';
+      control.setAttribute('aria-expanded', String(resultOpen));
+      control.setAttribute(
+        'aria-label',
+        `${resultOpen ? 'Collapse' : 'Expand'} ${label}`
+      );
+      control.textContent = layout === 'rows'
+        ? (resultOpen ? '⌄' : '⌃')
+        : (resultOpen ? '›' : '‹');
+    }
+    refreshEditors();
+  }
+
+  function setResultOpen(open, persist = true) {
+    resultOpen = open !== false;
+    applyResultLayout();
+    if (persist) changed();
+    return resultOpen;
   }
 
   function validKeybindings(candidate) {
@@ -2198,6 +2233,7 @@
       case 'preferences.layout': return layout;
       case 'preferences.keybindings': return keybindings;
       case 'paneHeight': return paneHeight();
+      case 'resultOpen': return resultOpen;
       default: return undefined;
     }
   }
@@ -2348,6 +2384,7 @@
           break;
         }
         case 'explorerOpen':
+        case 'resultOpen':
           record[slot.key] = raw !== false;
           break;
         case 'explorerView':
@@ -2434,6 +2471,7 @@
         case 'preferences.layout': setLayout(value, false); break;
         case 'preferences.keybindings': setKeybindings(value, false); break;
         case 'paneHeight': setPaneHeight(value, false); break;
+        case 'resultOpen': setResultOpen(value, false); break;
         default: break;
       }
     }
@@ -2554,7 +2592,11 @@
       const change = event.key === 'ArrowLeft' ? -16 : 16;
       setExplorerWidth(explorerWidth() + change, true);
     });
+    elements.resultCollapse?.addEventListener('click', () => {
+      setResultOpen(!resultOpen);
+    });
     elements.splitter?.addEventListener('pointerdown', (event) => {
+      if (!resultOpen) return;
       elements.splitter.setPointerCapture(event.pointerId);
     });
     elements.splitter?.addEventListener('pointermove', (event) => {
@@ -2570,7 +2612,7 @@
       const keys = layout === 'rows'
         ? ['ArrowUp', 'ArrowDown']
         : ['ArrowLeft', 'ArrowRight'];
-      if (!keys.includes(event.key)) return;
+      if (!resultOpen || !keys.includes(event.key)) return;
       event.preventDefault();
       const step = event.key === keys[0] ? -2 : 2;
       if (layout === 'rows') setPaneHeight(paneHeight() + step);
@@ -2732,6 +2774,8 @@
       maxExplorerWidth,
       explorerOpen: () => explorerOpen,
       setExplorerOpen,
+      resultOpen: () => resultOpen,
+      setResultOpen,
       apply: applyExplorerLayout
     },
     explorer: {

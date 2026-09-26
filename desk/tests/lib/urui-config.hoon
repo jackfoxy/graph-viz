@@ -53,6 +53,8 @@
           exts=~['ace/ext/searchbox']
           use-worker=|
       ==
+      layout=%rows
+      collapse=&
   ==
 ::
 ++  pinned
@@ -281,5 +283,11 @@
     (expect !>((has "\"global\":\"probeAce\"")))
     (expect !>((has "\"extensions\":[\"ace/ext/searchbox\"]")))
     (expect !>((has "\"useWorker\":false")))
+  ==
+::
+++  test-config-emits-screen-format-and-collapse
+  ;:  weld
+    (expect !>((has "\"layout\":\"rows\"")))
+    (expect !>((has "\"resultCollapse\":true")))
   ==
 --

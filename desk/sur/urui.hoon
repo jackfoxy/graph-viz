@@ -205,11 +205,21 @@
       max-source=@ud
   ==
 ::
++$  screen-format
+  ::  %columns: reference, editor, and result side by side.  %rows:
+  ::  reference beside editor stacked over result.
+  $~(%columns ?(%columns %rows))
+::
 +$  app-config
   ::  Everything the browser runtime needs, as data.
   ::
   ::  Emitted to the page as one json object; nothing in urui's
   ::  javascript reads a consumer name except through this record.
+  ::
+  ::  `layout` is the screen format a session starts in; the user's
+  ::  saved choice overrides it.  `collapse` gives the result pane a
+  ::  collapse control in its %heading band; it bunts to off, so a
+  ::  config built by `%*` over a bunt does not opt in by accident.
   ::
   $:  =app-id
       kinds=(list doc-kind)
@@ -221,6 +231,8 @@
       docs-root=(unit @t)
       share-param=(unit [name=@t max=@ud param-max=@ud])
       =ace-spec
+      layout=screen-format
+      collapse=$~(| ?)
   ==
 ::
 +$  shell-spec

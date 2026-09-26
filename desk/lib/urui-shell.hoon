@@ -57,6 +57,8 @@
     ;script(src (trip src));
   =/  theme-js
     (theme-bootstrap:ujs storage-key.id storage-version.id)
+  =/  orientation=tape
+    ?:(=(%rows layout.config) "horizontal" "vertical")
   =/  boot=marl
     :~  ;script
           ;+  ;/  (trip theme-js)
@@ -85,12 +87,12 @@
           =aria-label        "Resize explorer"
           ;span.sr-only: Resize explorer
         ==
-        ;section#workspace.workspace
+        ;section#workspace.workspace(data-layout (trip layout.config))
           ;+  (pane editor.panes.spec config)
           ;div#splitter.splitter
             =role              "separator"
             =tabindex          "0"
-            =aria-orientation  "vertical"
+            =aria-orientation  orientation
             =aria-label        "Resize editor and preview"
             ;span.sr-only: Resize editor and preview
           ==
@@ -338,13 +340,31 @@
           ;+  ;/  (trip (initial-status role.pane statuses.config))
         ==
     ==
+  ::  the collapse control is the last action, so it sits hard right
+  ::  with the consumer's own actions rather than as a fourth child
+  =/  all-actions=marl
+    ?.  ?&(collapse.config =(%result role.pane))  actions
+    (snoc actions (result-collapse label.pane layout.config))
   =/  acted=marl
-    ?~  actions  ~
+    ?~  all-actions  ~
     :~  ;div.pane-actions
-          ;*  actions
+          ;*  all-actions
         ==
     ==
   ;:  weld  titled  status  acted  ==
+::
+++  result-collapse
+  ::  `#result-collapse`, drawn expanded.  The glyph points the way the
+  ::  pane will go: down under %rows, right under %columns; the runtime
+  ::  redraws it whenever the format or the state changes.
+  |=  [label=@t layout=screen-format:urui]
+  ^-  manx
+  ;button#result-collapse.icon-button.result-collapse
+    =type           "button"
+    =aria-label     "Collapse {(trip label)}"
+    =aria-expanded  "true"
+    ;+  ;/  ?:(=(%rows layout) "⌄" "›")
+  ==
 ::
 ++  panel-band
   ::  The tab panel: the Ace host urui manages, then the consumer's own

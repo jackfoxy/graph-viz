@@ -59,6 +59,8 @@
       docs-root=`'/docs/d/graph-viz/'
       share-param=`[name='dot' max=12.288 param-max=16.384]
       ace-spec
+      layout=%columns
+      collapse=|
   ==
 ::
 ++  slots

@@ -726,4 +726,56 @@
     (expect-eq !>("/probe/app.js") !>((attribute (snag 1 scripts) %src)))
     (expect-eq !>(1) !>((lent styles)))
   ==
+::
+++  test-full-shell-starts-in-the-configured-format
+  ::  The page is drawn in the consumer's format, so the first paint
+  ::  already has it; the default spec asks for columns.
+  =/  rows-spec=shell-spec:urui
+    %*(. full-spec layout.app-config %rows)
+  =/  rows-doc  (build:shell rows-spec)
+  =/  workspace  (need (node-by-id full-doc "workspace"))
+  =/  splitter  (need (node-by-id full-doc "splitter"))
+  =/  rows-workspace  (need (node-by-id rows-doc "workspace"))
+  =/  rows-splitter  (need (node-by-id rows-doc "splitter"))
+  ;:  weld
+    (expect-eq !>("columns") !>((attribute workspace %data-layout)))
+    (expect-eq !>("vertical") !>((attribute splitter %aria-orientation)))
+    (expect-eq !>("rows") !>((attribute rows-workspace %data-layout)))
+    %+  expect-eq  !>("horizontal")
+    !>((attribute rows-splitter %aria-orientation))
+  ==
+::
+++  test-full-shell-collapse-is-the-result-heading-last-action
+  ::  Off by default.  On, it is the last action in the result pane's
+  ::  heading — an action row is made for it when the consumer gave
+  ::  none — and no other pane gets one.
+  =/  on-spec=shell-spec:urui
+    %*  .  full-spec
+      collapse.app-config  &
+      layout.app-config    %rows
+    ==
+  =/  on-doc  (build:shell on-spec)
+  =/  result  (need (node-by-id on-doc "probe-result"))
+  =/  head-band
+    %-  head
+    %+  skim  (bands-of result)
+    |=(kid=manx =("head" (attribute kid %data-band)))
+  =/  actions
+    %+  skim  (elements head-band %div)
+    |=(kid=manx =("pane-actions" (attribute kid %class)))
+  =/  buttons  (elements (head actions) %button)
+  =/  control  (rear buttons)
+  =/  collapses
+    %+  skim  (elements on-doc %button)
+    |=(kid=manx =("result-collapse" (attribute kid %id)))
+  ;:  weld
+    (expect !>(!(has-node-id full-doc "result-collapse")))
+    (expect-eq !>(1) !>((lent collapses)))
+    (expect-eq !>(1) !>((lent actions)))
+    (expect-eq !>("result-collapse") !>((attribute control %id)))
+    %+  expect-eq  !>("Collapse Probe result")
+    !>((attribute control %aria-label))
+    (expect-eq !>("true") !>((attribute control %aria-expanded)))
+    (expect-eq !>("⌄") !>((text-of control)))
+  ==
 --
