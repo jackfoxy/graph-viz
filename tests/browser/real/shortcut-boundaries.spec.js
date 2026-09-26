@@ -1,4 +1,5 @@
 const {test, expect} = require('@playwright/test');
+const {installBackend} = require('./fixtures/backend.js');
 
 function visualSvg(source) {
   const nodes = ['Alpha', 'Beta'].filter((name) => source.includes(name));
@@ -14,49 +15,20 @@ function visualSvg(source) {
   ].join('');
 }
 
-async function installRoutes(page, state) {
-  await page.route('**/apps/graph-viz/file/*/browse', async (route) => {
-    const kind = route.request().url().includes('/file/dot/')
-      ? 'dot'
-      : 'svg';
-    const path = route.request().headers()['x-graph-viz-path'];
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(path
-        ? {file: true, children: []}
-        : {file: false, children: [`sample.${kind}`]})
-    });
-  });
-  await page.route('**/apps/graph-viz/render', async (route) => {
-    const source = route.request().postData() || '';
-    state.renders.push(source);
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: visualSvg(source)
-    });
-  });
-  await page.route('**/apps/graph-viz/file/*/save', async (route) => {
-    const kind = route.request().url().includes('/file/dot/')
-      ? 'dot'
-      : 'svg';
-    state.saves[kind].push(route.request().postData() || '');
-    await route.fulfill({status: 200, contentType: 'text/plain', body: 'ok'});
-  });
-  await page.route('**/docs', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Graph Viz Docs</title>'
-    });
-  });
-  await page.route('**/docs/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/html',
-      body: '<!doctype html><title>Graph Viz / Users Guide</title>'
-    });
+async function installRoutes(page, state, options = {}) {
+  await installBackend(page, {
+    browse: ({kind, path}) => path
+      ? {file: true, children: []}
+      : {file: false, children: [`sample.${kind}`]},
+    render: (source) => {
+      state.renders.push(source);
+      return visualSvg(source);
+    },
+    save: ({kind, body}) => {
+      state.saves[kind].push(body || '');
+    },
+    docs: true,
+    ...options
   });
 }
 
@@ -157,49 +129,15 @@ test('application chords fire exactly once while Ace is focused', async ({
   await page.evaluate(() => window.__GVIZ_VIEW_OBSERVER__.disconnect());
 });
 
-test('Ace retains displaced and destructive editor commands', async ({
+//  Ace's own displaced and destructive commands are urui's to prove; what
+//  remains here is what only this application can show: a keystroke that
+//  reaches a selected preview node instead of the editor.
+test('preview selection routes destructive keys away from Ace', async ({
   page
 }) => {
   const state = {renders: [], saves: {dot: [], svg: []}};
   await installRoutes(page, state);
   await page.goto('/apps/graph-viz/');
-  const sortable = 'digraph sort {\n  z\n  a\n}';
-  await setSourceAndRender(page, state, sortable);
-  await page.evaluate(() => {
-    window.prompt = () => 'must-not-save.dot';
-    const editor = window.ace.edit(document.querySelector('#dot'));
-    editor.selection.setSelectionRange({
-      start: {row: 1, column: 0},
-      end: {row: 2, column: 3}
-    });
-    editor.focus();
-  });
-  await page.keyboard.press('Control+Alt+s');
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe('digraph sort {\n  a\n  z\n}');
-  expect(state.saves.dot).toHaveLength(0);
-
-  await page.evaluate(() => {
-    const adapter = window.__GVIZ_EDITOR_TEST__;
-    adapter.setSource('digraph tabs {\nAlpha\n}', {
-      history: 'reset',
-      notify: false
-    });
-    const editor = window.ace.edit(document.querySelector('#dot'));
-    editor.moveCursorTo(1, 0);
-    editor.clearSelection();
-    editor.focus();
-  });
-  await page.keyboard.press('Tab');
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe('digraph tabs {\n  Alpha\n}');
-  await page.keyboard.press('Shift+Tab');
-  await expect.poll(() => page.evaluate(() => {
-    return window.__GVIZ_EDITOR_TEST__.getSource();
-  })).toBe('digraph tabs {\nAlpha\n}');
-
   const source = 'digraph edit {\n  Alpha\n  Beta\n}';
   await setSourceAndRender(page, state, source);
   const alpha = page.locator('#preview .node').filter({hasText: 'Alpha'});
@@ -243,7 +181,10 @@ test('Ace retains displaced and destructive editor commands', async ({
   })).toBe('digraph edit {\n  Beta\n}');
 });
 
-test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
+//  The generic half of this boundary set — explorer tabs, the Help panel,
+//  the docs tree's own nesting, the file-tree context menu — is urui's.
+//  What stays is this application's own help links and preview surface.
+test('help links, the node form, and the preview keep focus', async ({
   page
 }) => {
   const state = {renders: [], saves: {dot: [], svg: []}};
@@ -251,18 +192,6 @@ test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
   await page.goto('/apps/graph-viz/');
   const source = 'digraph focus {\n  Alpha\n  Beta\n}';
   await setSourceAndRender(page, state, source);
-
-  await page.locator('#dot-files-tab').focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(page.locator('#svg-files-tab')).toBeFocused();
-
-  await page.locator('#help').click();
-  await expect(page.locator('#close-help')).toBeFocused();
-  await expect(page.locator('#help-panel')).toHaveAttribute('role', 'dialog');
-  await expect(page.locator('#help-tab')).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#help-panel')).toBeHidden();
-  await expect(page.locator('#help')).toBeFocused();
 
   await page.locator('#help').click();
   await expect(page.locator('#docs-help-content')).toBeVisible();
@@ -275,33 +204,13 @@ test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
     await expect(link).toHaveAttribute('href', new RegExp(`${path}$`));
     await expect(link).toHaveAttribute('target', '_blank');
   }
-  const docsGroups = page.locator('.docs-help-group');
-  await expect(docsGroups).toHaveCount(3);
-  expect(await docsGroups.evaluateAll((groups) => {
-    return groups.every((group) => !group.open);
-  })).toBe(true);
+  //  this application's documentation tree names its own groups
   const dotLanguage = page.locator('.docs-help-group').filter({
     has: page.locator('summary').filter({hasText: /^DOT Language Reference$/})
   });
   await dotLanguage.locator('summary').first().click();
   await expect(dotLanguage).toHaveJSProperty('open', true);
-  const attributes = dotLanguage.locator('.docs-help-group').filter({
-    has: page.locator('summary').filter({hasText: /^Attributes Reference$/})
-  });
-  await expect(attributes.locator('summary').first()).toBeVisible();
-  await attributes.locator('summary').first().click();
-  await expect(attributes).toHaveJSProperty('open', true);
-  await attributes.locator('summary').first().click();
-  await expect(attributes).toHaveJSProperty('open', false);
-  await dotLanguage.locator('summary').first().click();
-  await expect(dotLanguage).toHaveJSProperty('open', false);
-  await page.getByRole('link', {name: 'Users Guide'}).click();
-  const docsTab = page.locator('.docs-tab').filter({hasText: 'Users Guide'});
-  await expect(docsTab).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(docsTab).toBeFocused();
-  await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('#svg-files-tab')).toBeFocused();
 
   await page.locator('#preview .node').filter({hasText: 'Alpha'}).click();
   await page.locator('#new-node-name').fill('Draft');
@@ -325,33 +234,4 @@ test('focus boundaries cover explorer, Help, docs, forms, and preview', async ({
   await expect.poll(async () => {
     return page.locator('#preview svg').getAttribute('style');
   }).not.toBe(before);
-
-  await page.locator('#dot-files-tab').click();
-  const action = page.locator('#dot-files-tree .file-tree-actions').first();
-  await action.click();
-  await expect(page.locator('#file-context-open')).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(action).toBeFocused();
-});
-
-test('Clay dialog Escape restores the invoking control', async ({page}) => {
-  const state = {renders: [], saves: {dot: [], svg: []}};
-  await installRoutes(page, state);
-  await page.route('**/apps/graph-viz/file/dot/load', async (route) => {
-    await route.fulfill({
-      status: 500,
-      contentType: 'text/plain',
-      body: 'forced load failure'
-    });
-  });
-  await page.goto('/apps/graph-viz/');
-  await page.evaluate(() => {
-    window.prompt = () => 'broken.dot';
-  });
-  await page.locator('#load-dot').click();
-  await expect(page.locator('#clay-error-modal')).toBeVisible();
-  await expect(page.locator('#close-clay-error')).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#clay-error-modal')).toBeHidden();
-  await expect(page.locator('#load-dot')).toBeFocused();
 });

@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "source": "digraph overview {\n  node [shape=ellipse];\n\n  browser -> eyre -> \"graph-viz-web\";\n  \"graph-viz-web\" -> clay [label=\"load/save\"];\n  \"graph-viz-web\" -> \"graph-viz\" [label=\"render\"];\n}\n",
+  "paneWidth": 51.7,
+  "explorerWidth": 324,
+  "explorerOpen": true,
+  "explorerView": "docs-1",
+  "explorerOrder": [
+    "dot-files",
+    "svg-files",
+    "docs-1",
+    "ref-1"
+  ],
+  "docsTabs": [
+    {
+      "id": "docs-1",
+      "title": "Docs / Graph Viz / Users Guide",
+      "path": "users-guide"
+    }
+  ],
+  "nextDocs": 2,
+  "refTabs": [
+    {
+      "id": "ref-1",
+      "kind": "dot",
+      "parentId": "dot-2",
+      "label": "overview.dot",
+      "source": "digraph overview {\n  node [shape=ellipse];\n\n  browser -> eyre -> \"graph-viz-web\";\n  \"graph-viz-web\" -> clay [label=\"load/save\"];\n  \"graph-viz-web\" -> \"graph-viz\" [label=\"render\"];\n}\n"
+    }
+  ],
+  "nextRef": 2,
+  "dotTabs": [
+    {
+      "id": "dot-1",
+      "label": "pipeline.dot",
+      "path": "pipeline/txt",
+      "source": "digraph pipeline {\n  rankdir=LR;\n  node [shape=box, style=rounded];\n\n  ingest -> parse -> layout -> render;\n  layout -> metrics [style=dashed];\n}\n",
+      "cleanSource": "digraph pipeline {\n  rankdir=LR;\n  node [shape=box, style=rounded];\n\n  ingest -> parse -> layout -> render;\n  layout -> metrics [style=dashed];\n}\n",
+      "selection": {
+        "start": 0,
+        "end": 0
+      }
+    },
+    {
+      "id": "dot-2",
+      "label": "overview.dot",
+      "path": "overview/txt",
+      "source": "digraph overview {\n  node [shape=ellipse];\n\n  browser -> eyre -> \"graph-viz-web\";\n  \"graph-viz-web\" -> clay [label=\"load/save\"];\n  \"graph-viz-web\" -> \"graph-viz\" [label=\"render\"];\n}\n",
+      "cleanSource": "digraph overview {\n  node [shape=ellipse];\n\n  browser -> eyre -> \"graph-viz-web\";\n  \"graph-viz-web\" -> clay [label=\"load/save\"];\n}\n",
+      "selection": {
+        "start": 150,
+        "end": 161
+      }
+    }
+  ],
+  "activeDotTabId": "dot-2",
+  "nextDotTab": 3,
+  "svgTabs": [
+    {
+      "id": "svg-1",
+      "label": "pipeline.svg",
+      "path": "pipeline/svg",
+      "source": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"268pt\" height=\"44pt\"\n     viewBox=\"0.00 0.00 268.00 44.00\">\n<g class=\"graph\" transform=\"scale(1 1) rotate(0) translate(4 40)\">\n<g class=\"node\"><title>ingest</title>\n<ellipse fill=\"none\" stroke=\"black\" cx=\"35\" cy=\"-18\" rx=\"35\" ry=\"18\"/>\n<text text-anchor=\"middle\" x=\"35\" y=\"-13\">ingest</text></g>\n<g class=\"node\"><title>parse</title>\n<ellipse fill=\"none\" stroke=\"black\" cx=\"139\" cy=\"-18\" rx=\"32\" ry=\"18\"/>\n<text text-anchor=\"middle\" x=\"139\" y=\"-13\">parse</text></g>\n<g class=\"edge\"><title>ingest&#45;&gt;parse</title>\n<path fill=\"none\" stroke=\"black\" d=\"M70,-18C79,-18 88,-18 97,-18\"/></g>\n</g>\n</svg>\n",
+      "cleanSource": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"268pt\" height=\"44pt\"\n     viewBox=\"0.00 0.00 268.00 44.00\">\n<g class=\"graph\" transform=\"scale(1 1) rotate(0) translate(4 40)\">\n<g class=\"node\"><title>ingest</title>\n<ellipse fill=\"none\" stroke=\"black\" cx=\"35\" cy=\"-18\" rx=\"35\" ry=\"18\"/>\n<text text-anchor=\"middle\" x=\"35\" y=\"-13\">ingest</text></g>\n<g class=\"node\"><title>parse</title>\n<ellipse fill=\"none\" stroke=\"black\" cx=\"139\" cy=\"-18\" rx=\"32\" ry=\"18\"/>\n<text text-anchor=\"middle\" x=\"139\" y=\"-13\">parse</text></g>\n<g class=\"edge\"><title>ingest&#45;&gt;parse</title>\n<path fill=\"none\" stroke=\"black\" d=\"M70,-18C79,-18 88,-18 97,-18\"/></g>\n</g>\n</svg>\n",
+      "editBaseSource": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"268pt\" height=\"44pt\"\n     viewBox=\"0.00 0.00 268.00 44.00\">\n<g class=\"graph\" transform=\"scale(1 1) rotate(0) translate(4 40)\">\n<g class=\"node\"><title>ingest</title>\n<ellipse fill=\"none\" stroke=\"black\" cx=\"35\" cy=\"-18\" rx=\"35\" ry=\"18\"/>\n<text text-anchor=\"middle\" x=\"35\" y=\"-13\">ingest</text></g>\n<g class=\"node\"><title>parse</title>\n<ellipse fill=\"none\" stroke=\"black\" cx=\"139\" cy=\"-18\" rx=\"32\" ry=\"18\"/>\n<text text-anchor=\"middle\" x=\"139\" y=\"-13\">parse</text></g>\n<g class=\"edge\"><title>ingest&#45;&gt;parse</title>\n<path fill=\"none\" stroke=\"black\" d=\"M70,-18C79,-18 88,-18 97,-18\"/></g>\n</g>\n</svg>\n",
+      "view": {
+        "scale": 1.35,
+        "x": -48,
+        "y": 22
+      },
+      "showingSource": false,
+      "sourceDotId": "dot-1"
+    }
+  ],
+  "activeSvgTabId": "svg-1",
+  "nextSvgTab": 2,
+  "view": {
+    "scale": 1.35,
+    "x": -48,
+    "y": 22
+  },
+  "preferences": {
+    "autoRender": true,
+    "theme": "dark"
+  }
+}
