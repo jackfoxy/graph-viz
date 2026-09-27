@@ -61,6 +61,8 @@
       ace-spec
       layout=%columns
       collapse=|
+      ::  urui's document module stays off until this app moves onto it
+      files=~
   ==
 ::
 ++  slots
