@@ -2,6 +2,7 @@
 
 - Optional Vim key bindings
 - Alternate screen formats
+- Themes
 
 # v1.0.2
 
