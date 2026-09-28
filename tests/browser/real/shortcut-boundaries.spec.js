@@ -17,9 +17,7 @@ function visualSvg(source) {
 
 async function installRoutes(page, state, options = {}) {
   await installBackend(page, {
-    browse: ({kind, path}) => path
-      ? {file: true, children: []}
-      : {file: false, children: [`sample.${kind}`]},
+    browse: () => [['sample', 'txt'], ['sample', 'svg']],
     render: (source) => {
       state.renders.push(source);
       return visualSvg(source);
@@ -68,9 +66,6 @@ test('application chords fire exactly once while Ace is focused', async ({
   const source = 'digraph shortcuts {\n  Alpha\n  Beta\n}';
   await setSourceAndRender(page, state, source);
   await page.evaluate(() => {
-    window.prompt = (label) => label.startsWith('DOT')
-      ? 'shortcut.dot'
-      : 'shortcut.svg';
     window.ace.edit(document.querySelector('#dot')).focus();
   });
 
@@ -80,10 +75,18 @@ test('application chords fire exactly once while Ace is focused', async ({
   expect(state.renders).toEqual([source]);
   expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
 
+  //  a first save asks for a path in urui's file dialog, which gives
+  //  focus back to Ace when it closes
   await page.keyboard.press('Control+s');
+  await expect(page.locator('#urui-file-dialog')).toBeVisible();
+  await page.locator('#urui-file-dialog-path').fill('shortcut');
+  await page.locator('#urui-file-dialog-confirm').click();
   await expect.poll(() => state.saves.dot.length).toBe(1);
   expect(state.saves.dot).toEqual([source]);
   await page.keyboard.press('Control+Shift+s');
+  await expect(page.locator('#urui-file-dialog')).toBeVisible();
+  await page.locator('#urui-file-dialog-path').fill('shortcut');
+  await page.locator('#urui-file-dialog-confirm').click();
   await expect.poll(() => state.saves.svg.length).toBe(1);
   expect(state.saves.svg).toHaveLength(1);
   expect(state.saves.svg[0]).toContain('<svg');

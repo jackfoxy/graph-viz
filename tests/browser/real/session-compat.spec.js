@@ -1,5 +1,5 @@
 const {test, expect} = require('@playwright/test');
-const sessionV1 = require('../fixtures/session-v1.json');
+const sessionV2 = require('../fixtures/session-v2.json');
 const {installBackend, DEFER} = require('./fixtures/backend.js');
 
 const claySource = 'digraph clay { Saved -> Reloaded }';
@@ -21,7 +21,9 @@ function documentLabels(page, kind) {
   return page.locator(`${stripFor(kind)} .document-tab`).allTextContents();
 }
 
-test('v1 session restores and survives Clay edit, save, and reload', async ({
+//  A record from before the document stores (version 1) is ignored by
+//  design; this is the store-shaped record the application writes now.
+test('v2 session restores and survives Clay edit, save, and reload', async ({
   context,
   page
 }) => {
@@ -35,15 +37,10 @@ test('v1 session restores and survives Clay edit, save, and reload', async ({
     if (!localStorage.getItem('graph-viz.session.v1')) {
       localStorage.setItem('graph-viz.session.v1', JSON.stringify(session));
     }
-  }, sessionV1);
+  }, sessionV2);
   await installBackend(page, {
     docs: true,
-    browse: ({kind, path}) => {
-      if (kind !== 'dot') return {file: false, children: []};
-      if (!path) return {file: false, children: ['clay']};
-      if (path === 'clay') return {file: false, children: ['txt']};
-      return {file: path === 'clay/txt', children: []};
-    },
+    browse: () => [['clay', 'txt']],
     dotLoad: claySource,
     save: (request) => saves.push(request),
     render: (_source, _request, route) => {
@@ -67,7 +64,7 @@ test('v1 session restores and survives Clay edit, save, and reload', async ({
     .toHaveAttribute('aria-selected', 'true');
   await expect(page.locator(
     `${stripFor('dot')} .active .document-tab-close`
-  )).toHaveText('O');
+  )).toHaveText('●');
   await expect.poll(() => page.locator('#preview svg')
     .evaluate((svg) => svg.style.transform))
     .toBe('translate(-48px, 22px) scale(1.35)');
@@ -98,20 +95,26 @@ test('v1 session restores and survives Clay edit, save, and reload', async ({
       '\n// edited'
     );
   });
-  await expect(page.locator('#editor-pane-document-tabs .active .document-tab-close'))
-    .toHaveText('O');
-  await page.locator('#save-dot').click();
+  await expect(page.locator(
+    '#editor-pane-document-tabs .active .document-tab-close'
+  )).toHaveText('●');
+  await page.locator('#dot-save').click();
   await expect.poll(() => saves.length).toBe(1);
   expect(saves[0]).toMatchObject({
     kind: 'dot',
     path: 'clay/txt',
     body: editedSource
   });
-  await expect(page.locator('#editor-pane-document-tabs .active .document-tab-close'))
-    .toHaveText('X');
+  expect(saves[0].overwrite).toBe(false);
+  expect(saves[0].base).toMatch(/^0v/);
+  await expect(page.locator(
+    '#editor-pane-document-tabs .active .document-tab-close'
+  )).toHaveText('×');
   await expect.poll(() => page.evaluate(() => {
     const session = JSON.parse(localStorage.getItem('graph-viz.session.v1'));
-    return session.dotTabs.find((tab) => tab.path === 'clay/txt')?.source;
+    return session.dotTabs.find((tab) => {
+      return tab.path?.join('/') === 'clay/txt';
+    })?.text;
   })).toBe(editedSource);
 
   await page.reload();

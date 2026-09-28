@@ -133,25 +133,34 @@ test('parse diagnostics use exact Ace annotations and markers', async ({
   })).toBe(0);
 });
 
-test('Clay load failure opens a modal and restores focus', async ({page}) => {
+test('file dialog Escape restores focus; a failed load is a toast', async ({
+  page
+}) => {
   await installBackend(page, {
+    browse: () => [['missing', 'txt']],
     dotLoad: {
       status: 500,
-      contentType: 'text/plain',
-      body: 'Clay load failed'
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: false,
+        error: {
+          code: 'internal', message: 'Clay load failed',
+          retryable: false, details: []
+        }
+      })
     }
   });
-  await page.addInitScript(() => {
-    window.prompt = () => 'missing/txt';
-  });
   await page.goto('/apps/graph-viz/');
-  await page.locator('#load-dot').click();
-
-  await expect(page.locator('#clay-error-modal')).toBeVisible();
-  await expect(page.locator('#clay-error-message'))
-    .toHaveText('Error: Clay load failed');
-  await expect(page.locator('#close-clay-error')).toBeFocused();
+  await page.locator('#dot-open').click();
+  await expect(page.locator('#urui-file-dialog')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('#clay-error-modal')).toBeHidden();
-  await expect(page.locator('#load-dot')).toBeFocused();
+  await expect(page.locator('#urui-file-dialog')).toBeHidden();
+  await expect(page.locator('#dot-open')).toBeFocused();
+
+  await page.locator('#dot-files-tab').click();
+  await page.locator('[data-path="missing/txt"]').click();
+  await expect(page.locator('#urui-toast')).toBeVisible();
+  await expect(page.locator('#urui-toast-message'))
+    .toHaveText('Clay load failed');
+  await expect(page.locator('#clay-error-modal')).toHaveCount(0);
 });

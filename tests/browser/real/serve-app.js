@@ -118,6 +118,8 @@ async function compileAssetsOnce() {
     ['gg', 'desk/sur/graph.hoon'],
     ['gviz', 'desk/sur/gviz.hoon'],
     ['urui', 'desk/sur/urui.hoon'],
+    ['uhttp', 'desk/lib/urui-http.hoon'],
+    ['ufiles', 'desk/lib/urui-files.hoon'],
     ['uace', 'desk/lib/urui-ace.hoon'],
     ['ucss', 'desk/lib/urui-css.hoon'],
     ['ucfg', 'desk/lib/urui-config.hoon'],
