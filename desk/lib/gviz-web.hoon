@@ -1230,25 +1230,33 @@
     setState('ready', tab.path ? 'Loaded' : 'Rendered');
   }
 
-  docs.previews.register('svg', {
-    mount: (host) => host.append(previewShell),
-    show: showSvg,
-    hide: () => {
-      clearVisualSelection();
-      setViewControls(false);
-    },
-    //  a reference draws the same safe SVG, without the pan and zoom
-    render: (panel, text) => {
-      try {
-        panel.append(document.importNode(parseSvg(text), true));
-      } catch (_) {
-        const source = document.createElement('pre');
-        source.className = 'ref-source';
-        source.textContent = text;
-        panel.append(source);
-      }
+  //  One svg store, so one instance: it moves the preview shell, with
+  //  its pan, zoom, and inspector, into the store's host.
+  function svgPreviewer({host}) {
+    host.append(previewShell);
+    return {
+      show: showSvg,
+      hide: () => {
+        clearVisualSelection();
+        setViewControls(false);
+      },
+      dispose: () => previewShell.remove()
+    };
+  }
+
+  //  a reference draws the same safe SVG, without the pan and zoom
+  svgPreviewer.render = (panel, text) => {
+    try {
+      panel.append(document.importNode(parseSvg(text), true));
+    } catch (_) {
+      const source = document.createElement('pre');
+      source.className = 'ref-source';
+      source.textContent = text;
+      panel.append(source);
     }
-  });
+  };
+
+  docs.previews.register('svg', svgPreviewer);
 
   const applyTheme = runtime.theme.apply;
 
