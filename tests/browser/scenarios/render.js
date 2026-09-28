@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 
-const {settleFileTrees} = require('./support.js');
+const {settleFileTrees, showSvg} = require('./support.js');
 
 // Render request, SVG delivery, clipboard, templates, and stale-response
 // discard.
@@ -22,12 +22,12 @@ module.exports = async (env) => {
   assert(elements['#preview'].children[0], elements['#error'].textContent);
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="initial"/>');
-  assert.equal(elements['#copy-svg'].disabled, false);
+  assert.equal(elements['#svg-copy'].disabled, false);
   assert.equal(elements['#fullscreen-svg'].disabled, false);
   assert.equal(elements['#fullscreen-svg'].hidden, false);
-  await elements['#copy-svg'].listeners.click({});
+  await elements['#svg-copy'].listeners.click({});
   assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
-  assert.equal(elements['#render-status'].textContent, 'SVG copied');
+  assert.match(elements['#urui-toast-message'].textContent, /^Copied /);
   assert.equal(elements['#preview'].children[0].style.transform,
     'translate(20px, 30px) scale(2)');
   const themedSvg = elements['#preview'].children[0];
@@ -59,7 +59,7 @@ module.exports = async (env) => {
   await tick();
   assert.equal(elements['#preview'].children[0].renderSource,
     '<svg id="new"/>');
-  elements['#toggle-svg-source'].listeners.click({});
+  showSvg(env, 'source');
   assert.equal(getSvgSource(), '<svg id="new"/>');
-  elements['#toggle-svg-source'].listeners.click({});
+  showSvg(env, 'preview');
 };

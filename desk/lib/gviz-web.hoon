@@ -2,44 +2,22 @@
 ::
 /-  gviz, urui
 /+  shell=urui-shell, ucss=urui-css, uace=urui-ace
-/+  ucfg=urui-config, ujs=urui-js
+/+  ucfg=urui-config, ujs=urui-js, ufiles=urui-files
 |%
 ::
 ++  config
+  ::  Documents and files are urui's store module: `++files` below.
+  ::  The session record changed shape with it, so version 2 ignores a
+  ::  version 1 record rather than misreading it.
   ^-  app-config:urui
   :*  :*  name=%graph-viz
           title='Graph Viz'
           base='/apps/graph-viz'
           storage-key='graph-viz.session.v1'
-          storage-version=1
+          storage-version=2
       ==
-      :~  :*  name=%dot
-              label='DOT'
-              untitled='Untitled'
-              ext=%dot
-              leaf=%txt
-              mime='text/vnd.graphviz; charset=utf-8'
-              tabs=&
-              refs=&
-          ==
-          :*  name=%svg
-              label='SVG'
-              untitled='Preview'
-              ext=%svg
-              leaf=%svg
-              mime='image/svg+xml; charset=utf-8'
-              tabs=&
-              refs=&
-          ==
-      ==
-      :*  transport=%header
-          path-header=`'x-graph-viz-path'
-          flag-header=`'x-graph-viz-overwrite'
-          browse='/apps/graph-viz/file/{kind}/browse'
-          load='/apps/graph-viz/file/{kind}/load'
-          save='/apps/graph-viz/file/{kind}/save'
-          delete='/apps/graph-viz/file/{kind}/delete'
-      ==
+      kinds=~
+      *endpoints:urui
       :*  render-debounce=350
           save-debounce=150
           min-explorer=180
@@ -57,18 +35,60 @@
           [%disconnected 'Disconnected']
       ==
       docs-root=`'/docs/d/graph-viz/'
-      share-param=`[name='dot' max=12.288 param-max=16.384]
+      share-param=~
       ace-spec
       layout=%columns
       collapse=|
-      ::  urui's document module stays off until this app moves onto it
-      files=~
+      files=`files
   ==
+::
+++  files
+  ::  DOT is stored as %txt and labelled `.dot`; a rendered SVG previews
+  ::  through graph-viz's own previewer, registered in `++app-js`.
+  ^-  files:urui
+  :*  url='/apps/graph-viz/files'
+      :~  :*  name=%dot
+              noun='DOT'
+              untitled='Untitled'
+              starter=starter-dot
+              roots=~[[~ ~[%txt] `%dot &]]
+              preview=~
+              actions=~[%open %save %save-as %ref %browse]
+              refs=&
+              share=`['dot' 12.288 16.384]
+          ==
+          :*  name=%svg
+              noun='SVG'
+              untitled='Preview'
+              starter=''
+              roots=~[[~ ~[%svg] ~ &]]
+              preview=`%preview
+              actions=~[%open %save %save-as %copy %ref %browse]
+              refs=&
+              share=~
+          ==
+      ==
+      ~[[%dot-files %dot ~] [%svg-files %svg ~]]
+  ==
+::
+++  starter-dot
+  ::  The flowchart template, a new DOT tab's text.
+  ^-  @t
+  %-  of-wain:format
+  :~  'digraph flow {'
+      '  rankdir=LR'
+      '  node [shape=box]'
+      '  Start -> Plan -> Build -> Done'
+      '}'
+  ==
+::
+++  file-policy
+  ^-  policy:ufiles
+  (make-policy:ufiles files /data/graph-viz |)
 ::
 ++  slots
   ^-  (list slot:urui)
-  :~  ['source' %app %scalar ~]
-      ['paneBands' %urui %record ~]
+  :~  ['paneBands' %urui %record ~]
       ['paneWidth' %urui %scalar ~]
       ['explorerWidth' %urui %scalar ~]
       ['explorerOpen' %urui %scalar ~]
@@ -90,13 +110,14 @@
       ['preferences.keybindings' %urui %scalar ~]
       ['paneHeight' %urui %scalar ~]
       ['preferences.autoRender' %app %scalar ~]
+      ['fileTrees' %urui %record ~]
   ==
 ::
 ++  shortcuts
   ^-  (list shortcut:urui)
   :~  ['Ctrl-Enter' 'render' %always]
-      ['Ctrl-S' 'save-dot' %always]
-      ['Ctrl-Shift-S' 'save-svg' %always]
+      ['Ctrl-S' 'save:dot' %always]
+      ['Ctrl-Shift-S' 'save:svg' %always]
       ['Ctrl-0' 'fit-view' %preview]
       ['Ctrl-1' 'reset-view' %preview]
   ==
@@ -182,7 +203,8 @@
       :~  (pinned %head [%heading `'DOT source' `'source-status' ~])
           (pinned %controls [%controls editor-controls])
           (pinned %tabs [%tabs ~[editor-level]])
-          (pinned %body [%panel 'editor-body' ~ editor-body])
+          (pinned %tools [%controls visual-tools])
+          (pinned %body [%panel 'editor-body' `dot-host ~])
       ==
   ==
 ::
@@ -209,7 +231,7 @@
       :~  (pinned %head [%heading `'Preview' `'render-status' ~])
           (pinned %controls [%controls result-controls])
           (pinned %tabs [%tabs ~[result-level]])
-          (pinned %body [%panel 'preview-body' ~ result-body])
+          (pinned %body [%panel 'preview-body' `svg-host result-body])
       ==
   ==
 ::
@@ -256,10 +278,6 @@
           ;option(value "dependencies"): Dependencies
           ;option(value "clusters"): Clusters
         ==
-        ;button#add-dot-ref(type "button", disabled ""): Add Ref
-        ;button#browse-dot(type "button"): Browse
-        ;button#load-dot(type "button"): Load DOT
-        ;button#save-dot(type "button"): Save DOT
       ==
       ;label.preference.source-auto-render
         ;input#auto-render(type "checkbox", checked "");
@@ -267,7 +285,8 @@
       ==
   ==
 ::
-++  editor-body
+++  visual-tools
+  ::  Adding nodes and edges, a band above the DOT editor.
   ^-  marl
   :~  ;div.visual-tools(aria-label "Visual editing tools")
         ;label.control
@@ -297,22 +316,17 @@
           ;span: Draw edge
         ==
       ==
-      ;div.editor-body
-        ;div#editor-load-error.editor-load-error
-          =hidden  ""
-          =role    "alert"
-          ;strong: Source editors unavailable
-          ;span: Reload the page.
-          ;span: If the problem continues, verify the Ace assets are installed.
-        ==
-        ;div#dot.ace-editor-host
-          =role               "region"
-          =aria-labelledby    "dot-source-heading"
-          =aria-describedby   "error editor-load-error"
-          ;+  ;/  (trip 'digraph { a -> b }')
-        ==
-      ==
   ==
+::
+++  dot-host
+  ::  urui mounts the DOT editor here, labelled by the pane heading.
+  ^-  editor:urui
+  ['dot' 'DOT source editor' '' & | 262.144]
+::
+++  svg-host
+  ::  urui mounts the SVG source editor here; the preview replaces it.
+  ^-  editor:urui
+  ['svg-source' 'SVG source editor' 'ace/mode/text' & | 262.144]
 ::
 ++  result-controls
   ^-  marl
@@ -349,16 +363,6 @@
           =disabled  ""
           =title     "Reset view (Ctrl+1)"
           ;span: Reset
-        ==
-        ;button#add-svg-ref(type "button", disabled ""): Add Ref
-        ;button#browse-svg(type "button"): Browse
-        ;button#load-svg(type "button"): Load SVG
-        ;button#save-svg(type "button", disabled ""): Save SVG
-        ;button#toggle-svg-source
-          =type          "button"
-          =disabled      ""
-          =aria-pressed  "false"
-          ;span: Edit SVG
         ==
       ==
   ==
@@ -416,13 +420,6 @@
       ==
       ;div#preview-shell.preview-shell(data-state "empty")
         ;div.preview-actions(aria-label "Preview controls")
-          ;button#copy-svg.preview-action
-            =type        "button"
-            =disabled    ""
-            =title       "Copy SVG source"
-            =aria-label  "Copy SVG source to clipboard"
-            ;span.copy-icon(aria-hidden "true");
-          ==
           ;button#fullscreen-svg.preview-action
             =type          "button"
             =disabled      ""
@@ -460,12 +457,6 @@
           ;p: Check the ship connection, then try again.
         ==
         ;div#preview.preview(aria-live "polite", tabindex "0");
-        ;div#svg-source.ace-editor-host
-          =hidden      ""
-          =role        "region"
-          =aria-label  "SVG source editor"
-          ;span(hidden "");
-        ==
       ==
   ==
 ::
@@ -832,28 +823,26 @@
     outline-offset: -3px;
   }
 
-  #svg-source {
-    background: var(--surface-alt);
-    border: 0;
-    inset: 3rem 0 0;
-    outline: none;
-    position: absolute;
-  }
-
   #svg-source.ace_focus, #svg-source:focus-within {
     box-shadow: inset 0 0 0 2px var(--accent);
     outline: 3px solid var(--focus);
     outline-offset: -3px;
   }
 
-  #svg-source[hidden] { display: none; }
+  /* urui's preview host for the svg store holds the preview shell, which
+     fills it edge to edge. */
+  #svg-preview {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  #svg-preview[hidden] { display: none; }
 
   [data-state='empty'] .preview,
   [data-state='loading'] .preview,
-  [data-state='disconnected'] .preview,
-  [data-state='empty'] #svg-source,
-  [data-state='loading'] #svg-source,
-  [data-state='disconnected'] #svg-source { visibility: hidden; }
+  [data-state='disconnected'] .preview { visibility: hidden; }
 
   .inspector {
     background: var(--inspector-background);
@@ -984,9 +973,6 @@
       '}'
     ].join('\n')
   };
-  const starter = templates.flowchart;
-  const dot = document.querySelector('#dot');
-  const editorLoadError = document.querySelector('#editor-load-error');
   const template = document.querySelector('#template');
   const button = document.querySelector('#render');
   const error = document.querySelector('#error');
@@ -1021,8 +1007,6 @@
   const addNode = document.querySelector('#add-node');
   const drawEdge = document.querySelector('#draw-edge');
   const preview = document.querySelector('#preview');
-  const svgSource = document.querySelector('#svg-source');
-  const copySvg = document.querySelector('#copy-svg');
   const fullscreenSvg = document.querySelector('#fullscreen-svg');
   const previewShell = document.querySelector('#preview-shell');
   const renderStatus = document.querySelector('#render-status');
@@ -1032,10 +1016,6 @@
   const fullscreenZoomOut = document.querySelector('#fullscreen-zoom-out');
   const fullscreenZoomIn = document.querySelector('#fullscreen-zoom-in');
   const resetView = document.querySelector('#reset-view');
-  const addDotRef = document.querySelector('#add-dot-ref');
-  const addSvgRef = document.querySelector('#add-svg-ref');
-  const saveSvg = document.querySelector('#save-svg');
-  const toggleSvgSource = document.querySelector('#toggle-svg-source');
   const fit = document.querySelector('#fit');
   const autoRender = document.querySelector('#auto-render');
   const theme = document.querySelector('#theme');
@@ -1045,57 +1025,27 @@
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const config = window.urui.config;
+  //  urui owns the DOT and SVG documents, their editors, files, tree,
+  //  references, and source/preview; graph-viz supplies rendering and the
+  //  fields that link a rendered SVG to the DOT tab it came from.
   const runtime = window.urui.runtime({
     elements: {
       explorerPane,
       editorPane: document.querySelector('#editor-pane'),
       resultPane: document.querySelector('#preview-pane')
     },
-    editors: () => [editor, svgEditor],
     onChange: () => queueSaveSession(),
     onResize: () => closeFileContext(),
     session: {
       read: (key) => {
-        if (key === 'source') return validateSource(editor.getSource());
         if (key === 'view') return view;
         if (key === 'preferences.autoRender') return autoRender.checked;
         return undefined;
       },
       validate: (key, value) => {
-        if (key === 'source') return validSavedSource(value) ?? starter;
         if (key === 'view') return validView(value);
         if (key === 'preferences.autoRender') return value !== false;
         return undefined;
-      }
-    },
-    files: {
-      dot: {
-        status: (label, action) => {
-          sourceStatus.textContent = label === 'Load failed' ? 'Ready' : label;
-        },
-        error: (cause) => showClientProblem(String(cause))
-      },
-      svg: {
-        canSave: (tab) => Boolean(tab.source),
-        status: (label, action) => {
-          if (action === 'delete') renderStatus.textContent = label;
-          else if (label === 'Loading' || label === 'Saving') {
-            setState('loading', label);
-          } else {
-            setState(currentSvg ? 'ready' : 'empty',
-              label === 'Ready' ? 'Rendered' : label);
-          }
-        },
-        loaded: () => {
-          error.textContent = '';
-          error.hidden = true;
-          setPreviewControls(true);
-        },
-        saved: (tab, source) => { tab.editBaseSource = source; },
-        error: (cause) => {
-          error.textContent = String(cause);
-          error.hidden = false;
-        }
       }
     },
     shortcuts: {
@@ -1116,77 +1066,50 @@
         return false;
       }
     },
-    tabs: {
+    documents: {
       dot: {
-        validate: (candidate, base) => {
-          const start = Number(candidate.selection?.start);
-          const end = Number(candidate.selection?.end);
-          const selection = {
-            start: Number.isFinite(start)
-              ? clamp(Math.trunc(start), 0, base.source.length) : 0,
-            end: Number.isFinite(end)
-              ? clamp(Math.trunc(end), 0, base.source.length) : 0
-          };
-          selection.end = Math.max(selection.start, selection.end);
-          return {selection};
-        },
-        defaults: (options) => ({
-          selection: options.selection || {start: 0, end: 0}
-        }),
-        empty: () => createDotTab(),
-        onCapture: (tab) => {
-          if (!editor) return;
-          tab.source = editor.getSource();
-          tab.selection = editor.getSelection();
-          syncRefFromParent('dot', tab.id);
-        },
-        onActivate: (tab) => {
+        activate: () => {
           invalidateRender();
           clearTimeout(renderTimer);
-          editor.setSource(tab.source, {
-            history: 'reset',
-            notify: false,
-            selection: tab.selection
-          });
           clearVisualSelection();
           error.hidden = true;
           setEditorProblem();
           sourceStatus.textContent = 'Ready';
         },
         afterActivate: (tab, choices) => {
-          if (choices.renderSelected !== false && autoRender.checked) {
-            renderNow();
-          }
+          if (choices.restore || choices.renderSelected === false) return;
+          if (autoRender.checked) renderNow();
         }
       },
       svg: {
-        validate: (candidate, base, ids) => ({
-          editBaseSource: validSavedSource(candidate.editBaseSource)
-            ?? base.source,
-          view: validView(candidate.view),
-          showingSource: candidate.showingSource === true,
-          sourceDotId: ids.get('dot')?.has(candidate.sourceDotId)
-            ? candidate.sourceDotId
-            : undefined
-        }),
-        defaults: (options, source) => ({
-          editBaseSource: options.editBaseSource ?? source,
-          view: options.view,
-          showingSource: options.showingSource === true,
-          sourceDotId: options.sourceDotId
-        }),
-        empty: () => createSvgTab(),
-        onCapture: (tab) => {
-          if (showingSvgSource) tab.source = svgEditor.getSource();
-          else if (currentSvg) tab.source = lastSvgSource;
-          tab.view = {...view};
-          tab.showingSource = showingSvgSource;
-          syncRefFromParent('svg', tab.id);
+        fields: {
+          defaults: (init) => ({
+            editBaseSource: init.text ?? '',
+            view: undefined,
+            sourceDotId: undefined
+          }),
+          validate: (candidate, tab, ids) => ({
+            editBaseSource: validSavedSource(candidate.editBaseSource)
+              ?? tab.text,
+            view: validView(candidate.view),
+            sourceDotId: ids.get('dot')?.has(candidate.sourceDotId)
+              ? candidate.sourceDotId
+              : undefined
+          })
         },
-        onActivate: () => displayActiveSvgTab()
+        //  the tab being left keeps its pan and zoom
+        activate: (tab, choices) => {
+          const left = choices.previousId
+            ? docs.get('svg', choices.previousId) : undefined;
+          if (left && currentSvg) left.view = {...view};
+          pendingView = validView(tab.view) ?? pendingView;
+        },
+        loaded: (tab) => { tab.editBaseSource = tab.text; },
+        saved: (tab) => { tab.editBaseSource = tab.text; }
       }
     }
   });
+  const docs = runtime.documents;
   const renderDelay = 350;
   const minScale = 0.05;
   const maxScale = 32;
@@ -1237,103 +1160,54 @@
   let view = {scale: 1, x: 0, y: 0};
   let panPoint;
   let lastSvgSource = '';
-  let showingSvgSource = false;
   let pendingView;
   let selectedItems = [];
   let inheritNewNodeShape = false;
 
-  const createAceEditorAdapter = window.urui.editor.adapter;
+  //  urui mounts both editors in `docs.start()`; they are bound here once
+  //  it has, and the hooks above guard for the start that precedes it
   let editor;
   let svgEditor;
-  try {
-    editor = createAceEditorAdapter(dot, {
-      assets: window.graphVizAceAssets,
-      label: 'DOT source editor',
-      labelledBy: 'dot-source-heading',
-      describedBy: 'error editor-load-error',
-      platform: window.__GVIZ_BROWSER_TEST__?.acePlatform
-    });
-    svgEditor = createAceEditorAdapter(svgSource, {
-      assets: window.graphVizAceAssets,
-      label: 'SVG source editor',
-      mode: 'ace/mode/text',
-      describedBy: 'error editor-load-error',
-      platform: window.__GVIZ_BROWSER_TEST__?.acePlatform
-    });
-  } catch (cause) {
-    dot.hidden = true;
-    editorLoadError.hidden = false;
-    editorLoadError.title = String(cause);
-    throw cause;
-  }
-  if (window.__GVIZ_BROWSER_TEST__) {
-    window.__GVIZ_EDITOR_TEST__ = editor;
-    window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
-  }
 
   const refreshEditor = runtime.refreshEditors;
 
-  const dotTabs = runtime.tabs.list('dot');
-  const svgTabs = runtime.tabs.list('svg');
-  const activeDotTab = () => runtime.tabs.active('dot');
-  const activeSvgTab = () => runtime.tabs.active('svg');
-  const documentTabs = (kind) => runtime.tabs.list(kind);
-  const captureActiveDotTab = () => runtime.tabs.capture('dot');
-  const captureActiveSvgTab = () => runtime.tabs.capture('svg');
-  const createDotTab = (source = starter, options = {}) => {
-    return runtime.tabs.create('dot', source, options);
-  };
-  const createSvgTab = (source = '', options = {}) => {
-    return runtime.tabs.create('svg', source, options);
-  };
-  const renderDocumentTabs = (kind) => runtime.tabs.render(kind);
-  const selectDotTab = (id, focus = false, renderSelected = true) => {
-    return runtime.tabs.select('dot', id, {focus, renderSelected});
-  };
-  const selectSvgTab = (id, focus = false, capture = true) => {
-    return runtime.tabs.select('svg', id, {focus, capture});
-  };
-  const closeDotTab = (id) => runtime.tabs.close('dot', id);
-  const closeSvgTab = (id) => runtime.tabs.close('svg', id);
+  const activeDotTab = () => docs.active('dot');
+  const activeSvgTab = () => docs.active('svg');
+
+  //  An SVG tab shows its source in urui's editor or its drawing in the
+  //  preview; everything graph-viz draws belongs to the preview.
+  function svgShowingSource() {
+    return activeSvgTab()?.display === 'source';
+  }
 
   function svgTabEdited(tab) {
-    return tab.source !== tab.editBaseSource;
+    return tab.text !== tab.editBaseSource;
   }
 
   function clearSvgDocument() {
     clearVisualSelection();
     preview.replaceChildren();
-    svgEditor.setSource('', {history: 'reset', notify: false});
     currentSvg = undefined;
     lastSvgSource = '';
-    showingSvgSource = false;
     setPreviewControls(false);
     setState('empty', 'Empty');
   }
 
-  function displayActiveSvgTab() {
-    const tab = activeSvgTab();
-    if (!tab?.source) {
+  //  The svg previewer's `show`: draw the tab's text, or say why not.
+  function showSvg(tab) {
+    if (!tab?.text) {
       clearSvgDocument();
       return;
     }
-    svgEditor.setSource(tab.source, {
-      history: 'reset',
-      notify: false,
-      selection: {start: 0, end: 0}
-    });
-    lastSvgSource = tab.source;
-    pendingView = validView(tab.view);
     try {
-      installSvg(tab.source);
+      validateSource(tab.text);
+      installSvg(tab.text);
       error.hidden = true;
-      setSvgSourceVisible(tab.showingSource);
     } catch (cause) {
       currentSvg = undefined;
       preview.replaceChildren();
       error.textContent = `Invalid SVG: ${cause.message || cause}`;
       error.hidden = false;
-      setSvgSourceVisible(true);
       setPreviewControls(true);
       setState('ready', 'Invalid SVG');
       return;
@@ -1342,14 +1216,25 @@
     setState('ready', tab.path ? 'Loaded' : 'Rendered');
   }
 
-  if (typeof ResizeObserver === 'function') {
-    const editorResizeObserver = new ResizeObserver(() => {
-      refreshEditor();
-      svgEditor.refresh();
-    });
-    editorResizeObserver.observe(dot);
-    editorResizeObserver.observe(svgSource);
-  }
+  docs.previews.register('svg', {
+    mount: (host) => host.append(previewShell),
+    show: showSvg,
+    hide: () => {
+      clearVisualSelection();
+      setViewControls(false);
+    },
+    //  a reference draws the same safe SVG, without the pan and zoom
+    render: (panel, text) => {
+      try {
+        panel.append(document.importNode(parseSvg(text), true));
+      } catch (_) {
+        const source = document.createElement('pre');
+        source.className = 'ref-source';
+        source.textContent = text;
+        panel.append(source);
+      }
+    }
+  });
 
   const applyTheme = runtime.theme.apply;
 
@@ -1395,7 +1280,7 @@
   }
 
   function setViewControls(enabled) {
-    const active = enabled && !showingSvgSource;
+    const active = enabled && !svgShowingSource();
     zoomOut.disabled = !active;
     zoomIn.disabled = !active;
     fullscreenZoomOut.disabled = !active;
@@ -1406,104 +1291,8 @@
   }
 
   function setPreviewControls(enabled) {
-    if (!enabled) setSvgSourceVisible(false);
     setViewControls(enabled);
-    saveSvg.disabled = !enabled;
-    toggleSvgSource.disabled = !enabled;
-    copySvg.disabled = !enabled;
     fullscreenSvg.disabled = !enabled;
-  }
-
-  function setSvgSourceVisible(visible) {
-    const tab = activeSvgTab();
-    showingSvgSource = Boolean(visible && tab?.source);
-    preview.hidden = showingSvgSource;
-    svgSource.hidden = !showingSvgSource;
-    toggleSvgSource.setAttribute(
-      'aria-pressed',
-      String(showingSvgSource)
-    );
-    toggleSvgSource.textContent = showingSvgSource
-      ? 'View rendered'
-      : 'Edit SVG';
-    setViewControls(Boolean(currentSvg));
-    if (showingSvgSource) {
-      clearVisualSelection();
-      requestAnimationFrame(() => {
-        svgEditor.refresh();
-        svgEditor.focus();
-      });
-    } else if (currentSvg) {
-      preview.focus();
-    }
-  }
-
-  function toggleSvgView() {
-    const tab = activeSvgTab();
-    if (!tab?.source) return;
-    if (!showingSvgSource) {
-      svgEditor.setSource(tab.source, {
-        history: 'reset',
-        notify: false,
-        selection: {start: 0, end: 0}
-      });
-      setSvgSourceVisible(true);
-      tab.showingSource = true;
-      queueSaveSession();
-      return;
-    }
-    const source = svgEditor.getSource();
-    try {
-      validateSource(source);
-      installSvg(source);
-    } catch (cause) {
-      error.textContent = `Invalid SVG: ${cause.message || cause}`;
-      error.hidden = false;
-      setState('ready', 'Invalid SVG');
-      svgEditor.focus();
-      return;
-    }
-    tab.source = source;
-    tab.showingSource = false;
-    lastSvgSource = source;
-    error.hidden = true;
-    setSvgSourceVisible(false);
-    setPreviewControls(true);
-    setState('ready', tab.path ? 'Loaded' : 'Rendered');
-    syncRefFromParent('svg', tab.id);
-    renderDocumentTabs('svg');
-    queueSaveSession();
-  }
-
-  async function writeClipboard(source) {
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(source);
-        return;
-      }
-    } catch (_) {
-      // Fall through for browsers that restrict the Clipboard API.
-    }
-    const helper = document.createElement('textarea');
-    helper.value = source;
-    helper.setAttribute('readonly', '');
-    helper.style.position = 'fixed';
-    helper.style.opacity = '0';
-    document.body.append(helper);
-    helper.select();
-    const copied = document.execCommand('copy');
-    helper.remove();
-    if (!copied) throw new Error('Clipboard unavailable');
-  }
-
-  async function copySvgSource() {
-    if (!lastSvgSource) return;
-    try {
-      await writeClipboard(lastSvgSource);
-      renderStatus.textContent = 'SVG copied';
-    } catch (cause) {
-      showClientProblem('Unable to copy SVG source');
-    }
   }
 
   function previewIsFullscreen() {
@@ -1519,13 +1308,13 @@
     fullscreenSvg.setAttribute('aria-label', label);
     fullscreenSvg.title = label;
     previewShell.classList.toggle('is-fullscreen', expanded);
-    if (currentSvg && !showingSvgSource) {
+    if (currentSvg && !svgShowingSource()) {
       requestAnimationFrame(fitToWindow);
     }
   }
 
   async function toggleSvgFullscreen() {
-    if (!currentSvg || showingSvgSource) return;
+    if (!currentSvg || svgShowingSource()) return;
     try {
       if (previewIsFullscreen()) {
         await document.exitFullscreen();
@@ -1546,13 +1335,8 @@
   const renderRefTabs = explorer.refs.render;
   const openDocsTab = explorer.docs.open;
   const refreshHelpVariant = explorer.docs.refreshVariant;
-  const addRef = explorer.refs.add;
-  const syncRefFromParent = explorer.refs.syncFromParent;
-  const syncAllRefs = explorer.refs.syncAll;
-  const refreshFileTree = explorer.tree.refresh;
   const closeFileContext = explorer.context.close;
 
-  const showClayError = runtime.dialogs.showError;
 
   const validateSource = runtime.session.validateSource;
   const validSavedSource = (source) => {
@@ -1565,7 +1349,6 @@
   const saveSession = runtime.session.save;
   const queueSaveSession = runtime.session.queue;
   const loadSession = runtime.session.load;
-  const sourceFromUrl = runtime.session.sourceFromUrl;
 
   function validView(candidate) {
     if (!candidate || typeof candidate !== 'object') return undefined;
@@ -1615,7 +1398,7 @@
   }
 
   function setEditorProblem(problem) {
-    editor.setDiagnostic(problem);
+    editor?.setDiagnostic(problem);
   }
 
   function dotTokens(source) {
@@ -2699,13 +2482,12 @@
     selectSourceStatement(kind, identity);
   }
 
+  //  urui has already taken the edit into the tab; graph-viz only drops
+  //  what the edit made stale and schedules the render.
   function editorChanged() {
-    captureActiveDotTab();
-    renderDocumentTabs('dot');
     clearVisualSelection();
     error.hidden = true;
     setEditorProblem();
-    queueSaveSession();
     if (autoRender.checked) {
       queueRender();
     } else {
@@ -2713,27 +2495,6 @@
       clearTimeout(renderTimer);
       sourceStatus.textContent = 'Changed';
     }
-  }
-
-  function svgEditorChanged() {
-    const tab = activeSvgTab();
-    if (!tab || !showingSvgSource) return;
-    const source = svgEditor.getSource();
-    try {
-      validateSource(source);
-    } catch (cause) {
-      error.textContent = String(cause);
-      error.hidden = false;
-      return;
-    }
-    tab.source = source;
-    tab.showingSource = true;
-    lastSvgSource = source;
-    error.hidden = true;
-    setState('ready', 'Changed');
-    syncRefFromParent('svg', tab.id);
-    renderDocumentTabs('svg');
-    queueSaveSession();
   }
 
   function clamp(value, minimum, maximum) {
@@ -2749,7 +2510,7 @@
   }
 
   function zoomAtCenter(factor) {
-    if (!currentSvg || showingSvgSource) return;
+    if (!currentSvg || svgShowingSource()) return;
     const bounds = preview.getBoundingClientRect();
     const centerX = bounds.width / 2;
     const centerY = bounds.height / 2;
@@ -2870,41 +2631,41 @@
     render();
   }
 
-  const saveCurrentDot = () => runtime.files.save('dot');
-  const saveCurrentSvg = () => runtime.files.save('svg');
-
+  //  A draft DOT tab renders to `Preview`; a saved one to its name.
   function renderedSvgLabel(dotTab) {
-    if (!dotTab || dotTab.label === 'Untitled') return 'Preview';
+    if (!dotTab?.path) return 'Preview';
     if (dotTab.label.endsWith('.dot')) {
       return `${dotTab.label.slice(0, -4)}.svg`;
     }
     return `${dotTab.label}.svg`;
   }
 
+  //  The SVG a render produced lands in the tab rendered from the same DOT
+  //  tab, else in an empty draft, else in a new one, and is shown.
   function installRenderedSvg(source, dotTabId) {
-    captureActiveSvgTab();
-    let tab = svgTabs.find((item) => item.sourceDotId === dotTabId);
-    if (!tab) {
-      tab = svgTabs.find((item) => {
-        return !item.source && !item.path && !item.sourceDotId;
-      });
-    }
-    const dotTab = dotTabs.find((item) => item.id === dotTabId);
-    if (!tab) {
-      tab = createSvgTab('', {cleanSource: ''});
-    }
-    const restoredView = !tab.source && !tab.sourceDotId
+    const tabs = docs.list('svg');
+    let tab = tabs.find((item) => item.sourceDotId === dotTabId)
+      || tabs.find((item) => !item.text && !item.path && !item.sourceDotId);
+    if (!tab) tab = docs.create('svg', {text: '', activate: false});
+    //  a first drawing into an empty tab takes the view the session saved
+    const restoredView = !tab.text && !tab.sourceDotId
       ? pendingView
       : undefined;
-    tab.label = renderedSvgLabel(dotTab);
-    tab.source = source;
-    tab.editBaseSource = source;
-    tab.sourceDotId = dotTabId;
-    tab.view = restoredView;
-    tab.showingSource = false;
-    syncRefFromParent('svg', tab.id);
-    runtime.tabs.setActiveId('svg', undefined);
-    selectSvgTab(tab.id, false, false);
+    //  an active tab is redrawn by the update; selecting it again would
+    //  draw it twice and fit away the restored view
+    const wasActive = activeSvgTab()?.id === tab.id;
+    pendingView = restoredView;
+    docs.update('svg', tab.id, {
+      text: source,
+      label: renderedSvgLabel(docs.get('dot', dotTabId)),
+      fields: {
+        editBaseSource: source,
+        sourceDotId: dotTabId,
+        view: restoredView,
+        display: 'preview'
+      }
+    });
+    if (!wasActive) docs.select('svg', tab.id);
   }
 
   function insertTemplate() {
@@ -2921,8 +2682,6 @@
   function handleShortcut() {
     for (const [command, handler] of Object.entries({
       render: renderNow,
-      'save-dot': saveCurrentDot,
-      'save-svg': saveCurrentSvg,
       'fit-view': fitToWindow,
       'reset-view': resetGraphView
     })) runtime.shortcuts.register(command, handler);
@@ -2930,8 +2689,7 @@
 
   async function render() {
     const uid = latestRequestUid = ++requestUid;
-    captureActiveDotTab();
-    const dotTabId = runtime.tabs.activeId('dot');
+    const dotTabId = activeDotTab()?.id;
     const source = editor.getSource();
     try {
       validateSource(source);
@@ -2951,18 +2709,19 @@
       button.disabled = false;
       return;
     }
-    captureActiveSvgTab();
-    const replacingSvg = svgTabs.find((tab) => {
+    const replacingSvg = docs.list('svg').find((tab) => {
       return tab.sourceDotId === dotTabId;
     });
     if (replacingSvg && svgTabEdited(replacingSvg)
-      && !window.confirm(
-        `Replace edited SVG in ${replacingSvg.label}?`
-      )) {
+      && !await runtime.confirm('replace', {
+        message: `Replace edited SVG in ${replacingSvg.label}?`
+      })) {
       sourceStatus.textContent = 'Ready';
       button.disabled = false;
       return;
     }
+    //  a newer render may have started while the question was open
+    if (uid !== latestRequestUid) return;
     button.disabled = true;
     sourceStatus.textContent = 'Rendering';
     error.textContent = '';
@@ -3021,12 +2780,6 @@
 
   function bootGraphViz() {
   button.addEventListener('click', renderNow);
-  addDotRef.addEventListener('click', () => {
-    addRef('dot', runtime.tabs.activeId('dot'));
-  });
-  addSvgRef.addEventListener('click', () => {
-    addRef('svg', runtime.tabs.activeId('svg'));
-  });
   addNode.addEventListener('click', addVisualNode);
   drawEdge.addEventListener('click', drawSelectedEdge);
   deleteSelection.addEventListener('click', deleteSelectedItem);
@@ -3043,8 +2796,6 @@
     event.preventDefault();
     addVisualNode();
   });
-  toggleSvgSource.addEventListener('click', toggleSvgView);
-  copySvg.addEventListener('click', copySvgSource);
   fullscreenSvg.addEventListener('click', toggleSvgFullscreen);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
@@ -3057,8 +2808,6 @@
     }
   });
   runtime.wire();
-  editor.onChange(editorChanged);
-  svgEditor.onChange(svgEditorChanged);
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fullscreenZoomOut.addEventListener(
@@ -3150,11 +2899,10 @@
 
   handleShortcut();
   document.addEventListener('fullscreenchange', updateFullscreenControl);
-  //  the runtime validates the record and applies its own slots; only
-  //  this application's three come back here
+  //  the runtime validates the record and applies its own slots, the
+  //  document stores' included; only graph-viz's two come back here
   const savedSession = loadSession();
   if (!savedSession) applyTheme('system', false);
-  let initialProblem = '';
   if (savedSession) {
     autoRender.checked = savedSession['preferences.autoRender'];
     pendingView = savedSession.view;
@@ -3163,86 +2911,27 @@
   renderDocsTabs();
   renderRefTabs();
   setExplorerView(explorer.view());
-  let sharedSource;
-  try {
-    sharedSource = sourceFromUrl();
-  } catch (cause) {
-    initialProblem = String(cause);
-  }
-  if (sharedSource !== undefined) {
-    const shared = createDotTab(sharedSource, {label: 'Shared'});
-    runtime.tabs.setActiveId('dot', shared.id);
-  }
-  if (!dotTabs.length) {
-    const first = createDotTab(savedSession?.source ?? starter);
-    runtime.tabs.setActiveId('dot', first.id);
-  }
-  if (!activeDotTab()) runtime.tabs.setActiveId('dot', dotTabs[0].id);
-  const initialDot = activeDotTab();
-  editor.setSource(initialDot.source, {
-    history: 'reset',
-    notify: false,
-    selection: initialDot.selection
-  });
-  renderDocumentTabs('dot');
-  if (!svgTabs.length) {
-    const first = createSvgTab();
-    runtime.tabs.setActiveId('svg', first.id);
-  }
-  if (!activeSvgTab()) runtime.tabs.setActiveId('svg', svgTabs[0].id);
-  syncAllRefs();
-  try {
-    selectSvgTab(runtime.tabs.activeId('svg'), false, false);
-  } catch (_) {
-    runtime.tabs.setList('svg', []);
-    const first = createSvgTab();
-    runtime.tabs.setActiveId('svg', first.id);
-    selectSvgTab(first.id, false, false);
-  }
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
   populateAttributeShapes();
-  refreshFileTree('dot');
-  refreshFileTree('svg');
+  docs.start();
+  editor = docs.editor('dot');
+  svgEditor = docs.editor('svg');
+  editor.onChange(editorChanged);
+  if (window.__GVIZ_BROWSER_TEST__) {
+    window.__GVIZ_EDITOR_TEST__ = editor;
+    window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
+  }
   if (autoRender.checked) render();
   refreshHelpVariant();
-  if (initialProblem) showClientProblem(initialProblem);
   }
 
   window.urui.boot({
     onReady: bootGraphViz,
-    status: (_area, label) => setState(_area, label),
-    tabs: {
-      create: (kind, ...args) => kind === 'dot'
-        ? createDotTab(...args) : createSvgTab(...args),
-      close: (kind, id) => kind === 'dot'
-        ? closeDotTab(id) : closeSvgTab(id),
-      select: (kind, id, focus = false) => kind === 'dot'
-        ? selectDotTab(id, focus) : selectSvgTab(id, focus),
-      update: renderDocumentTabs,
-      list: documentTabs,
-      active: (kind) => kind === 'dot' ? activeDotTab() : activeSvgTab()
-    },
     editor: {primary: () => editor, secondary: () => svgEditor},
-    explorer: {
-      show: setExplorerView,
-      refreshTree: refreshFileTree,
-      addRef,
-      openDocs: openDocsTab
-    },
-    dialog: {
-      help: setHelpOpen,
-      error: showClayError,
-      confirm: (...args) => window.confirm(...args),
-      prompt: (...args) => window.prompt(...args)
-    },
-    session: {
-      save: saveSession,
-      queue: queueSaveSession,
-      get: loadSession,
-      set: saveSession
-    },
-    files: runtime.files,
+    explorer: {show: setExplorerView, openDocs: openDocsTab},
+    dialog: {help: setHelpOpen},
+    session: {save: saveSession, queue: queueSaveSession},
     shortcuts: runtime.shortcuts,
     layout: {
       paneWidth: runtime.layout.paneWidth,

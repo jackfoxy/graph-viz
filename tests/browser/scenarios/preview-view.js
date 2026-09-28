@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 
-const {settleFileTrees, renderInto} = require('./support.js');
+const {settleFileTrees, renderInto, showSvg} = require('./support.js');
 
 // Preview surface: fullscreen, SVG source view, wheel zoom, and pan.
 
@@ -41,19 +41,21 @@ module.exports = async (env) => {
   assert(!elements['#preview-shell'].classes.has('is-fullscreen'));
   assert.equal(elements['#fullscreen-svg']['aria-pressed'], 'false');
 
-  elements['#toggle-svg-source'].listeners.click({});
-  assert.equal(elements['#preview'].hidden, true);
+  //  urui's toggle swaps the SVG source editor for the preview host
+  const [sourceButton, previewButton] = elements['#svg-display'].children;
+  showSvg(env, 'source');
+  assert.equal(elements['#svg-preview'].hidden, true);
   assert.equal(elements['#svg-source'].hidden, false);
   assert.equal(getSvgSource(), '<svg id="initial"/>');
-  assert.equal(elements['#toggle-svg-source'].textContent, 'View rendered');
-  assert.equal(elements['#toggle-svg-source']['aria-pressed'], 'true');
+  assert.equal(sourceButton['aria-pressed'], 'true');
+  assert.equal(previewButton['aria-pressed'], 'false');
   assert.equal(elements['#fullscreen-svg'].hidden, true);
-  await elements['#copy-svg'].listeners.click({});
+  await elements['#svg-copy'].listeners.click({});
   assert.equal(clipboardWrites.at(-1), '<svg id="initial"/>');
-  elements['#toggle-svg-source'].listeners.click({});
-  assert.equal(elements['#preview'].hidden, false);
+  showSvg(env, 'preview');
+  assert.equal(elements['#svg-preview'].hidden, false);
   assert.equal(elements['#svg-source'].hidden, true);
-  assert.equal(elements['#toggle-svg-source'].textContent, 'Edit SVG');
+  assert.equal(previewButton['aria-pressed'], 'true');
   assert.equal(elements['#fullscreen-svg'].hidden, false);
 
   const svg = elements['#preview'].children[0];

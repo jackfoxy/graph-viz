@@ -6,14 +6,7 @@
 ++  test-protected-routes-authenticate-before-validating
   =/  urls=(list @t)
     :~  '/apps/graph-viz/render'
-        '/apps/graph-viz/file/dot/browse'
-        '/apps/graph-viz/file/dot/load'
-        '/apps/graph-viz/file/dot/save'
-        '/apps/graph-viz/file/dot/delete'
-        '/apps/graph-viz/file/svg/browse'
-        '/apps/graph-viz/file/svg/load'
-        '/apps/graph-viz/file/svg/save'
-        '/apps/graph-viz/file/svg/delete'
+        '/apps/graph-viz/files'
     ==
   %-  zing
   %+  turn  urls
@@ -36,7 +29,8 @@
         [%'POST' '/apps/graph-viz/app.js']
         [%'GET' '/apps/graph-viz/render']
         [%'POST' '/apps/graph-viz/render/']
-        [%'POST' '/apps/graph-viz/file/dot/nope']
+        [%'POST' '/apps/graph-viz/files/nope']
+        [%'GET' '/apps/graph-viz/files']
     ==
   %-  zing
   %+  turn  cases
@@ -57,23 +51,28 @@
   ==
 ::
 ++  test-file-validation-precedes-clay-access
-  =/  urls=(list @t)
-    :~  '/apps/graph-viz/file/dot/browse'
-        '/apps/graph-viz/file/dot/load'
-        '/apps/graph-viz/file/svg/save'
-        '/apps/graph-viz/file/svg/delete'
+  ::  A path outside the policy is refused before any scry.
+  =/  bodies=(list @t)
+    :~  '{"op":"load","path":["..","escape","txt"]}'
+        '{"op":"save","path":["a","b","hoon"],"text":"x"}'
+        '{"op":"delete","path":["txt"]}'
     ==
   %-  zing
-  %+  turn  urls
-  |=  url=@t
-  =/  out  (poke-http:web (file-request:web url '../escape' ~))
+  %+  turn  bodies
+  |=  body=@t
+  =/  out  (poke-http:web (file-request:web body))
   ;:  weld
     (expect-eq !>(400) !>((response-status:web -.out)))
-    (expect-eq !>('invalid Clay path') !>((response-body:web -.out)))
+    %-  expect
+    !>(?=(^ (find "invalid-path" (trip (response-body:web -.out)))))
   ==
 ::
 ++  test-load-rebinds-with-the-saved-state
   =/  initial  on-init:~(. agent:web bol:web)
-  =/  loaded  (on-load:~(. agent:web bol:web) !>([%0 ~]))
-  (expect-eq !>(-.initial) !>(-.loaded))
+  =/  from-zero  (on-load:~(. agent:web bol:web) !>([%0 ~]))
+  =/  from-one  (on-load:~(. agent:web bol:web) !>([%1 ~]))
+  ;:  weld
+    (expect-eq !>(-.initial) !>(-.from-zero))
+    (expect-eq !>(-.initial) !>(-.from-one))
+  ==
 --

@@ -15,15 +15,17 @@
         "/apps/graph-viz/ace/theme-github.js"
         "/apps/graph-viz/ace/ext-beautify.js"
         "id=\"render\""
-        "id=\"browse-dot\""
-        "id=\"load-dot\""
-        "id=\"save-dot\""
-        "id=\"browse-svg\""
-        "id=\"load-svg\""
-        "id=\"save-svg\""
-        "id=\"toggle-svg-source\""
-        "Edit SVG"
-        "id=\"copy-svg\""
+        ::  urui's store actions, preview host, and file dialog
+        "id=\"dot-open\""
+        "id=\"dot-save\""
+        "id=\"dot-save-as\""
+        "id=\"dot-ref\""
+        "id=\"dot-browse\""
+        "id=\"svg-save\""
+        "id=\"svg-copy\""
+        "id=\"svg-display\""
+        "id=\"svg-preview\""
+        "id=\"urui-file-dialog\""
         "id=\"fullscreen-svg\""
         "id=\"svg-source\""
         "id=\"auto-render\""
@@ -45,6 +47,12 @@
     ==
   =/  missing=(list tape)
     :~  "<script src=\"http"
+        ::  the file controls urui now draws, and the source toggle it owns
+        "id=\"load-dot\""
+        "id=\"save-svg\""
+        "id=\"toggle-svg-source\""
+        "id=\"copy-svg\""
+        "id=\"editor-load-error\""
         "id=\"download\""
         "id=\"download-dot\""
         "id=\"file-browser-modal\""
@@ -157,14 +165,14 @@
         "value=\"dependencies\""
         "value=\"clusters\""
     ==
-  ::  loading an SVG is no longer this application's function: urui's
-  ::  `wire` binds `#load-svg` by name, so the control is asserted in
-  ::  `test-web-page` and the behavior belongs to urui's own suite
+  ::  files, editors, and source/preview are urui's store module; graph-viz
+  ::  registers the svg previewer and binds the editors urui mounted
   =/  js-needles=(list tape)
     :~  "strict digraph unique_edges"
         "last wins"
         "ace/mode/dot"
-        "svgEditor.onChange(svgEditorChanged)"
+        "docs.previews.register('svg'"
+        "editor = docs.editor('dot')"
         "problem.line"
         "problem.column"
     ==
@@ -190,7 +198,10 @@
   =/  js  (trip javascript:web)
   =/  needles=(list tape)
     :~  "\"storageKey\":\"graph-viz.session.v1\""
-        "\"shareParam\":\{\"name\":\"dot\",\"max\":12288"
+        "\"storageVersion\":2"
+        "\"share\":\{\"name\":\"dot\",\"max\":12288"
+        "\"url\":\"/apps/graph-viz/files\""
+        "\"key\":\"fileTrees\""
         "\"paramMax\":16384"
         "\"key\":\"dotTabs\""
         "\"key\":\"activeDotTabId\""

@@ -1,6 +1,6 @@
 ::  Tests for /app/graph-viz-web.
 ::
-/+  *test, clay=gviz-clay
+/+  *test, ufiles=urui-files, web-lib=gviz-web
 /=  agent  /app/graph-viz-web
 |%
 ::
@@ -32,10 +32,12 @@
   [%handle-http-request !>(['request' req])]
 ::
 ++  file-request
-  |=  [url=@t path=@t body=(unit octs)]
+  ::  A json request on urui's file wire.
+  |=  body=@t
   ^-  inbound-request:eyre
-  =/  req  (request %'POST' url body)
-  req(header-list.request ~[['x-graph-viz-path' path]])
+  =/  req
+    (request %'POST' '/apps/graph-viz/files' `(as-octs:mimes:html body))
+  req(header-list.request ~[['content-type' 'application/json']])
 ::
 ++  response-status
   |=  cards=(list card:agent:gall)
@@ -254,102 +256,45 @@
     (expect !>(?=(^ (find "\"line\":" txt))))
   ==
 ::
-++  test-web-file-missing-path
-  =/  out
-    (poke-http (request %'POST' '/apps/graph-viz/file/dot/save' ~))
+++  test-web-files-refuse-bad-requests
+  ::  urui-files answers: its tests cover the wire; these pin the route.
+  =/  empty  (poke-http (request %'POST' '/apps/graph-viz/files' ~))
+  =/  outside
+    %-  poke-http
+    (file-request '{"op":"load","path":["..","escape","txt"]}')
+  =/  mark
+    %-  poke-http
+    (file-request '{"op":"load","path":["examples","source","dot"]}')
   ;:  weld
-    (expect-eq !>(400) !>((response-status -.out)))
-    (expect-eq !>('missing Clay path') !>((response-body -.out)))
+    (expect-eq !>(415) !>((response-status -.empty)))
+    (expect-eq !>(400) !>((response-status -.outside)))
+    %-  expect
+    !>(?=(^ (find "invalid-path" (trip (response-body -.outside)))))
+    (expect-eq !>(400) !>((response-status -.mark)))
   ==
 ::
-++  test-web-clay-browse-missing
-  ::  A path with no clay node is not a browse failure: `%cy` answers an
-  ::  empty arch for any path in the revision, so the listing is an empty
-  ::  directory.  The handler's 500 branch covers a scry that fails
-  ::  outright — a malformed beam, not a missing node — which this poke
-  ::  cannot provoke.
-  =/  req
-    (file-request '/apps/graph-viz/file/dot/browse' 'missing' ~)
-  =/  out  (poke-http req)
+++  test-web-files-browse-an-empty-root
+  ::  `%cy` answers an empty arch for a path with no clay node, so an
+  ::  empty root is an empty listing rather than a failure.
+  =/  out  (poke-http (file-request '{"op":"browse","scope":[]}'))
   ;:  weld
     (expect-eq !>(200) !>((response-status -.out)))
-    %+  expect-eq
-      !>('{"children":[],"file":false}')
-    !>((response-body -.out))
+    (expect !>(?=(^ (find "\"entries\":[]" (trip (response-body -.out))))))
+    (expect !>(?=(^ (find "\"ok\":true" (trip (response-body -.out))))))
   ==
 ::
-++  test-browse-path
+++  test-web-file-policy
+  ::  DOT is stored as txt and SVG as svg, in one root, with knot paths.
+  =/  policy=policy:ufiles  file-policy:web-lib
   ;:  weld
-    %+  expect-eq
-      !>(`/data/graph-viz)
-    !>((browse-path:clay ''))
-    %+  expect-eq
-      !>(`/data/graph-viz/examples/source)
-    !>((browse-path:clay 'examples/source'))
-    %+  expect-eq
-      !>(`/data/graph-viz/examples/source)
-    !>((browse-path:clay '/examples/source'))
-    %+  expect-eq
-      !>('{"children":["source","strict-2"],"file":false}')
-    !>((browse-text:clay | ~[%source %strict-2]))
-  ==
-::
-++  test-web-save-dot
-  =/  src  'digraph { a -> b }'
-  =/  body  `(as-octt:mimes:html (trip src))
-  =/  req
-    (file-request '/apps/graph-viz/file/dot/save' '/examples/source' body)
-  =/  out  (poke-http req)
-  =/  cards  -.out
-  ?>  ?=(^ cards)
-  =/  save  i.cards
-  =/  pax  /data/graph-viz/examples/source/txt
-  =/  expected=card:agent:gall
-    :*  %pass  /clay/save  %arvo  %c
-        %info  %graph-viz  %&
-        ~[[pax %ins [%txt !>((to-wain:format src))]]]
-    ==
-  ;:  weld
-    (expect-eq !>(expected) !>(save))
-    (expect-eq !>(200) !>((response-status t.cards)))
-    (expect-eq !>('saved') !>((response-body t.cards)))
-  ==
-::
-++  test-web-save-svg
-  =/  src  '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
-  =/  body  `(as-octt:mimes:html (trip src))
-  =/  req
-    (file-request '/apps/graph-viz/file/svg/save' 'examples/output/txt' body)
-  =/  out  (poke-http req)
-  =/  cards  -.out
-  ?>  ?=(^ cards)
-  =/  save  i.cards
-  =/  pax  /data/graph-viz/examples/output/txt/svg
-  =/  expected=card:agent:gall
-    :*  %pass  /clay/save  %arvo  %c
-        %info  %graph-viz  %&
-        ~[[pax %ins [%svg !>(src)]]]
-    ==
-  ;:  weld
-    (expect-eq !>(expected) !>(save))
-    (expect-eq !>(200) !>((response-status t.cards)))
-  ==
-::
-++  test-web-delete-dot
-  =/  req
-    (file-request '/apps/graph-viz/file/dot/delete' 'examples/source' ~)
-  =/  out  (poke-http req)
-  =/  cards  -.out
-  ?>  ?=(^ cards)
-  =/  remove  i.cards
-  =/  pax  /data/graph-viz/examples/source/txt
-  =/  expected=card:agent:gall
-    :*  %pass  /clay/delete  %arvo  %c
-        %info  %graph-viz  %&  ~[[pax %del ~]]
-    ==
-  ;:  weld
-    (expect-eq !>(expected) !>(remove))
-    (expect-eq !>(200) !>((response-status t.cards)))
-    (expect-eq !>('deleted') !>((response-body t.cards)))
+    (expect-eq !>(`path`/data/graph-viz) !>(root.policy))
+    (expect !>(!strict.policy))
+    (expect !>(verify.policy))
+    %-  expect
+    !>(=(`%wain (file-codec:ufiles policy /examples/source/txt &)))
+    %-  expect
+    !>(=(`%cord (file-codec:ufiles policy /examples/output/svg &)))
+    %-  expect
+    !>(=(`%wain (file-codec:ufiles policy ~[~.v1.2 %source %txt] &)))
   ==
 --

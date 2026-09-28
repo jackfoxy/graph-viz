@@ -1,8 +1,8 @@
 ::  %graph-viz-web: Sail and HTTP boundary for the DOT renderer.
 ::
 /-  gviz
-/+  clay=gviz-clay, dbug, default-agent, lib=gviz, server, web=gviz-web
-/+  uhttp=urui-http
+/+  dbug, default-agent, lib=gviz, server, web=gviz-web
+/+  uhttp=urui-http, ufiles=urui-files
 /*  ace-core     %js   /web/ace/ace/js
 /*  ace-dot      %js   /web/ace/mode-dot/js
 /*  ace-light    %js   /web/ace/theme-github/js
@@ -15,10 +15,12 @@
 /*  ace-lic      %txt  /web/ace/license/txt
 /*  docs-toc     %toc  /doc/toc
 |%
-+$  versioned-state  $%(state-0)
++$  versioned-state  $%(state-0 state-1)
 +$  state-0  [%0 ~]
+::  `files` is the one file change awaiting clay.  It is never saved: an
+::  in-flight request does not survive a reload.
++$  state-1  [%1 files=(unit pending:ufiles)]
 +$  card  card:agent:gall
-+$  operation  ?(%render %browse %load %save %delete)
 ::
 ++  respond
   |=  [eyre-id=@ta status=@ud content-type=@t body=@t]
@@ -50,23 +52,9 @@
   |=  [suffix=@t content-type=@t body=@t]
   [suffix content-type (as-octs:mimes:html body)]
 ::
-++  routes
-  ^-  (map @t [op=operation kind=?(%dot %svg)])
-  %-  malt
-  ^-  (list [@t op=operation kind=?(%dot %svg)])
-  :~  ['/apps/graph-viz/render' [%render %dot]]
-      ['/apps/graph-viz/file/dot/browse' [%browse %dot]]
-      ['/apps/graph-viz/file/dot/load' [%load %dot]]
-      ['/apps/graph-viz/file/dot/save' [%save %dot]]
-      ['/apps/graph-viz/file/dot/delete' [%delete %dot]]
-      ['/apps/graph-viz/file/svg/browse' [%browse %svg]]
-      ['/apps/graph-viz/file/svg/load' [%load %svg]]
-      ['/apps/graph-viz/file/svg/save' [%save %svg]]
-      ['/apps/graph-viz/file/svg/delete' [%delete %svg]]
-  ==
 --
 %-  agent:dbug
-=|  state-0
+=|  state-1
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -80,13 +68,15 @@
 ::
 ++  on-save
   ^-  vase
-  !>(state)
+  !>(state(files ~))
 ::
 ++  on-load
+  ::  Both versions load as an empty %1: a %0 held nothing, and a %1
+  ::  saves no pending change.
   |=  old-vase=vase
   ^-  (quip card _this)
   =/  old  !<(versioned-state old-vase)
-  on-init:this(state old)
+  on-init:this(state [%1 ~])
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -113,89 +103,34 @@
     %+  give-simple-payload:app:server  eyre-id
     (respond:uhttp 200 u.asset)
   ?.  =(%'POST' method.request.req)  (reply 404 'not found')
-  =/  route  (~(get by routes) url)
-  ?~  route  (reply 404 'not found')
+  ?:  =('/apps/graph-viz/files' url)
+    ?.  authenticated.req  (reply 401 'authentication required')
+    =^  cards  files.state
+      %:  handle:ufiles
+        file-policy:web
+        bowl
+        eyre-id
+        req
+        files.state
+      ==
+    [cards this]
+  ?.  =('/apps/graph-viz/render' url)  (reply 404 'not found')
   ?.  authenticated.req  (reply 401 'authentication required')
-  =/  [op=operation kind=?(%dot %svg)]  u.route
-  ?:  =(%render op)
-    ?~  body.request.req  (reply 400 'missing DOT source')
-    =/  src=@t  q.u.body.request.req
-    =/  result
-      (run:lib [%render 0v0 [%dot %svg ~ ~ %.n %.n %.n %.n] src])
-    ?-  -.result
-      %svg
-        :_  this
-        (respond eyre-id 200 'image/svg+xml; charset=utf-8' svg.result)
-      %error
-        :_  this
-        %:  respond
-          eyre-id  422  'application/json; charset=utf-8'
-          (error-text:web err.result)
-        ==
-      ?(%graph %version %plugins)  (reply 500 'unexpected result')
-    ==
-  =/  raw=(unit @t)
-    (get-header:http 'x-graph-viz-path' header-list.request.req)
-  =/  ext=?(%txt %svg)  ?:(=(%dot kind) %txt %svg)
-  ?.  ?|  =(%browse op)  ?=(^ raw)  ==
-    (reply 400 'missing Clay path')
-  =/  pax=(unit path)
-    ?:  =(%browse op)
-      ?~(raw `storage-root:clay (browse-path:clay u.raw))
-    (file-path:clay (need raw) ext)
-  ?~  pax  (reply 400 'invalid Clay path')
-  =/  beam=path
-    [(scot %p our.bowl) q.byk.bowl (scot %da now.bowl) u.pax]
-  ?+  op  !!
-    %browse
-      =/  result=(each arch tang)  (mule |.(.^(arch %cy beam)))
-      ?:  ?=(%.n -.result)
-        %-  (slog leaf+"Clay browse failed" (flop p.result))
-        (reply 500 'Clay browse failed')
-      =/  file=?
-        ?&  (gth (lent u.pax) 2)
-            =(ext (rear u.pax))
-            ?=(^ fil.p.result)
-        ==
-      =/  children=(list @ta)
-        (sort ~(tap in ~(key by dir.p.result)) aor)
+  ?~  body.request.req  (reply 400 'missing DOT source')
+  =/  src=@t  q.u.body.request.req
+  =/  result
+    (run:lib [%render 0v0 [%dot %svg ~ ~ %.n %.n %.n %.n] src])
+  ?-  -.result
+    %svg
+      :_  this
+      (respond eyre-id 200 'image/svg+xml; charset=utf-8' svg.result)
+    %error
       :_  this
       %:  respond
-        eyre-id  200  'application/json; charset=utf-8'
-        (browse-text:clay file children)
+        eyre-id  422  'application/json; charset=utf-8'
+        (error-text:web err.result)
       ==
-    %load
-      ?.  .^(? %cu beam)  (reply 404 'Clay file not found')
-      =/  body=@t
-        ?:  =(%dot kind)  (of-wain:format .^(wain %cx beam))
-        .^(@t %cx beam)
-      =/  content-type=@t
-        ?:  =(%dot kind)  'text/plain; charset=utf-8'
-        'image/svg+xml; charset=utf-8'
-      [(respond eyre-id 200 content-type body) this]
-    %save
-      =/  overwrite=(unit @t)
-        (get-header:http 'x-graph-viz-overwrite' header-list.request.req)
-      =/  overwrite-ok=?  ?~(overwrite %.n =('true' u.overwrite))
-      ?:  ?&  .^(? %cu beam)  !overwrite-ok  ==
-        (reply 409 'Clay file already exists')
-      ?>  ?=(?(%txt %svg) (rear u.pax))
-      =/  src=@t  ?~(body.request.req '' q.u.body.request.req)
-      =/  cage
-        ?:(=(%dot kind) [%txt !>((to-wain:format src))] [%svg !>(src)])
-      =/  save=card
-        :*  %pass  /clay/save  %arvo  %c
-            %info  q.byk.bowl  %&  ~[[u.pax %ins cage]]
-        ==
-      =/  out  (reply 200 'saved')
-      [[save -.out] +.out]
-    %delete
-      =/  remove=card
-        :*  %pass  /clay/delete  %arvo  %c
-            %info  q.byk.bowl  %&  ~[[u.pax %del ~]]
-        ==
-      =/  out  (reply 200 'deleted')
-      [[remove -.out] +.out]
+    ?(%graph %version %plugins)  (reply 500 'unexpected result')
   ==
 --
 ::
@@ -216,6 +151,11 @@
           ?=([%eyre %bound *] sign-arvo)
       ==
     `this
+  =/  taken=(unit outcome:ufiles)
+    (take:ufiles file-policy:web bowl wire sign-arvo files.state)
+  ?^  taken
+    =.  files.state  next.u.taken
+    [cards.u.taken this]
   (on-arvo:default wire sign-arvo)
 ++  on-fail  on-fail:default
 --
