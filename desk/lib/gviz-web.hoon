@@ -318,12 +318,12 @@
 ++  dot-host
   ::  urui mounts the DOT editor here, labelled by the pane heading.
   ^-  editor:urui
-  ['dot' 'DOT source editor' '' & | 262.144]
+  ['dot' 'DOT source editor' '']
 ::
 ++  svg-host
   ::  urui mounts the SVG source editor here; the preview replaces it.
   ^-  editor:urui
-  ['svg-source' 'SVG source editor' 'ace/mode/text' & | 262.144]
+  ['svg-source' 'SVG source editor' 'ace/mode/text']
 ::
 ++  result-controls
   ^-  marl
@@ -1345,12 +1345,8 @@
   const setExplorerView = explorer.setView;
   const docsTabs = explorer.docs.list();
   const refTabs = explorer.refs.list();
-  const renderDocsTabs = explorer.docs.render;
-  const renderRefTabs = explorer.refs.render;
   const openDocsTab = explorer.docs.open;
-  const refreshHelpVariant = explorer.docs.refreshVariant;
   const closeFileContext = explorer.context.close;
-
 
   const validateSource = runtime.session.validateSource;
   const validSavedSource = (source) => {
@@ -1362,7 +1358,6 @@
   };
   const saveSession = runtime.session.save;
   const queueSaveSession = runtime.session.queue;
-  const loadSession = runtime.session.load;
 
   function validView(candidate) {
     if (!candidate || typeof candidate !== 'object') return undefined;
@@ -2821,7 +2816,6 @@
       clearTimeout(renderTimer);
     }
   });
-  runtime.wire();
   zoomOut.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   zoomIn.addEventListener('click', () => zoomAtCenter(1.25));
   fullscreenZoomOut.addEventListener(
@@ -2913,22 +2907,20 @@
 
   handleShortcut();
   document.addEventListener('fullscreenchange', updateFullscreenControl);
-  //  the runtime validates the record and applies its own slots, the
-  //  document stores' included; only graph-viz's two come back here
-  const savedSession = loadSession();
-  if (!savedSession) applyTheme('system', false);
-  if (savedSession) {
-    autoRender.checked = savedSession['preferences.autoRender'];
-    pendingView = savedSession.view;
-  }
-  runtime.layout.apply();
-  renderDocsTabs();
-  renderRefTabs();
-  setExplorerView(explorer.view());
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
   populateAttributeShapes();
-  docs.start();
+  //  the runtime validates the record and applies its own slots, the
+  //  document stores' included; only graph-viz's two come back here,
+  //  before the stores start
+  runtime.start((savedSession) => {
+    if (!savedSession) {
+      applyTheme('system', false);
+      return;
+    }
+    autoRender.checked = savedSession['preferences.autoRender'];
+    pendingView = savedSession.view;
+  });
   editor = docs.editor('dot');
   svgEditor = docs.editor('svg');
   editor.onChange(editorChanged);
@@ -2937,7 +2929,6 @@
     window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;
   }
   if (autoRender.checked) render();
-  refreshHelpVariant();
   }
 
   window.urui.boot({
