@@ -22,7 +22,6 @@
           divider=10
           pane-min=25
           pane-max=70
-          narrow=760
           max-source=262.144
       ==
       slots
@@ -153,6 +152,7 @@
           '/apps/graph-viz/ace/ext-beautify.js'
           '/apps/graph-viz/app.js'
       ==
+      head=~
   ==
 ::
 ++  pinned
@@ -627,10 +627,25 @@
   ::  Graph preview, zoom, inspector and fullscreen rules.
   ::
   ::  `#dot` is here rather than in urui's %shell section: that block
-  ::  named a consumer id inside urui, and W9.5 moved it out.
+  ::  named a consumer id inside urui, and W9.5 moved it out.  The
+  ::  inspector tokens and `.source-auto-render` moved out the same way.
   ::
   ^-  @t
   '''
+  :root {
+    --inspector-background: #fffbeb;
+    --inspector-border: #fde68a;
+    --inspector-ink: #78350f;
+  }
+
+  :root[data-effective-theme='dark'] {
+    --inspector-background: #33270e;
+    --inspector-border: #854d0e;
+    --inspector-ink: #fde68a;
+  }
+
+  .source-auto-render { margin-left: 0.5rem; white-space: nowrap; }
+
   .zoom-controls { display: inline-flex; gap: 0.25rem; }
 
   .zoom-icon {

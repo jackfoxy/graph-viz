@@ -122,6 +122,9 @@
     (expect !>(?=(^ (find "var(--preview-background)" style))))
     (expect !>(?=(^ (find ".preview svg" style))))
     (expect !>(?=(^ (find "filter: invert(1) hue-rotate(180deg)" style))))
+    (expect !>(?=(^ (find "--inspector-background: #fffbeb" style))))
+    (expect !>(?=(^ (find "--inspector-background: #33270e" style))))
+    (expect !>(?=(^ (find ".source-auto-render \{" style))))
   ==
 ::
 ++  test-live-rendering
