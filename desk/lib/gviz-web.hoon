@@ -16,8 +16,6 @@
           storage-key='graph-viz.session.v1'
           storage-version=2
       ==
-      kinds=~
-      *endpoints:urui
       :*  render-debounce=350
           save-debounce=150
           min-explorer=180
@@ -35,7 +33,6 @@
           [%disconnected 'Disconnected']
       ==
       docs-root=`'/docs/d/graph-viz/'
-      share-param=~
       ace-spec
       layout=%columns
       collapse=|
@@ -1029,6 +1026,8 @@
   //  references, and source/preview; graph-viz supplies rendering and the
   //  fields that link a rendered SVG to the DOT tab it came from.
   const runtime = window.urui.runtime({
+    //  the browser specs pin Ace's keyboard platform
+    acePlatform: window.__GVIZ_BROWSER_TEST__?.acePlatform,
     elements: {
       explorerPane,
       editorPane: document.querySelector('#editor-pane'),

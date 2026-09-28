@@ -82,7 +82,7 @@
         "id=\"preview-pane-document-tabs\""
         "id=\"explorer-pane-view-tabs\""
         "id=\"help-panel\""
-        "id=\"clay-error-modal\""
+        "id=\"urui-toast\""
         "id=\"file-context-menu\""
         "id=\"render\""
         "id=\"template\""
