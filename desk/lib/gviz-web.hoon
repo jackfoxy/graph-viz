@@ -152,8 +152,12 @@
           '/apps/graph-viz/ace/ext-beautify.js'
           '/apps/graph-viz/app.js'
       ==
-      head=~
+      head=~[favicon]
   ==
+::
+++  favicon
+  ^-  manx
+  ;link(rel "icon", type "image/x-icon", href "/apps/graph-viz/favicon.ico");
 ::
 ++  pinned
   ::  A band the user cannot hide: no reveal key, so no toggle.

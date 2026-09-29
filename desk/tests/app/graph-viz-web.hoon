@@ -1,6 +1,7 @@
 ::  Tests for /app/graph-viz-web.
 ::
 /+  *test, ufiles=urui-files, web-lib=gviz-web
+/*  favicon  %ico  /favicon/ico
 /=  agent  /app/graph-viz-web
 |%
 ::
@@ -117,6 +118,16 @@
       !>(~[['content-type' 'text/html; charset=utf-8']])
     !>((response-headers -.out))
     (expect !>(?=(^ (find "Graph Viz" (trip (response-body -.out))))))
+  ==
+::
+++  test-web-favicon
+  =/  out  (poke-http (request %'GET' '/apps/graph-viz/favicon.ico' ~))
+  ;:  weld
+    (expect-eq !>(200) !>((response-status -.out)))
+    %+  expect-eq
+      !>(~[['content-type' 'image/x-icon']])
+    !>((response-headers -.out))
+    (expect-eq !>(q.favicon) !>((response-body -.out)))
   ==
 ::
 ++  test-web-javascript

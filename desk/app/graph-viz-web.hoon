@@ -3,6 +3,7 @@
 /-  gviz
 /+  dbug, default-agent, lib=gviz, server, web=gviz-web
 /+  uhttp=urui-http, ufiles=urui-files
+/*  favicon      %ico  /favicon/ico
 /*  ace-core     %js   /web/ace/ace/js
 /*  ace-dot      %js   /web/ace/mode-dot/js
 /*  ace-light    %js   /web/ace/theme-github/js
@@ -97,6 +98,10 @@
   =/  query=(unit @ud)  (find "?" raw-url)
   =/  url=@t  (crip ?~(query raw-url (scag u.query raw-url)))
   ?:  =(%'GET' method.request.req)
+    ?:  =('/apps/graph-viz/favicon.ico' url)
+      :_  this
+      %+  give-simple-payload:app:server  eyre-id
+      (respond:uhttp 200 ['image/x-icon' favicon])
     =/  asset  (asset-route:uhttp '/apps/graph-viz' url assets)
     ?~  asset  (reply 404 'not found')
     :_  this

@@ -14,6 +14,7 @@
         "/apps/graph-viz/ace/mode-dot.js"
         "/apps/graph-viz/ace/theme-github.js"
         "/apps/graph-viz/ace/ext-beautify.js"
+        "href=\"/apps/graph-viz/favicon.ico\""
         "id=\"render\""
         ::  urui's store actions, preview host, and file dialog
         "id=\"dot-open\""
