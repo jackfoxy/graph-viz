@@ -21,7 +21,6 @@
         "id=\"dot-save\""
         "id=\"dot-save-as\""
         "id=\"dot-ref\""
-        "id=\"dot-browse\""
         "id=\"svg-save\""
         "id=\"svg-copy\""
         "id=\"svg-display\""
@@ -58,6 +57,9 @@
         "id=\"download-dot\""
         "id=\"file-browser-modal\""
         "id=\"share\""
+        ::  the reference pane already lists and opens files
+        "id=\"dot-browse\""
+        "id=\"svg-browse\""
     ==
   =/  present-tests=tang
     %-  zing

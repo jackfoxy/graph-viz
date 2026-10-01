@@ -36,6 +36,7 @@
       layout=%columns
       collapse=|
       files=`files
+      tips=~[['fullscreen-svg-exit' 'Return SVG to preview panel']]
   ==
 ::
 ++  files
@@ -49,7 +50,7 @@
               starter=starter-dot
               roots=~[[~ ~[%txt] `%dot &]]
               preview=~
-              actions=~[%open %save %save-as %ref %browse]
+              actions=~[%open %save %save-as %ref]
               refs=&
               share=`['dot' 12.288 16.384]
           ==
@@ -59,7 +60,7 @@
               starter=''
               roots=~[[~ ~[%svg] ~ &]]
               preview=`%preview
-              actions=~[%open %save %save-as %copy %ref %browse]
+              actions=~[%open %save %save-as %copy %ref]
               refs=&
               share=~
           ==
@@ -421,15 +422,7 @@
       ==
       ;div#preview-shell.preview-shell(data-state "empty")
         ;div.preview-actions(aria-label "Preview controls")
-          ;button#fullscreen-svg.preview-action
-            =type          "button"
-            =disabled      ""
-            =hidden        ""
-            =title         "Expand SVG to fullscreen"
-            =aria-label    "Expand SVG to fullscreen"
-            =aria-pressed  "false"
-            ;span.fullscreen-icon(aria-hidden "true");
-          ==
+          ;+  fullscreen-svg
           ;button#fullscreen-zoom-out.preview-action.fullscreen-only
             =type        "button"
             =disabled    ""
@@ -460,6 +453,14 @@
         ;div#preview.preview(aria-live "polite", tabindex "0");
       ==
   ==
+::
+++  fullscreen-svg
+  ::  urui's fullscreen toggle, expanding the preview shell.  It waits
+  ::  hidden and disabled until there is a rendered SVG to expand.
+  ^-  manx
+  =/  toggle=manx
+    (fullscreen-toggle:shell 'fullscreen-svg' 'preview-shell' 'SVG')
+  toggle(a.g (weld a.g.toggle `mart`~[[%hidden ""] [%disabled ""]]))
 ::
 ++  node-attributes
   ::  Revealed by selecting a node, never by a band toggle.
@@ -721,7 +722,7 @@
     z-index: 3;
   }
 
-  .preview-action {
+  .preview-actions > button {
     align-items: center;
     background: var(--floating-control);
     display: inline-flex;
@@ -731,57 +732,7 @@
     width: 2rem;
   }
 
-  .preview-action[hidden] { display: none; }
-
-  .preview-action.fullscreen-only { display: none; }
-
-  .preview-shell.is-fullscreen .preview-action.fullscreen-only {
-    display: inline-flex;
-  }
-
-  .fullscreen-icon {
-    height: 0.85rem;
-    position: relative;
-    width: 0.85rem;
-  }
-
-  .fullscreen-icon::before, .fullscreen-icon::after {
-    content: '';
-    height: 0.32rem;
-    position: absolute;
-    width: 0.32rem;
-  }
-
-  .fullscreen-icon::before {
-    border-left: 1.5px solid currentcolor;
-    border-top: 1.5px solid currentcolor;
-    left: 0;
-    top: 0;
-  }
-
-  .fullscreen-icon::after {
-    border-bottom: 1.5px solid currentcolor;
-    border-right: 1.5px solid currentcolor;
-    bottom: 0;
-    right: 0;
-  }
-
-  .preview-shell:fullscreen .fullscreen-icon::before {
-    border: 0;
-    border-bottom: 1.5px solid currentcolor;
-    border-right: 1.5px solid currentcolor;
-  }
-
-  .preview-shell:fullscreen .fullscreen-icon::after {
-    border: 0;
-    border-left: 1.5px solid currentcolor;
-    border-top: 1.5px solid currentcolor;
-  }
-
-  .preview-shell:fullscreen {
-    height: 100vh;
-    width: 100vw;
-  }
+  .preview-actions > button[hidden] { display: none; }
 
   .preview {
     cursor: grab;
@@ -1321,34 +1272,11 @@
     fullscreenSvg.disabled = !enabled;
   }
 
-  function previewIsFullscreen() {
-    return document.fullscreenElement === previewShell;
-  }
-
-  function updateFullscreenControl() {
-    const expanded = previewIsFullscreen();
-    const label = expanded
-      ? 'Return SVG to preview panel'
-      : 'Expand SVG to fullscreen';
-    fullscreenSvg.setAttribute('aria-pressed', String(expanded));
-    fullscreenSvg.setAttribute('aria-label', label);
-    fullscreenSvg.title = label;
-    previewShell.classList.toggle('is-fullscreen', expanded);
+  //  urui's toggle expands and returns the preview shell; the graph
+  //  refits to whichever size it lands in
+  function refitAfterFullscreen() {
     if (currentSvg && !svgShowingSource()) {
       requestAnimationFrame(fitToWindow);
-    }
-  }
-
-  async function toggleSvgFullscreen() {
-    if (!currentSvg || svgShowingSource()) return;
-    try {
-      if (previewIsFullscreen()) {
-        await document.exitFullscreen();
-      } else {
-        await previewShell.requestFullscreen();
-      }
-    } catch (cause) {
-      showClientProblem('Unable to change fullscreen mode');
     }
   }
 
@@ -2817,7 +2745,6 @@
     event.preventDefault();
     addVisualNode();
   });
-  fullscreenSvg.addEventListener('click', toggleSvgFullscreen);
   template.addEventListener('change', insertTemplate);
   autoRender.addEventListener('change', () => {
     queueSaveSession();
@@ -2918,7 +2845,7 @@
   preview.addEventListener('pointercancel', endPan);
 
   handleShortcut();
-  document.addEventListener('fullscreenchange', updateFullscreenControl);
+  document.addEventListener('fullscreenchange', refitAfterFullscreen);
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
   populateAttributeShapes();

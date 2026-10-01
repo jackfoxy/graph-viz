@@ -1,8 +1,8 @@
 ::  Tests for /app/graph-viz-web.
 ::
 /+  *test, ufiles=urui-files, web-lib=gviz-web
-/*  favicon  %ico  /favicon/ico
 /=  agent  /app/graph-viz-web
+/*  favicon  %ico  /favicon/ico
 |%
 ::
 ++  bol
@@ -127,7 +127,9 @@
     %+  expect-eq
       !>(~[['content-type' 'image/x-icon']])
     !>((response-headers -.out))
-    (expect-eq !>(q.favicon) !>((response-body -.out)))
+    ::  a /* import is typed by the mark's sample, `dat=octs`: the face
+    ::  hides `q`, so cast it away
+    (expect-eq !>(q:`octs`favicon) !>((response-body -.out)))
   ==
 ::
 ++  test-web-javascript
