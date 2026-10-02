@@ -226,4 +226,5 @@
 /reference/md              Reference
 /graph-noun/md             The positioned-graph noun
 /release-notes/md          Release Notes
+/roadmap/md                Graph-viz roadmap
 /about/md                  About Graph-viz and Ace editor
