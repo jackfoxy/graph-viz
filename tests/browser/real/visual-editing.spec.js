@@ -131,6 +131,12 @@ test('clicking a node or edge reveals its attributes', async ({page}) => {
   // A node click opens the node group and every shared control.
   await page.locator('#preview .node').filter({hasText: 'Alpha'}).click();
   await expect(inspector).toBeVisible();
+  //  the inspector sits at the top of the pane, above the preview
+  const inspectorBox = await inspector.boundingBox();
+  const previewBox = await page.locator('#svg-preview').boundingBox();
+  expect(inspectorBox.y + inspectorBox.height).toBeLessThanOrEqual(
+    previewBox.y + 1
+  );
   await expect(form).toBeVisible();
   await expect(nodeControls).toBeVisible();
   await expect(edgeControls).toBeHidden();

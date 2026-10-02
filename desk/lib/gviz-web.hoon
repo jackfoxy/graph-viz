@@ -691,13 +691,17 @@
         no-repeat;
   }
 
+  /*  urui's controls band is a wrapping flex row that pads itself.
+      Sized to its content, an auto-fit grid has room for one track
+      and stacks every control, so the tools take the band's width. */
+  #editor-pane-tools { border-bottom: 1px solid var(--border); }
+
   .visual-tools {
     align-items: end;
-    border-bottom: 1px solid var(--border);
     display: grid;
+    flex: 1 1 100%;
     gap: 0.5rem;
     grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-    padding: 0.5rem 0.75rem;
   }
 
   .preview-shell {
@@ -810,6 +814,15 @@
   [data-state='empty'] .preview,
   [data-state='loading'] .preview,
   [data-state='disconnected'] .preview { visibility: hidden; }
+
+  /*  The panel stacks the SVG source host, the preview host, then
+      this body.  The body holds only the error and the inspector, so
+      it goes first and takes its content's height: shown, they sit at
+      the top and push the preview down; hidden, it is empty. */
+  #preview-body {
+    flex: 0 0 auto;
+    order: -1;
+  }
 
   .inspector {
     background: var(--inspector-background);
@@ -1186,7 +1199,8 @@
   }
 
   //  One svg store, so one instance: it moves the preview shell, with
-  //  its pan, zoom, and inspector, into the store's host.
+  //  its pan and zoom, into the store's host.  The inspector stays in
+  //  the panel body, which the css puts above the host.
   function svgPreviewer({host}) {
     host.append(previewShell);
     return {

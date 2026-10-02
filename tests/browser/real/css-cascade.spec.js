@@ -49,6 +49,12 @@ for (const width of [1440, 390]) {
         return getComputedStyle(element).gridTemplateColumns.split(' ').length;
       });
       expect(columns).toBe(2);
+    } else {
+      //  the node tools sit side by side across the band, not stacked
+      const columns = await page.locator('.visual-tools').evaluate(element => {
+        return getComputedStyle(element).gridTemplateColumns.split(' ').length;
+      });
+      expect(columns).toBeGreaterThan(2);
     }
 
     await page.locator('#settings').click();
