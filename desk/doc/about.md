@@ -1,5 +1,7 @@
-Graph-viz for Urbit v1.0.2
+Graph-viz for Urbit v1.0.3
 
-[Graph-viz source](https://github.com/jackfoxy/graph-viz)
-[Graphviz license](https://github.com/jackfoxy/graph-viz/LICENSE.md)
-[Ace Editor license](../web/ace/license.txt)
+Eclipse Public License - v 2.0
+
+The Ace Editor:
+Copyright (c) 2010, Ajax.org B.V.
+All rights reserved.

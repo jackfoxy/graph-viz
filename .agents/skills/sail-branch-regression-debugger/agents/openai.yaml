@@ -1,0 +1,3 @@
+interface:
+  display_name: "Sail Branch Regression Debugger"
+  short_description: "Diagnose a Graph Viz page regression between master and dev"

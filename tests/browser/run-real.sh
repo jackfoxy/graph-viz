@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+"$ROOT/bin/verify-sync.sh" --quiet || true
 
 cd "$ROOT"
 exec ./node_modules/.bin/playwright test \
