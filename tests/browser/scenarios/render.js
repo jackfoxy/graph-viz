@@ -15,6 +15,9 @@ module.exports = async (env) => {
 
   await settleFileTrees(env);
 
+  await elements['#dot-copy'].listeners.click({});
+  assert.equal(clipboardWrites.at(-1), getDotSource());
+
   elements['#render'].listeners.click({});
   requests.at(-1).resolve(response(true, '<svg id="initial"/>'));
   await tick();

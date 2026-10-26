@@ -14,6 +14,29 @@ into `zod/graph-viz/`):
 |install our %graph-viz
 ```
 
+## Web UI
+
+Open `/apps/graph-viz` through the ship's web interface. The explorer shows
+the current ship name above its file, documentation, and reference tabs.
+
+The header provides **Settings F2** and **Help F1** buttons. Their function
+keys work even while either source editor has focus and override Ace's default
+F2 fold-widget and F1 command-palette bindings. **Auto-render** is the final
+item in Settings.
+
+The **DOT source** and **Preview** headers use equal-height action buttons. In
+both headers, Save is a disk icon; its tooltip and accessible name remain
+**Save this DOT** or **Save this SVG**. `Ctrl-S` or `Cmd-S` saves DOT, while
+adding `Shift` saves SVG. A rendered SVG adds a two-button **Source** /
+**Preview** view selector in the Preview header. Both labels are centered
+vertically in their buttons. Each header also has a copy icon: **Copy DOT to
+clipboard** or **Copy SVG to clipboard**. SVG reference
+tabs invert rendered graph colors when the effective theme is dark, including
+when **System** follows a dark operating-system theme. **Add Ref**, or dragging
+an SVG tab onto the explorer, follows that tab's selected view: from **Source**
+it opens live source text and appends `-source` to the reference-tab label;
+from **Preview** it opens the rendered SVG as before.
+
 ## Quick start from the dojo
 
 Render DOT text with the bundled generator:

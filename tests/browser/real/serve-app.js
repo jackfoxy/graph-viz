@@ -126,7 +126,7 @@ async function compileAssetsOnce() {
     ['ujs', 'desk/lib/urui-js.hoon'],
     ['shell', 'desk/lib/urui-shell.hoon'],
     ['web', 'desk/lib/gviz-web.hoon']
-  ], '[page:web javascript:web ace-config-js:web]');
+  ], '[(page:web ~zod) (javascript:web ~zod) ace-config-js:web]');
   return parseCords(await evaluate(source));
 }
 

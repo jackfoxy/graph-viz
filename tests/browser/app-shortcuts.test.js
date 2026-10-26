@@ -32,14 +32,14 @@ test('synced baseline retains complete shortcut accounting', () => {
   assert.equal([...uses.values()].filter((count) => count > 1).length, 5);
   assert.deepEqual(
     [...applicationBindings].filter((binding) => uses.has(binding)),
-    ['Ctrl-Enter']
+    ['F1', 'F2', 'Ctrl-Enter']
   );
 });
 
 test('manifest finalizes Graph Viz and Ace shortcut ownership', () => {
   assert.deepEqual(
     manifest.application.map((entry) => entry.binding),
-    ['Ctrl-Enter', 'Ctrl-S', 'Ctrl-Shift-S', 'Ctrl-0', 'Ctrl-1']
+    ['F1', 'F2', 'Ctrl-Enter', 'Ctrl-S', 'Ctrl-Shift-S', 'Ctrl-0', 'Ctrl-1']
   );
   for (const entry of manifest.application) {
     assert.ok(entry.action);
@@ -68,6 +68,8 @@ test('manifest accounts for each resolved official conflict', () => {
     for (const binding of row.bindings) official.set(binding, row.action);
   }
   assert.equal(official.get('Ctrl-Enter'), 'Enter full screen');
+  assert.equal(official.get('F1'), 'Open command palette');
+  assert.equal(official.get('F2'), 'Toggle fold widget');
   assert.equal(official.get('Delete'), 'Delete');
   assert.equal(official.get('Tab'), 'Indent');
   assert.equal(official.get('Shift-Tab'), 'Outdent');

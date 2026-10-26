@@ -44,7 +44,7 @@ Run the full desk suite on a mounted fake ship:
 
 The browser release gate must report all 100 official shortcut rows, 102
 Windows/Linux executions, 97 unique bindings, five exclusions, five duplicate
-keys, and one application override. It also covers comprehensive `Ctrl-Z`,
+keys, and three application overrides. It also covers comprehensive `Ctrl-Z`,
 `Ctrl-Y`, `Ctrl-Shift-Z`, macro record/playback, offline Ace assets, adapter
 lifecycle, visual editing, themes, accessibility, responsive resize, file
 operations, Help tabs, fullscreen, and persistence.
@@ -58,16 +58,17 @@ through urui. With no internet access after copying the desk:
 2. Confirm every `/apps/graph-viz/ace/` request succeeds and no external
    script, module, worker, or source-map request occurs.
 3. Type and render DOT; verify diagnostics, undo/redo, macro record/playback,
-   selection, indentation, find/replace, folding, and Graph Viz shortcuts.
-4. Switch light, dark, and system themes; verify the Ace theme and SVG preview,
-   including a live system-theme change.
+   selection, indentation, find/replace, folding, the Settings Auto-render
+   checkbox, and Graph Viz shortcuts.
+4. Switch light, dark, and system themes; verify the Ace theme, SVG preview,
+   and rendered SVG references, including a live system-theme change.
 5. Drag both dividers to their extremes and repeat at narrow width; verify the
    editor remains usable and resized.
 6. Open, save, overwrite, and delete DOT/SVG files from prompts, left-click,
    and the context menu; verify filename-only tabs and DOT history reset.
 7. Open and close Help and Users Guide tabs with and without `%docs` installed.
 8. Exercise SVG source/rendered views, copy, zoom, pan, fit, fullscreen, visual
-   selection/editing, and reload persistence.
+   selection/editing, source and rendered references, and reload persistence.
 
 ## Final review
 

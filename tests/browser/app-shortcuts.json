@@ -1,6 +1,8 @@
 {
   "baseline": "ace-win-linux-shortcuts.json",
   "application": [
+    {"binding":"F1","action":"Open Help","aceAction":"Open command palette","resolution":"Graph Viz capture-phase override"},
+    {"binding":"F2","action":"Open Settings","aceAction":"Toggle fold widget","resolution":"Graph Viz capture-phase override"},
     {"binding":"Ctrl-Enter","action":"Render now","aceAction":"Enter full screen","resolution":"Graph Viz capture-phase override"},
     {"binding":"Ctrl-S","action":"Save DOT","aceAction":null,"resolution":"Graph Viz capture-phase command"},
     {"binding":"Ctrl-Shift-S","action":"Save SVG","aceAction":null,"resolution":"Graph Viz capture-phase command"},
