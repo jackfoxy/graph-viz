@@ -132,6 +132,100 @@ test('SVG Ace editing tracks dirty state, undo, validation, and Ref', async ({
   })).toBe('<svg');
 });
 
+test('SVG Ref follows explicit and system dark themes', async ({page}) => {
+  const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
+  await installRoutes(page, state);
+  await useStoredSession(page);
+  await page.emulateMedia({colorScheme: 'light'});
+  await page.goto('/apps/graph-viz/');
+  await page.locator('#svg-files-tab').click();
+  await page.locator('[data-path="preview/svg"]').click();
+  await page.locator('#svg-ref').click();
+  const svg = page.locator('.ref-explorer-panel').last().locator(':scope > svg');
+
+  await expect(svg).toHaveCSS('filter', 'none');
+  await page.locator('#settings').click();
+  await page.locator('#theme').selectOption('dark');
+  await expect(svg).toHaveCSS('filter', 'invert(1) hue-rotate(180deg)');
+
+  await page.locator('#theme').selectOption('system');
+  await page.emulateMedia({colorScheme: 'dark'});
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-effective-theme', 'dark'
+  );
+  await expect(svg).toHaveCSS('filter', 'invert(1) hue-rotate(180deg)');
+
+  await page.emulateMedia({colorScheme: 'light'});
+  await expect(svg).toHaveCSS('filter', 'none');
+});
+
+test('Add Ref and drag/drop follow the selected SVG view', async ({
+  page
+}) => {
+  const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
+  await installRoutes(page, state);
+  await useStoredSession(page);
+  await page.goto('/apps/graph-viz/');
+  await page.locator('#svg-files-tab').click();
+  await page.locator('[data-path="preview/svg"]').click();
+
+  await display(page, 'source').click();
+  await page.locator('#svg-ref').click();
+  const explorerTabs = page.locator('#explorer-pane-view-tabs');
+  const sourceTab = explorerTabs.getByRole('tab', {
+    name: 'preview.svg-source', exact: true
+  });
+  await expect(sourceTab).toBeVisible();
+  const sourceRef = page.locator('.ref-explorer-panel').last();
+  await expect(sourceRef.locator(':scope > .ref-source')).toContainText(
+    'Loaded file'
+  );
+  await expect(sourceRef.locator(':scope > svg')).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const svg = window.__GVIZ_SVG_EDITOR_TEST__;
+    const source = svg.getSource();
+    const start = source.indexOf('Loaded file');
+    svg.replaceRange(start, start + 'Loaded file'.length, 'Edited source');
+  });
+  await expect(sourceRef.locator(':scope > .ref-source')).toContainText(
+    'Edited source'
+  );
+
+  await page.getByRole('button', {
+    name: 'Close preview.svg-source reference', exact: true
+  }).click();
+  await expect(sourceTab).toHaveCount(0);
+  await tabControl(page, 'svg', 'preview.svg').dragTo(
+    page.locator('#explorer-pane')
+  );
+  await expect(sourceTab).toBeVisible();
+  await expect(sourceRef.locator(':scope > .ref-source')).toContainText(
+    'Edited source'
+  );
+
+  await display(page, 'preview').click();
+  await tabControl(page, 'svg', 'preview.svg').dragTo(
+    page.locator('#explorer-pane')
+  );
+  await expect(explorerTabs.getByRole('tab', {
+    name: 'preview.svg', exact: true
+  })).toBeVisible();
+  await expect(page.locator('.ref-explorer-panel svg')).toHaveCount(1);
+  await expect(sourceTab).toBeVisible();
+
+  await page.reload();
+  const restoredSourceTab = page.locator('#explorer-pane-view-tabs').getByRole(
+    'tab', {name: 'preview.svg-source', exact: true}
+  );
+  await expect(restoredSourceTab).toBeVisible();
+  await restoredSourceTab.click();
+  const panelId = await restoredSourceTab.getAttribute('aria-controls');
+  await expect(page.locator(`#${panelId} > .ref-source`)).toContainText(
+    'Edited source'
+  );
+});
+
 test('DOT re-render confirms before replacing edited SVG', async ({page}) => {
   const state = {dotLoads: [], svgLoads: 0, saves: [], renders: []};
   await installRoutes(page, state);

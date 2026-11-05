@@ -184,6 +184,27 @@ test('preview selection routes destructive keys away from Ace', async ({
   })).toBe('digraph edit {\n  Beta\n}');
 });
 
+test('F1 and F2 open their toolbar dialogs from the DOT editor', async ({
+  page
+}) => {
+  await installRoutes(page, {renders: [], saves: {dot: [], svg: []}});
+  await page.goto('/apps/graph-viz/');
+  const editorInput = page.locator('#dot .ace_text-input');
+  await editorInput.focus();
+
+  for (const [key, panel, close] of [
+    ['F1', '#help-panel', '#close-help'],
+    ['F2', '#settings-modal', '#close-settings']
+  ]) {
+    await page.keyboard.press(key);
+    await expect(page.locator(panel)).toBeVisible();
+    await expect(page.locator(close)).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.locator(panel)).toBeHidden();
+    await expect(editorInput).toBeFocused();
+  }
+});
+
 //  The generic half of this boundary set — explorer tabs, the Help panel,
 //  the docs tree's own nesting, the file-tree context menu — is urui's.
 //  What stays is this application's own help links and preview surface.

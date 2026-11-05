@@ -1,6 +1,23 @@
 # Keyboard shortcuts
 
-Default Ace editor keybindings for the DOT source pane.
+Graph Viz application shortcuts followed by the default Ace editor keybindings
+for the DOT source pane.
+
+## Graph Viz
+
+| Key | Action |
+|:----|:-------|
+| F1 | Open Help |
+| F2 | Open Settings |
+| Ctrl-Enter | Render now |
+| Ctrl-S | Save DOT |
+| Ctrl-Shift-S | Save SVG |
+| Ctrl-0 | Fit preview |
+| Ctrl-1 | Reset preview |
+
+F1, F2, and Ctrl-Enter override Ace bindings.
+The header buttons display these first two bindings as **Help F1** and
+**Settings F2**.
 
 ## Line Operations
 

@@ -36,7 +36,11 @@
       layout=%columns
       collapse=|
       files=`files
-      tips=~[['fullscreen-svg-exit' 'Return SVG to preview panel']]
+      :~  ['fullscreen-svg-exit' 'Return SVG to preview panel']
+          ['settings' 'Settings (F2)']
+          ['dot-copy' 'Copy DOT to clipboard']
+          ['svg-copy' 'Copy SVG to clipboard']
+      ==
   ==
 ::
 ++  files
@@ -50,7 +54,7 @@
               starter=starter-dot
               roots=~[[~ ~[%txt] `%dot &]]
               preview=~
-              actions=~[%open %save %save-as %ref]
+              actions=~[%open %save %save-as %copy %ref]
               refs=&
               share=`['dot' 12.288 16.384]
           ==
@@ -112,7 +116,9 @@
 ::
 ++  shortcuts
   ^-  (list shortcut:urui)
-  :~  ['Ctrl-Enter' 'render' %always]
+  :~  ['F1' 'help' %always]
+      ['F2' 'settings' %always]
+      ['Ctrl-Enter' 'render' %always]
       ['Ctrl-S' 'save:dot' %always]
       ['Ctrl-Shift-S' 'save:svg' %always]
       ['Ctrl-0' 'fit-view' %preview]
@@ -134,15 +140,17 @@
   ==
 ::
 ++  page
+  |=  our=@p
   ^-  @t
-  (crip (en-xml:html (build:shell spec)))
+  (crip (en-xml:html (build:shell (spec our))))
 ::
 ++  spec
+  |=  our=@p
   ^-  shell-spec:urui
   :*  config
       brand
       toolbar
-      [reference-pane editor-pane result-pane]
+      [(reference-pane our) editor-pane result-pane]
       help
       dialogs=~
       styles=~[css]
@@ -170,13 +178,15 @@
   ::  The explorer, read-only.  Its %views level seeds the strip with the
   ::  two file trees and the runtime appends documentation and reference
   ::  tabs to it; `permanent-views` used to say this from $app-config.
+  |=  our=@p
   ^-  pane:urui
   :*  role=%reference
       id='explorer-pane'
       label='Graph Viz explorer'
       mode=%read-only
       kind=~
-      :~  (pinned %tabs [%tabs ~[reference-level]])
+      :~  (pinned %ship [%label (scot %p our)])
+          (pinned %tabs [%tabs ~[reference-level]])
           (pinned %body [%panel 'explorer-body' ~ ~])
       ==
   ==
@@ -260,10 +270,19 @@
 ::
 ++  toolbar
   ^-  marl
-  ::  No theme control: urui's settings modal owns it, and emits the
-  ::  Settings button immediately left of whatever this marl starts with.
+  ::  No theme control: urui's settings modal owns it.  Place its button
+  ::  here beside Help so both controls carry their function-key badges.
   :~  ;nav.toolbar(aria-label "Graph controls")
-        ;button#help(type "button", aria-expanded "false"): Help
+        ;+  =/  button=manx  settings-button:shell
+            button(c (snoc c.button ;kbd:"F2"))
+        ;button#help
+          =type                "button"
+          =title               "Help (F1)"
+          =aria-expanded       "false"
+          =aria-keyshortcuts   "F1"
+          ;span: Help
+          ;kbd: F1
+        ==
       ==
   ==
 ::
@@ -281,7 +300,7 @@
           ;option(value "clusters"): Clusters
         ==
       ==
-      ;label.preference.source-auto-render
+      ;label.settings-field.preference.source-auto-render
         ;input#auto-render(type "checkbox", checked "");
         ;span: Auto-render
       ==
@@ -633,7 +652,8 @@
   ::
   ::  `#dot` is here rather than in urui's %shell section: that block
   ::  named a consumer id inside urui, and W9.5 moved it out.  The
-  ::  inspector tokens and `.source-auto-render` moved out the same way.
+  ::  inspector tokens stay consumer-owned.  Auto-render starts in this
+  ::  markup and moves into the shared Settings card at boot.
   ::
   ^-  @t
   '''
@@ -649,7 +669,75 @@
     --inspector-ink: #fde68a;
   }
 
-  .source-auto-render { margin-left: 0.5rem; white-space: nowrap; }
+  .toolbar { align-items: center; }
+
+  .toolbar kbd {
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    margin-left: 0.35rem;
+    opacity: 0.8;
+  }
+
+  #explorer-pane-ship {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    font-family: ui-monospace, monospace;
+    font-size: 0.78rem;
+    height: var(--editor-header-height, 3rem);
+  }
+
+  #editor-pane-head .pane-actions button,
+  #preview-pane-head .pane-actions button {
+    height: 2.25rem;
+  }
+
+  #svg-display button {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+  }
+
+  #svg-display button p { margin: 0; }
+
+  .save-icon {
+    border: 1.5px solid currentcolor;
+    border-radius: 2px;
+    height: 0.9rem;
+    position: relative;
+    width: 0.9rem;
+  }
+
+  .save-icon::before, .save-icon::after {
+    border: 1.5px solid currentcolor;
+    content: '';
+    left: 0.16rem;
+    position: absolute;
+    width: 0.42rem;
+  }
+
+  .save-icon::before {
+    border-top: 0;
+    height: 0.23rem;
+    top: -0.02rem;
+  }
+
+  .save-icon::after {
+    bottom: 0.07rem;
+    height: 0.24rem;
+  }
+
+  #settings-modal .settings-card > .settings-field {
+    margin-top: 1rem;
+  }
+
+  .settings-card .source-auto-render {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.4rem;
+    justify-self: start;
+    white-space: nowrap;
+  }
 
   .zoom-controls { display: inline-flex; gap: 0.25rem; }
 
@@ -750,16 +838,20 @@
 
   .preview.is-panning { cursor: grabbing; }
 
-  .preview svg {
+  .preview svg, .ref-explorer-panel > svg {
     display: block;
     filter: none;
+  }
+
+  .preview svg {
     max-width: none;
     position: absolute;
     transform-origin: 0 0;
     user-select: none;
   }
 
-  :root[data-effective-theme='dark'] .preview svg {
+  :root[data-effective-theme='dark'] .preview svg,
+  :root[data-effective-theme='dark'] .ref-explorer-panel > svg {
     filter: invert(1) hue-rotate(180deg);
   }
 
@@ -889,9 +981,10 @@
   '''
 ::
 ++  javascript
+  |=  our=@p
   ^-  @t
   %+  rap  3
-  :~  (emit:ucfg spec)
+  :~  (emit:ucfg (spec our))
       core:ujs
       app-js
   ==
@@ -1000,11 +1093,16 @@
   const autoRender = document.querySelector('#auto-render');
   const theme = document.querySelector('#theme');
   const help = document.querySelector('#help');
+  const settings = document.querySelector('#settings');
   const workbench = document.querySelector('#workbench');
   const explorerPane = document.querySelector('#explorer-pane');
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const config = window.urui.config;
+  const settingsCard = document.querySelector(
+    '#settings-modal .settings-card'
+  );
+  settingsCard.append(autoRender.closest('.source-auto-render'));
   //  urui owns the DOT and SVG documents, their editors, files, tree,
   //  references, and source/preview; graph-viz supplies rendering and the
   //  fields that link a rendered SVG to the DOT tab it came from.
@@ -1018,6 +1116,25 @@
     },
     onChange: () => queueSaveSession(),
     onResize: () => closeFileContext(),
+    refs: {
+      'svg-source': {
+        create: ({label, text}) => {
+          const source = validSavedSource(text);
+          if (!source) return undefined;
+          return {label: String(label), data: {text: source}};
+        },
+        render: (panel, ref) => {
+          const source = document.createElement('pre');
+          source.className = 'ref-source';
+          source.textContent = String(ref.data?.text ?? '');
+          panel.append(source);
+        },
+        validate: (data) => {
+          const source = validSavedSource(data?.text);
+          return source === undefined ? undefined : {text: source};
+        }
+      }
+    },
     session: {
       read: (key) => {
         if (key === 'view') return view;
@@ -1086,8 +1203,14 @@
           if (left && currentSvg) left.view = {...view};
           pendingView = validView(tab.view) ?? pendingView;
         },
-        loaded: (tab) => { tab.editBaseSource = tab.text; },
-        saved: (tab) => { tab.editBaseSource = tab.text; }
+        loaded: (tab) => {
+          tab.editBaseSource = tab.text;
+          syncSvgSourceRef(tab);
+        },
+        saved: (tab) => {
+          tab.editBaseSource = tab.text;
+          syncSvgSourceRef(tab);
+        }
       }
     }
   });
@@ -1144,6 +1267,7 @@
   let lastSvgSource = '';
   let pendingView;
   let selectedItems = [];
+  let draggedSvgSource;
   let inheritNewNodeShape = false;
 
   //  urui mounts both editors in `docs.start()`; they are bound here once
@@ -1155,6 +1279,27 @@
 
   const activeDotTab = () => docs.active('dot');
   const activeSvgTab = () => docs.active('svg');
+
+  function svgSourceRefLabel(tab) {
+    return `${tab.label}-source`;
+  }
+
+  function syncSvgSourceRef(tab, text = tab?.text) {
+    if (!tab || !explorer.refs.forParent('svg-source', tab.id)) return;
+    explorer.refs.update('svg-source', tab.id, {
+      label: svgSourceRefLabel(tab),
+      data: {text: String(text ?? '')}
+    });
+  }
+
+  function openSvgSourceRef(tab, text) {
+    return explorer.refs.open({
+      kind: 'svg-source',
+      parentId: tab.id,
+      label: svgSourceRefLabel(tab),
+      text
+    });
+  }
 
   //  An SVG tab shows its source in urui's editor or its drawing in the
   //  preview; everything graph-viz draws belongs to the preview.
@@ -2628,6 +2773,7 @@
         display: 'preview'
       }
     });
+    syncSvgSourceRef(tab, source);
     if (!wasActive) docs.select('svg', tab.id);
   }
 
@@ -2644,6 +2790,8 @@
 
   function handleShortcut() {
     for (const [command, handler] of Object.entries({
+      help: () => help.click(),
+      settings: () => settings.click(),
       render: renderNow,
       'fit-view': fitToWindow,
       'reset-view': resetGraphView
@@ -2859,6 +3007,16 @@
   preview.addEventListener('pointercancel', endPan);
 
   handleShortcut();
+  settings.setAttribute('aria-keyshortcuts', 'F2');
+  for (const id of ['dot-save', 'svg-save']) {
+    const saveButton = document.querySelector(`#${id}`);
+    const saveIcon = document.createElement('span');
+    saveIcon.classList.add('save-icon');
+    saveIcon.setAttribute('aria-hidden', 'true');
+    saveButton.setAttribute('aria-label', saveButton.title);
+    saveButton.classList.add('icon-button');
+    saveButton.replaceChildren(saveIcon);
+  }
   document.addEventListener('fullscreenchange', refitAfterFullscreen);
   newNodeCategory.value = 'basic-shapes';
   populateNewNodeShapes();
@@ -2874,9 +3032,48 @@
     autoRender.checked = savedSession['preferences.autoRender'];
     pendingView = savedSession.view;
   });
+  for (const id of ['dot-copy', 'svg-copy']) {
+    const copyButton = document.querySelector(`#${id}`);
+    copyButton.setAttribute('aria-label', copyButton.title);
+  }
   editor = docs.editor('dot');
   svgEditor = docs.editor('svg');
   editor.onChange(editorChanged);
+  svgEditor.onChange(() => {
+    syncSvgSourceRef(activeSvgTab(), svgEditor.getSource());
+  });
+  document.querySelector('#svg-ref').addEventListener('click', (event) => {
+    if (!svgShowingSource()) return;
+    const tab = activeSvgTab();
+    if (!tab) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openSvgSourceRef(tab, svgEditor.getSource());
+  }, true);
+  const svgTabs = document.querySelector('#preview-pane-document-tabs');
+  svgTabs.addEventListener('dragstart', (event) => {
+    const wrapper = event.target.closest?.('.document-tab-control');
+    const control = wrapper?.querySelector('[data-document-tab]');
+    const tab = docs.get('svg', control?.dataset.documentTab);
+    if (!tab || tab.display !== 'source') {
+      draggedSvgSource = undefined;
+      return;
+    }
+    const text = tab.id === activeSvgTab()?.id
+      ? svgEditor.getSource()
+      : tab.text;
+    draggedSvgSource = {tab, text};
+  }, true);
+  svgTabs.addEventListener('dragend', () => {
+    draggedSvgSource = undefined;
+  }, true);
+  explorerPane.addEventListener('drop', (event) => {
+    if (!draggedSvgSource) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openSvgSourceRef(draggedSvgSource.tab, draggedSvgSource.text);
+    draggedSvgSource = undefined;
+  }, true);
   if (window.__GVIZ_BROWSER_TEST__) {
     window.__GVIZ_EDITOR_TEST__ = editor;
     window.__GVIZ_SVG_EDITOR_TEST__ = svgEditor;

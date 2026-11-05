@@ -30,13 +30,14 @@
   (respond:uhttp status content-type (as-octs:mimes:html body))
 ::
 ++  assets
+  |=  our=@p
   ^-  (list [suffix=@t asset=asset:uhttp])
   =/  js=@t  'text/javascript; charset=utf-8'
   =/  text=@t  'text/plain; charset=utf-8'
   %+  turn
-    :~  ['' 'text/html; charset=utf-8' page:web]
-        ['/' 'text/html; charset=utf-8' page:web]
-        ['/app.js' js javascript:web]
+    :~  ['' 'text/html; charset=utf-8' (page:web our)]
+        ['/' 'text/html; charset=utf-8' (page:web our)]
+        ['/app.js' js (javascript:web our)]
         ['/doc.toc' text docs-toc]
         ['/ace/ace.js' js ace-core]
         ['/ace/graph-viz-config.js' js ace-config-js:web]
@@ -102,7 +103,8 @@
       :_  this
       %+  give-simple-payload:app:server  eyre-id
       (respond:uhttp 200 ['image/x-icon' favicon])
-    =/  asset  (asset-route:uhttp '/apps/graph-viz' url assets)
+    =/  asset
+      (asset-route:uhttp '/apps/graph-viz' url (assets our.bowl))
     ?~  asset  (reply 404 'not found')
     :_  this
     %+  give-simple-payload:app:server  eyre-id

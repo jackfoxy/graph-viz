@@ -5,7 +5,7 @@
 |%
 ::
 ++  test-web-page
-  =/  html  (trip page:web)
+  =/  html  (trip (page:web ~zod))
   =/  needles=(list tape)
     :~  "Graph Viz"
         "/apps/graph-viz/app.js"
@@ -20,6 +20,7 @@
         "id=\"dot-open\""
         "id=\"dot-save\""
         "id=\"dot-save-as\""
+        "id=\"dot-copy\""
         "id=\"dot-ref\""
         "id=\"svg-save\""
         "id=\"svg-copy\""
@@ -30,6 +31,7 @@
         "id=\"svg-source\""
         "id=\"auto-render\""
         "source-auto-render"
+        "settings-field preference source-auto-render"
         "id=\"template\""
         "id=\"inspector\""
         "LLM skill files"
@@ -44,6 +46,11 @@
         "id=\"fullscreen-zoom-out\""
         "id=\"fullscreen-zoom-in\""
         "data-state=\"empty\""
+        "id=\"explorer-pane-ship\""
+        "~zod"
+        "Help (F1)"
+        ">F1<"
+        ">F2<"
     ==
   =/  missing=(list tape)
     :~  "<script src=\"http"
@@ -74,8 +81,8 @@
   (weld present-tests absent-tests)
 ::
 ++  test-urui-integration
-  =/  html  (trip page:web)
-  =/  js  (trip javascript:web)
+  =/  html  (trip (page:web ~zod))
+  =/  js  (trip (javascript:web ~zod))
   =/  html-needles=(list tape)
     :~  "id=\"explorer-pane\""
         "id=\"editor-pane\""
@@ -131,7 +138,7 @@
   ==
 ::
 ++  test-live-rendering
-  =/  js  (trip javascript:web)
+  =/  js  (trip (javascript:web ~zod))
   ;:  weld
     (expect !>(?=(^ (find "setTimeout(render, renderDelay)" js))))
     (expect !>(?=(^ (find "uid !== latestRequestUid" js))))
@@ -144,7 +151,7 @@
   ==
 ::
 ++  test-safe-svg-controls
-  =/  js  (trip javascript:web)
+  =/  js  (trip (javascript:web ~zod))
   ;:  weld
     (expect !>(?=(^ (find "new DOMParser()" js))))
     (expect !>(?=(^ (find "image/svg+xml" js))))
@@ -159,8 +166,8 @@
   ==
 ::
 ++  test-editor-usability
-  =/  html  (trip page:web)
-  =/  js  (trip javascript:web)
+  =/  html  (trip (page:web ~zod))
+  =/  js  (trip (javascript:web ~zod))
   =/  html-needles=(list tape)
     :~  "id=\"dot\""
         "Select template…"
@@ -177,8 +184,15 @@
     :~  "strict digraph unique_edges"
         "last wins"
         "ace/mode/dot"
+        "Copy DOT to clipboard"
+        "Copy SVG to clipboard"
         "docs.previews.register('svg'"
         "editor = docs.editor('dot')"
+        "settingsCard.append(autoRender.closest('.source-auto-render'))"
+        "'svg-source': \{"
+        "syncSvgSourceRef"
+        "draggedSvgSource"
+        "stopImmediatePropagation"
         "problem.line"
         "problem.column"
     ==
@@ -201,7 +215,7 @@
 ++  test-persistence-export
   ::  Graph Viz's half of the session record is declared, not written:
   ::  the shared runtime reads these slots out of the emitted config.
-  =/  js  (trip javascript:web)
+  =/  js  (trip (javascript:web ~zod))
   =/  needles=(list tape)
     :~  "\"storageKey\":\"graph-viz.session.v1\""
         "\"storageVersion\":2"
@@ -223,8 +237,8 @@
   (expect !>(?=(^ (find needle js))))
 ::
 ++  test-visual-selection
-  =/  html  (trip page:web)
-  =/  js  (trip javascript:web)
+  =/  html  (trip (page:web ~zod))
+  =/  js  (trip (javascript:web ~zod))
   ;:  weld
     (expect !>(?=(^ (find "id=\"inspector\"" html))))
     (expect !>(?=(^ (find "id=\"selection-kind\"" html))))
@@ -240,8 +254,8 @@
   ==
 ::
 ++  test-visual-editing
-  =/  html  (trip page:web)
-  =/  js  (trip javascript:web)
+  =/  html  (trip (page:web ~zod))
+  =/  js  (trip (javascript:web ~zod))
   ;:  weld
     (expect !>(?=(^ (find "id=\"new-node-name\"" html))))
     (expect !>(?=(^ (find "id=\"new-node-category\"" html))))
