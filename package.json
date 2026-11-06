@@ -2,6 +2,7 @@
   "name": "graph-viz-browser-tests",
   "private": true,
   "scripts": {
+    "test:sync": "bin/verify-sync.sh --strict --quiet",
     "test:browser:real": "playwright test --config tests/browser/real/playwright.config.js",
     "test:shortcuts": "node --test tests/browser/app-shortcuts.test.js",
     "test:assets": "node --test tests/browser/ace-assets-routed.test.js"

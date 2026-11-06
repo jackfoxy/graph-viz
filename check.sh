@@ -23,7 +23,9 @@
 #
 set -euo pipefail
 cd "$(dirname "$0")"
-"$PWD/bin/verify-sync.sh" --quiet || true
+# Drift in the vendored urui copies is an error, not a warning: a stale
+# copy makes everything below it a check of the wrong sources.
+"$PWD/bin/verify-sync.sh" --strict --quiet
 
 VERE="${VERE:-$HOME/piers/vere-v4.5-linux-x86_64}"
 DESK=desk
