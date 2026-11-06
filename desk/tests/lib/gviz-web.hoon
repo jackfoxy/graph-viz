@@ -48,12 +48,26 @@
         "data-state=\"empty\""
         "id=\"explorer-pane-ship\""
         "~zod"
-        "Help (F1)"
-        ">F1<"
-        ">F2<"
+        ::  A chord's binding, its badge and its aria-keyshortcuts are
+        ::  put on the control by urui at boot, from the one chord
+        ::  table, so the page names the command and not the key.
+        "data-chord=\"render\""
+        "data-chord=\"fit-view\""
+        "data-chord=\"reset-view\""
+        "id=\"help\""
+        "id=\"settings\""
+        ::  the Help panel's shortcut table is generated from that same
+        ::  chord list by ++shortcut-list, so it cannot drift from it
+        "<kbd>F1</kbd><span>Help</span>"
+        "<kbd>Ctrl-Enter</kbd><span>Render now</span>"
     ==
   =/  missing=(list tape)
     :~  "<script src=\"http"
+        ::  a control names its command, never its key: no binding and
+        ::  no badge is written into the markup any more
+        "Help (F1)"
+        "Render (Ctrl+Enter)"
+        "aria-keyshortcuts"
         ::  the file controls urui now draws, and the source toggle it owns
         "id=\"load-dot\""
         "id=\"save-svg\""
@@ -188,7 +202,6 @@
         "Copy SVG to clipboard"
         "docs.previews.register('svg'"
         "editor = docs.editor('dot')"
-        "settingsCard.append(autoRender.closest('.source-auto-render'))"
         "'svg-source': \{"
         "syncSvgSourceRef"
         "draggedSvgSource"
@@ -210,6 +223,13 @@
     html-tests
     (expect !>(?=(~ (find ">Templates<" html))))
     js-tests
+    ::  Auto-render is declared in urui's `settings` slot, so it is
+    ::  server-rendered inside the Settings card rather than moved
+    ::  there by javascript at boot.
+    (expect !>(?=(^ (find "id=\"auto-render\"" html))))
+    %-  expect
+    !>(?=(^ (find "settings-field preference source-auto-render" html)))
+    (expect !>(?=(~ (find "settingsCard" js))))
   ==
 ::
 ++  test-persistence-export
