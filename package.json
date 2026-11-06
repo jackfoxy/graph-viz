@@ -3,9 +3,9 @@
   "private": true,
   "scripts": {
     "test:sync": "bin/verify-sync.sh --strict --quiet",
-    "test:browser:real": "playwright test --config tests/browser/real/playwright.config.js",
-    "test:shortcuts": "node --test tests/browser/app-shortcuts.test.js",
-    "test:assets": "node --test tests/browser/ace-assets-routed.test.js"
+    "test:shortcuts": "node --test tests/browser/app-shortcuts.test.js tests/browser/shortcut-conflicts.test.js",
+    "test:assets": "node --test tests/browser/ace-assets-routed.test.js",
+    "test:browser:real": "playwright test --config tests/browser/real/playwright.config.js"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
