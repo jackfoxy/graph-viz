@@ -115,14 +115,21 @@
   ==
 ::
 ++  shortcuts
+  ::  The same seven chords as before, now carrying what they cost.
+  ::
+  ::  F1 and F2 displace Ace's command palette and fold widget, which
+  ::  stay reachable at Ctrl-, and Alt-F2.  Ctrl-Enter is Ace's
+  ::  fullscreen in the upstream table, but the pinned standalone
+  ::  bundle ships no such command, so nothing is displaced in
+  ::  practice -- recorded as an override because the table says so.
   ^-  (list shortcut:urui)
-  :~  ['F1' 'help' %always]
-      ['F2' 'settings' %always]
-      ['Ctrl-Enter' 'render' %always]
-      ['Ctrl-S' 'save:dot' %always]
-      ['Ctrl-Shift-S' 'save:svg' %always]
-      ['Ctrl-0' 'fit-view' %preview]
-      ['Ctrl-1' 'reset-view' %preview]
+  :~  ['F1' 'help' %always %override `'Help']
+      ['F2' 'settings' %always %override `'Settings']
+      ['Ctrl-Enter' 'render' %always %override `'Render now']
+      ['Ctrl-S' 'save:dot' %always %free `'Save the DOT source']
+      ['Ctrl-Shift-S' 'save:svg' %always %free `'Save the SVG']
+      ['Ctrl-0' 'fit-view' %preview %free `'Fit the graph']
+      ['Ctrl-1' 'reset-view' %preview %free `'Reset the view']
   ==
 ::
 ++  ace-spec
@@ -271,19 +278,12 @@
 ::
 ++  toolbar
   ^-  marl
-  ::  No theme control: urui's settings modal owns it.  Place its button
-  ::  here beside Help so both controls carry their function-key badges.
+  ::  No theme control: urui's settings modal owns it.  Place its
+  ::  button here beside Help; the runtime badges both from the chord
+  ::  table, so neither has to name its own key.
   :~  ;nav.toolbar(aria-label "Graph controls")
-        ;+  =/  button=manx  settings-button:shell
-            button(c (snoc c.button ;kbd:"F2"))
-        ;button#help
-          =type                "button"
-          =title               "Help (F1)"
-          =aria-expanded       "false"
-          =aria-keyshortcuts   "F1"
-          ;span: Help
-          ;kbd: F1
-        ==
+        ;+  settings-button:shell
+        ;+  help-button:shell
       ==
   ==
 ::
@@ -361,8 +361,9 @@
   ^-  marl
   :~  ;div.file-actions(aria-label "SVG file controls")
         ;button#render.primary
-          =type   "button"
-          =title  "Render (Ctrl+Enter)"
+          =type         "button"
+          =title        "Render"
+          =data-chord   "render"
           ;span: Render
         ==
         ;div.zoom-controls(aria-label "Zoom controls")
@@ -382,15 +383,17 @@
           ==
         ==
         ;button#fit
-          =type      "button"
-          =disabled  ""
-          =title     "Fit graph (Ctrl+0)"
+          =type         "button"
+          =disabled     ""
+          =title        "Fit graph"
+          =data-chord   "fit-view"
           ;span: Fit
         ==
         ;button#reset-view
-          =type      "button"
-          =disabled  ""
-          =title     "Reset view (Ctrl+1)"
+          =type         "button"
+          =disabled     ""
+          =title        "Reset view"
+          =data-chord   "reset-view"
           ;span: Reset
         ==
       ==
@@ -594,12 +597,10 @@
         ;p: Write DOT on the left and inspect the SVG on the right.
         ;p: Drag the divider to resize the panes on larger screens.
         ;h3: Keyboard shortcuts
+        ::  the app chords come from the table the dispatcher reads;
+        ::  below them, what the editor and the preview add
+        ;+  (shortcut-list:shell shortcuts)
         ;ul.shortcut-list
-          ;li: Ctrl/Cmd + Enter: render now
-          ;li: Ctrl/Cmd + S: save DOT to Clay
-          ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
-          ;li: Ctrl/Cmd + 0: fit graph
-          ;li: Ctrl/Cmd + 1: reset graph view
           ;li: Tab / Shift + Tab: indent / unindent
           ;li: Shift-click: select two nodes for an edge
           ;li: Delete: remove the selected node or edge
@@ -2793,9 +2794,8 @@
   }
 
   function handleShortcut() {
+    //  `help` and `settings` are urui's: it draws both dialogs
     for (const [command, handler] of Object.entries({
-      help: () => help.click(),
-      settings: () => settings.click(),
       render: renderNow,
       'fit-view': fitToWindow,
       'reset-view': resetGraphView
@@ -3011,7 +3011,6 @@
   preview.addEventListener('pointercancel', endPan);
 
   handleShortcut();
-  settings.setAttribute('aria-keyshortcuts', 'F2');
   for (const id of ['dot-save', 'svg-save']) {
     const saveButton = document.querySelector(`#${id}`);
     const saveIcon = document.createElement('span');
