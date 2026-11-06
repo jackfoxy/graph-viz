@@ -162,6 +162,7 @@
           '/apps/graph-viz/app.js'
       ==
       head=~[favicon]
+      settings
   ==
 ::
 ++  favicon
@@ -300,7 +301,14 @@
           ;option(value "clusters"): Clusters
         ==
       ==
-      ;label.settings-field.preference.source-auto-render
+  ==
+::
+++  settings
+  ::  graph-viz's own preferences, spliced into urui's Settings modal
+  ::  after urui's.  The runtime binds and persists `#auto-render`
+  ::  itself, through the `preferences.autoRender` slot.
+  ^-  marl
+  :~  ;label.settings-field.preference.source-auto-render
         ;input#auto-render(type "checkbox", checked "");
         ;span: Auto-render
       ==
@@ -1099,10 +1107,6 @@
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const config = window.urui.config;
-  const settingsCard = document.querySelector(
-    '#settings-modal .settings-card'
-  );
-  settingsCard.append(autoRender.closest('.source-auto-render'));
   //  urui owns the DOT and SVG documents, their editors, files, tree,
   //  references, and source/preview; graph-viz supplies rendering and the
   //  fields that link a rendered SVG to the DOT tab it came from.
