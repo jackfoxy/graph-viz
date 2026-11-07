@@ -691,13 +691,6 @@
 
   .toolbar { align-items: center; }
 
-  .toolbar kbd {
-    font-family: ui-monospace, monospace;
-    font-size: 0.72rem;
-    margin-left: 0.35rem;
-    opacity: 0.8;
-  }
-
   #explorer-pane-ship {
     align-items: center;
     border-bottom: 1px solid var(--border);
