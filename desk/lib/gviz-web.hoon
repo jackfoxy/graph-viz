@@ -37,7 +37,6 @@
       collapse=|
       files=`files
       :~  ['fullscreen-svg-exit' 'Return SVG to preview panel']
-          ['settings' 'Settings (F2)']
           ['dot-copy' 'Copy DOT to clipboard']
           ['svg-copy' 'Copy SVG to clipboard']
       ==
@@ -3023,12 +3022,21 @@
   preview.addEventListener('pointercancel', endPan);
 
   handleShortcut();
+  //  a control's tooltip with urui's ` (Ctrl-S)` suffix removed
+  const withoutChord = (button) => {
+    const keys = button.getAttribute('aria-keyshortcuts');
+    const first = keys ? keys.split(' ')[0] : null;
+    const title = button.title || '';
+    return first && title.endsWith(`(${first})`)
+      ? title.slice(0, title.lastIndexOf('(')).trim()
+      : title;
+  };
   for (const id of ['dot-save', 'svg-save']) {
     const saveButton = document.querySelector(`#${id}`);
     const saveIcon = document.createElement('span');
     saveIcon.classList.add('save-icon');
     saveIcon.setAttribute('aria-hidden', 'true');
-    saveButton.setAttribute('aria-label', saveButton.title);
+    saveButton.setAttribute('aria-label', withoutChord(saveButton));
     saveButton.classList.add('icon-button');
     saveButton.replaceChildren(saveIcon);
   }
@@ -3047,9 +3055,12 @@
     autoRender.checked = savedSession['preferences.autoRender'];
     pendingView = savedSession.view;
   });
+  //  The accessible name is the action, without the binding urui
+  //  appends to the tooltip: a key belongs in aria-keyshortcuts, which
+  //  urui also sets, and a screen reader announces it from there.
   for (const id of ['dot-copy', 'svg-copy']) {
     const copyButton = document.querySelector(`#${id}`);
-    copyButton.setAttribute('aria-label', copyButton.title);
+    copyButton.setAttribute('aria-label', withoutChord(copyButton));
   }
   editor = docs.editor('dot');
   svgEditor = docs.editor('svg');
