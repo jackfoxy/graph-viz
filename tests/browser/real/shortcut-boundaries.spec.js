@@ -193,8 +193,10 @@ test('F1 and F2 open their toolbar dialogs from the DOT editor', async ({
   await editorInput.focus();
 
   for (const [key, panel, close] of [
-    ['F1', '#help-panel', '#close-help'],
-    ['F2', '#settings-modal', '#close-settings']
+    //  the card takes focus, not the close button: it is the scroll
+    //  container, so PageUp and PageDown page the dialog
+    ['F1', '#help-panel', '#editor-help-card'],
+    ['F2', '#settings-modal', '#settings-card']
   ]) {
     await page.keyboard.press(key);
     await expect(page.locator(panel)).toBeVisible();
