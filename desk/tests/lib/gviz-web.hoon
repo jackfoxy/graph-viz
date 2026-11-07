@@ -229,7 +229,9 @@
     (expect !>(?=(^ (find "id=\"auto-render\"" html))))
     %-  expect
     !>(?=(^ (find "settings-field preference source-auto-render" html)))
-    (expect !>(?=(~ (find "settingsCard" js))))
+    ::  the relocation itself, not the word: urui's own element
+    ::  map now names a `settingsCard`, which is a different thing
+    (expect !>(?=(~ (find "settingsCard.append(" js))))
   ==
 ::
 ++  test-persistence-export
