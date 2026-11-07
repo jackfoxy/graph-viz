@@ -36,10 +36,33 @@ test('synced baseline retains complete shortcut accounting', () => {
   );
 });
 
+test('the manifest mirrors the chord table it describes', () => {
+  //  The `application` array was hand-maintained and went stale the
+  //  moment the table changed, with nothing to notice.  It is derived
+  //  from ++shortcuts now, and this is what keeps it so.
+  const {table, claims} = require('./chords.js');
+  const {chords} = table(path.join(__dirname, '../..'));
+  assert.deepEqual(
+    manifest.application.map((entry) => entry.binding),
+    chords.map((chord) => chord.binding)
+  );
+  for (const [index, chord] of chords.entries()) {
+    const entry = manifest.application[index];
+    assert.equal(entry.action, chord.label, chord.binding);
+    const ace = claims(chord.binding).find((row) => row.keymap === 'ace');
+    assert.equal(entry.aceAction, ace ? ace.action : null, chord.binding);
+    assert.match(entry.resolution, chord.policy === 'override'
+      ? /override/ : /command/, chord.binding);
+  }
+});
+
 test('manifest finalizes Graph Viz and Ace shortcut ownership', () => {
   assert.deepEqual(
     manifest.application.map((entry) => entry.binding),
-    ['F1', 'F2', 'Ctrl-Enter', 'Ctrl-S', 'Ctrl-Shift-S', 'Ctrl-0', 'Ctrl-1']
+    [
+      'F1', 'F2', 'Ctrl-Enter', 'Ctrl-S', 'Ctrl-Shift-S', 'Alt-O', 'Alt-C',
+      'Ctrl-Alt-V', 'Ctrl-0', 'Ctrl-1', 'Ctrl-Shift-0'
+    ]
   );
   for (const entry of manifest.application) {
     assert.ok(entry.action);

@@ -10,14 +10,39 @@ for the DOT source pane.
 | F1 | Open Help |
 | F2 | Open Settings |
 | Ctrl-Enter | Render now |
-| Ctrl-S | Save DOT |
-| Ctrl-Shift-S | Save SVG |
-| Ctrl-0 | Fit preview |
-| Ctrl-1 | Reset preview |
+| Ctrl-S | Save the DOT source |
+| Ctrl-Shift-S | Save the SVG |
+| Alt-O | Open a saved DOT file |
+| Alt-C | Copy the DOT source |
+| Ctrl-Alt-V | Switch the SVG between source and preview |
+| Ctrl-0 | Fit the graph |
+| Ctrl-1 or Ctrl-Shift-0 | Reset the view |
+| Delete, with a file row focused | Delete that file, after confirming |
+| Alt-Enter, Shift-F10, or the context-menu key | Open the row's actions |
 
-F1, F2, and Ctrl-Enter override Ace bindings.
-The header buttons display these first two bindings as **Help F1** and
-**Settings F2**.
+F1, F2 and Ctrl-Enter override Ace bindings. The command palette's commands
+remain reachable through **Ctrl-,**, Ace's own settings menu; folding keeps
+`Alt-F2`, `Alt-L`, `Alt-Shift-L`, `Alt-0` and `Alt-Shift-0`. Ctrl-Enter is
+Ace's fullscreen upstream, but the pinned standalone bundle ships no such
+command, so nothing is displaced in practice.
+
+Alt-O and Alt-C, rather than Ctrl-O and Ctrl-Shift-C: **Ctrl-O** is free in
+Ace's own keymap but is a Vim binding in both insert and normal mode, and the
+editor can be switched to Vim in Settings; **Ctrl-Shift-C** is Chromium's
+element inspector. These two, the display toggle and the row keys apply
+outside the editor only, so Ctrl-C and its neighbours keep their ordinary
+meaning while editing.
+
+**Save As has no chord.** Ctrl-Shift-S is Save SVG here and Ctrl-Alt-S is
+Ace's Sort lines, so Save As stays on its button — the one place in the
+cross-app table where a sensible chord is already taken.
+
+Ctrl-Shift-0 is an alias for Reset. Ctrl-1 is delivered to the page and
+cancelable in Chromium, but Ctrl-1 through Ctrl-8 are the browser's tab
+switches, so the alias is there for any engine that keeps them.
+
+The key badge on each control, and the binding in its tooltip, come from this
+same table at load: no binding is written into the markup.
 
 ## Line Operations
 

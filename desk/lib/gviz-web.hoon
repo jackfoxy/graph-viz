@@ -122,14 +122,26 @@
   ::  fullscreen in the upstream table, but the pinned standalone
   ::  bundle ships no such command, so nothing is displaced in
   ::  practice -- recorded as an override because the table says so.
+  ::  No Save As chord: Ctrl-Shift-S is Save SVG here, and Ctrl-Alt-S
+  ::  is Ace's Sort lines.  Save As stays button-only, which is the one
+  ::  place in the cross-app table where a sensible chord is taken.
+  ::
+  ::  Ctrl-1 keeps Reset and Ctrl-Shift-0 joins it: Chromium delivers
+  ::  Ctrl-1 to the page and honours preventDefault, and it is reported
+  ::  working in Brave, but Ctrl-1..8 are the browser's tab switches
+  ::  and the alias costs one row.
   ^-  (list shortcut:urui)
   :~  ['F1' 'help' %always %override `'Help']
       ['F2' 'settings' %always %override `'Settings']
       ['Ctrl-Enter' 'render' %always %override `'Render now']
       ['Ctrl-S' 'save:dot' %always %free `'Save the DOT source']
       ['Ctrl-Shift-S' 'save:svg' %always %free `'Save the SVG']
+      ['Alt-O' 'open:dot' %no-editor %free `'Open a saved DOT file']
+      ['Alt-C' 'copy:dot' %no-editor %free `'Copy the DOT source']
+      ['Ctrl-Alt-V' 'display:svg' %no-editor %free `'SVG source or preview']
       ['Ctrl-0' 'fit-view' %preview %free `'Fit the graph']
       ['Ctrl-1' 'reset-view' %preview %free `'Reset the view']
+      ['Ctrl-Shift-0' 'reset-view' %preview %free `'Reset the view']
   ==
 ::
 ++  ace-spec
