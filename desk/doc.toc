@@ -1,9 +1,9 @@
-/keyboard-shortcuts/md     Keyboard Shortcuts
-/ace-keys/md               Ace Editor Keys
-/modal-keys/md             Dialog Keys
-/key-policy/md             Key Policy
+/keyboard                  Keyboard Shortcuts
+  /graph-viz-keys/md       Graph Viz Keys
+  /ace-keys/md             Ace Editor Keys
+  /modal-keys/md           Dialog Keys
+  /key-policy/md           Key Policy
 /users-guide/md            Users Guide
-/dot-language/md           DOT Language
 /dot-language              DOT Language Reference
   /graph-attributes/md         Graph Attributes
   /node-shapes/md              Node Shapes
