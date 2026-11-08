@@ -1,3 +1,7 @@
+# v1.1.0
+
+standardize UI on urui v2.0
+
 # v1.0.3
 
 - Optional Vim key bindings

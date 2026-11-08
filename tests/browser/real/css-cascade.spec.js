@@ -48,11 +48,15 @@ for (const width of [1440, 390]) {
       );
       await expect(page.locator(`${selector} .save-icon`)).toHaveCount(1);
     }
-    for (const [selector, label] of [
-      ['#dot-copy', 'Copy DOT to clipboard'],
-      ['#svg-copy', 'Copy SVG to clipboard']
+    for (const [selector, label, chord] of [
+      ['#dot-copy', 'Copy DOT to clipboard', ' (Alt-C)'],
+      ['#svg-copy', 'Copy SVG to clipboard', '']
     ]) {
-      await expect(page.locator(selector)).toHaveAttribute('title', label);
+      //  the tip names the action and urui appends the binding, where
+      //  the control has one: dot-copy does, svg-copy does not
+      await expect(page.locator(selector)).toHaveAttribute(
+        'title', `${label}${chord}`
+      );
       await expect(page.locator(selector)).toHaveAttribute(
         'aria-label', label
       );

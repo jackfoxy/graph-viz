@@ -37,7 +37,6 @@
       collapse=|
       files=`files
       :~  ['fullscreen-svg-exit' 'Return SVG to preview panel']
-          ['settings' 'Settings (F2)']
           ['dot-copy' 'Copy DOT to clipboard']
           ['svg-copy' 'Copy SVG to clipboard']
       ==
@@ -115,14 +114,33 @@
   ==
 ::
 ++  shortcuts
+  ::  The same seven chords as before, now carrying what they cost.
+  ::
+  ::  F1 and F2 displace Ace's command palette and fold widget, which
+  ::  stay reachable at Ctrl-, and Alt-F2.  Ctrl-Enter is Ace's
+  ::  fullscreen in the upstream table, but the pinned standalone
+  ::  bundle ships no such command, so nothing is displaced in
+  ::  practice -- recorded as an override because the table says so.
+  ::  No Save As chord: Ctrl-Shift-S is Save SVG here, and Ctrl-Alt-S
+  ::  is Ace's Sort lines.  Save As stays button-only, which is the one
+  ::  place in the cross-app table where a sensible chord is taken.
+  ::
+  ::  Ctrl-1 keeps Reset and Ctrl-Shift-0 joins it: Chromium delivers
+  ::  Ctrl-1 to the page and honours preventDefault, and it is reported
+  ::  working in Brave, but Ctrl-1..8 are the browser's tab switches
+  ::  and the alias costs one row.
   ^-  (list shortcut:urui)
-  :~  ['F1' 'help' %always]
-      ['F2' 'settings' %always]
-      ['Ctrl-Enter' 'render' %always]
-      ['Ctrl-S' 'save:dot' %always]
-      ['Ctrl-Shift-S' 'save:svg' %always]
-      ['Ctrl-0' 'fit-view' %preview]
-      ['Ctrl-1' 'reset-view' %preview]
+  :~  ['F1' 'help' %always %override `'Help']
+      ['F2' 'settings' %always %override `'Settings']
+      ['Ctrl-Enter' 'render' %always %override `'Render now']
+      ['Ctrl-S' 'save:dot' %always %free `'Save the DOT source']
+      ['Ctrl-Shift-S' 'save:svg' %always %free `'Save the SVG']
+      ['Alt-O' 'open:dot' %no-editor %free `'Open a saved DOT file']
+      ['Alt-C' 'copy:dot' %no-editor %free `'Copy the DOT source']
+      ['Ctrl-Alt-V' 'display:svg' %no-editor %free `'SVG source or preview']
+      ['Ctrl-0' 'fit-view' %preview %free `'Fit the graph']
+      ['Ctrl-1' 'reset-view' %preview %free `'Reset the view']
+      ['Ctrl-Shift-0' 'reset-view' %preview %free `'Reset the view']
   ==
 ::
 ++  ace-spec
@@ -162,6 +180,7 @@
           '/apps/graph-viz/app.js'
       ==
       head=~[favicon]
+      settings
   ==
 ::
 ++  favicon
@@ -270,19 +289,12 @@
 ::
 ++  toolbar
   ^-  marl
-  ::  No theme control: urui's settings modal owns it.  Place its button
-  ::  here beside Help so both controls carry their function-key badges.
+  ::  No theme control: urui's settings modal owns it.  Place its
+  ::  button here beside Help; the runtime badges both from the chord
+  ::  table, so neither has to name its own key.
   :~  ;nav.toolbar(aria-label "Graph controls")
-        ;+  =/  button=manx  settings-button:shell
-            button(c (snoc c.button ;kbd:"F2"))
-        ;button#help
-          =type                "button"
-          =title               "Help (F1)"
-          =aria-expanded       "false"
-          =aria-keyshortcuts   "F1"
-          ;span: Help
-          ;kbd: F1
-        ==
+        ;+  settings-button:shell
+        ;+  help-button:shell
       ==
   ==
 ::
@@ -300,7 +312,14 @@
           ;option(value "clusters"): Clusters
         ==
       ==
-      ;label.settings-field.preference.source-auto-render
+  ==
+::
+++  settings
+  ::  graph-viz's own preferences, spliced into urui's Settings modal
+  ::  after urui's.  The runtime binds and persists `#auto-render`
+  ::  itself, through the `preferences.autoRender` slot.
+  ^-  marl
+  :~  ;label.settings-field.preference.source-auto-render
         ;input#auto-render(type "checkbox", checked "");
         ;span: Auto-render
       ==
@@ -353,8 +372,9 @@
   ^-  marl
   :~  ;div.file-actions(aria-label "SVG file controls")
         ;button#render.primary
-          =type   "button"
-          =title  "Render (Ctrl+Enter)"
+          =type         "button"
+          =title        "Render"
+          =data-chord   "render"
           ;span: Render
         ==
         ;div.zoom-controls(aria-label "Zoom controls")
@@ -374,15 +394,17 @@
           ==
         ==
         ;button#fit
-          =type      "button"
-          =disabled  ""
-          =title     "Fit graph (Ctrl+0)"
+          =type         "button"
+          =disabled     ""
+          =title        "Fit graph"
+          =data-chord   "fit-view"
           ;span: Fit
         ==
         ;button#reset-view
-          =type      "button"
-          =disabled  ""
-          =title     "Reset view (Ctrl+1)"
+          =type         "button"
+          =disabled     ""
+          =title        "Reset view"
+          =data-chord   "reset-view"
           ;span: Reset
         ==
       ==
@@ -586,12 +608,10 @@
         ;p: Write DOT on the left and inspect the SVG on the right.
         ;p: Drag the divider to resize the panes on larger screens.
         ;h3: Keyboard shortcuts
+        ::  the app chords come from the table the dispatcher reads;
+        ::  below them, what the editor and the preview add
+        ;+  (shortcut-list:shell shortcuts)
         ;ul.shortcut-list
-          ;li: Ctrl/Cmd + Enter: render now
-          ;li: Ctrl/Cmd + S: save DOT to Clay
-          ;li: Ctrl/Cmd + Shift + S: save SVG to Clay
-          ;li: Ctrl/Cmd + 0: fit graph
-          ;li: Ctrl/Cmd + 1: reset graph view
           ;li: Tab / Shift + Tab: indent / unindent
           ;li: Shift-click: select two nodes for an edge
           ;li: Delete: remove the selected node or edge
@@ -670,13 +690,6 @@
   }
 
   .toolbar { align-items: center; }
-
-  .toolbar kbd {
-    font-family: ui-monospace, monospace;
-    font-size: 0.72rem;
-    margin-left: 0.35rem;
-    opacity: 0.8;
-  }
 
   #explorer-pane-ship {
     align-items: center;
@@ -1099,10 +1112,6 @@
   const workspace = document.querySelector('#workspace');
   const splitter = document.querySelector('#splitter');
   const config = window.urui.config;
-  const settingsCard = document.querySelector(
-    '#settings-modal .settings-card'
-  );
-  settingsCard.append(autoRender.closest('.source-auto-render'));
   //  urui owns the DOT and SVG documents, their editors, files, tree,
   //  references, and source/preview; graph-viz supplies rendering and the
   //  fields that link a rendered SVG to the DOT tab it came from.
@@ -2789,9 +2798,8 @@
   }
 
   function handleShortcut() {
+    //  `help` and `settings` are urui's: it draws both dialogs
     for (const [command, handler] of Object.entries({
-      help: () => help.click(),
-      settings: () => settings.click(),
       render: renderNow,
       'fit-view': fitToWindow,
       'reset-view': resetGraphView
@@ -3007,13 +3015,21 @@
   preview.addEventListener('pointercancel', endPan);
 
   handleShortcut();
-  settings.setAttribute('aria-keyshortcuts', 'F2');
+  //  a control's tooltip with urui's ` (Ctrl-S)` suffix removed
+  const withoutChord = (button) => {
+    const keys = button.getAttribute('aria-keyshortcuts');
+    const first = keys ? keys.split(' ')[0] : null;
+    const title = button.title || '';
+    return first && title.endsWith(`(${first})`)
+      ? title.slice(0, title.lastIndexOf('(')).trim()
+      : title;
+  };
   for (const id of ['dot-save', 'svg-save']) {
     const saveButton = document.querySelector(`#${id}`);
     const saveIcon = document.createElement('span');
     saveIcon.classList.add('save-icon');
     saveIcon.setAttribute('aria-hidden', 'true');
-    saveButton.setAttribute('aria-label', saveButton.title);
+    saveButton.setAttribute('aria-label', withoutChord(saveButton));
     saveButton.classList.add('icon-button');
     saveButton.replaceChildren(saveIcon);
   }
@@ -3032,9 +3048,12 @@
     autoRender.checked = savedSession['preferences.autoRender'];
     pendingView = savedSession.view;
   });
+  //  The accessible name is the action, without the binding urui
+  //  appends to the tooltip: a key belongs in aria-keyshortcuts, which
+  //  urui also sets, and a screen reader announces it from there.
   for (const id of ['dot-copy', 'svg-copy']) {
     const copyButton = document.querySelector(`#${id}`);
-    copyButton.setAttribute('aria-label', copyButton.title);
+    copyButton.setAttribute('aria-label', withoutChord(copyButton));
   }
   editor = docs.editor('dot');
   svgEditor = docs.editor('svg');

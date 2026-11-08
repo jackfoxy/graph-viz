@@ -1,23 +1,118 @@
 {
   "baseline": "ace-win-linux-shortcuts.json",
   "application": [
-    {"binding":"F1","action":"Open Help","aceAction":"Open command palette","resolution":"Graph Viz capture-phase override"},
-    {"binding":"F2","action":"Open Settings","aceAction":"Toggle fold widget","resolution":"Graph Viz capture-phase override"},
-    {"binding":"Ctrl-Enter","action":"Render now","aceAction":"Enter full screen","resolution":"Graph Viz capture-phase override"},
-    {"binding":"Ctrl-S","action":"Save DOT","aceAction":null,"resolution":"Graph Viz capture-phase command"},
-    {"binding":"Ctrl-Shift-S","action":"Save SVG","aceAction":null,"resolution":"Graph Viz capture-phase command"},
-    {"binding":"Ctrl-0","action":"Fit preview","aceAction":null,"resolution":"Graph Viz capture-phase command"},
-    {"binding":"Ctrl-1","action":"Reset preview","aceAction":null,"resolution":"Graph Viz capture-phase command"}
+    {
+      "binding": "F1",
+      "action": "Help",
+      "aceAction": "Open command palette",
+      "resolution": "Graph Viz capture-phase override"
+    },
+    {
+      "binding": "F2",
+      "action": "Settings",
+      "aceAction": "Toggle fold widget",
+      "resolution": "Graph Viz capture-phase override"
+    },
+    {
+      "binding": "Ctrl-Enter",
+      "action": "Render now",
+      "aceAction": "Enter full screen",
+      "resolution": "Graph Viz capture-phase override"
+    },
+    {
+      "binding": "Ctrl-S",
+      "action": "Save the DOT source",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Ctrl-Shift-S",
+      "action": "Save the SVG",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Alt-O",
+      "action": "Open a saved DOT file",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Alt-C",
+      "action": "Copy the DOT source",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Ctrl-Alt-V",
+      "action": "SVG source or preview",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Ctrl-0",
+      "action": "Fit the graph",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Ctrl-1",
+      "action": "Reset the view",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    },
+    {
+      "binding": "Ctrl-Shift-0",
+      "action": "Reset the view",
+      "aceAction": null,
+      "resolution": "Graph Viz capture-phase command"
+    }
   ],
   "contextual": [
-    {"binding":"Delete","applicationContext":"focused SVG preview with one selection","aceContext":"focused DOT editor","aceAction":"Delete"},
-    {"binding":"Backspace","applicationContext":null,"aceContext":"focused DOT editor","aceAction":"Backspace"},
-    {"binding":"Escape","applicationContext":"open modal or context menu; focused Help tab or SVG preview","aceContext":"focused DOT editor when no application overlay is open","aceAction":"editor transient dismissal"},
-    {"binding":"Tab","applicationContext":"browser focus traversal outside the editor","aceContext":"focused DOT editor","aceAction":"Indent"},
-    {"binding":"Shift-Tab","applicationContext":"browser focus traversal outside the editor","aceContext":"focused DOT editor","aceAction":"Outdent"},
-    {"binding":"Ctrl-Alt-S","applicationContext":null,"aceContext":"focused DOT editor","aceAction":"Sort lines"}
+    {
+      "binding": "Delete",
+      "applicationContext": "focused SVG preview with one selection",
+      "aceContext": "focused DOT editor",
+      "aceAction": "Delete"
+    },
+    {
+      "binding": "Backspace",
+      "applicationContext": null,
+      "aceContext": "focused DOT editor",
+      "aceAction": "Backspace"
+    },
+    {
+      "binding": "Escape",
+      "applicationContext": "open modal or context menu; focused Help tab or SVG preview",
+      "aceContext": "focused DOT editor when no application overlay is open",
+      "aceAction": "editor transient dismissal"
+    },
+    {
+      "binding": "Tab",
+      "applicationContext": "browser focus traversal outside the editor",
+      "aceContext": "focused DOT editor",
+      "aceAction": "Indent"
+    },
+    {
+      "binding": "Shift-Tab",
+      "applicationContext": "browser focus traversal outside the editor",
+      "aceContext": "focused DOT editor",
+      "aceAction": "Outdent"
+    },
+    {
+      "binding": "Ctrl-Alt-S",
+      "applicationContext": null,
+      "aceContext": "focused DOT editor",
+      "aceAction": "Sort lines"
+    }
   ],
   "exceptions": [
-    {"binding":"Ctrl-Enter","aceAction":"Enter full screen","directCommandTest":"not-applicable","reason":"The pinned standalone Ace bundle exposes no fullscreen command; Graph Viz preview fullscreen remains button-driven."}
-  ]
+    {
+      "binding": "Ctrl-Enter",
+      "aceAction": "Enter full screen",
+      "directCommandTest": "not-applicable",
+      "reason": "The pinned standalone Ace bundle exposes no fullscreen command; Graph Viz preview fullscreen remains button-driven."
+    }
+  ],
+  "note": "The `application` array mirrors the ++shortcuts arm of desk/lib/gviz-web.hoon; app-shortcuts.test.js asserts the two agree, so this file cannot drift from the chord table."
 }

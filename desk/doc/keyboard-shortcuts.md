@@ -1,155 +1,65 @@
 # Keyboard shortcuts
 
-Graph Viz application shortcuts followed by the default Ace editor keybindings
-for the DOT source pane.
+Graph Viz's own shortcuts. The editor's are in
+**[Ace editor keys](ace-keys.md)**.
 
 ## Graph Viz
 
-| Key | Action |
-|:----|:-------|
-| F1 | Open Help |
-| F2 | Open Settings |
-| Ctrl-Enter | Render now |
-| Ctrl-S | Save DOT |
-| Ctrl-Shift-S | Save SVG |
-| Ctrl-0 | Fit preview |
-| Ctrl-1 | Reset preview |
+<!-- generated: app-chords -->
 
-F1, F2, and Ctrl-Enter override Ace bindings.
-The header buttons display these first two bindings as **Help F1** and
-**Settings F2**.
+| Key | Action | Where |
+|:----|:-------|:------|
+| F1 | Help (displaces Ace’s Open command palette) | Everywhere |
+| F2 | Settings (displaces Ace’s Toggle fold widget) | Everywhere |
+| Ctrl-Enter | Render now (displaces Ace’s Enter full screen) | Everywhere |
+| Ctrl-S | Save the DOT source | Everywhere |
+| Ctrl-Shift-S | Save the SVG | Everywhere |
+| Alt-O | Open a saved DOT file | Outside the editor |
+| Alt-C | Copy the DOT source | Outside the editor |
+| Ctrl-Alt-V | SVG source or preview | Outside the editor |
+| Ctrl-0 | Fit the graph | With a live preview |
+| Ctrl-1 | Reset the view | With a live preview |
+| Ctrl-Shift-0 | Reset the view | With a live preview |
 
-## Line Operations
+<!-- /generated -->
 
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| Ctrl-D                         | Command-D                      | Remove line                    |
-| Alt-Shift-Down                 | Command-Option-Down            | Copy lines down                |
-| Alt-Shift-Up                   | Command-Option-Up              | Copy lines up                  |
-| Alt-Down                       | Option-Down                    | Move lines down                |
-| Alt-Up                         | Option-Up                      | Move lines up                  |
-| Alt-Delete                     | Ctrl-K                         | Remove to line end             |
-| Alt-Backspace                  | Command-Backspace              | Remove to linestart            |
-| Ctrl-Backspace                 | Option-Backspace, Ctrl-Option-Backspace | Remove word left               |
-| Ctrl-Delete                    | Option-Delete                  | Remove word right              |
-| ---                            | Ctrl-O                         | Split line                     |
+F1, F2 and Ctrl-Enter override Ace bindings. The command palette's commands
+remain reachable through **Ctrl-,**, Ace's own settings menu; folding keeps
+`Alt-F2`, `Alt-L`, `Alt-Shift-L`, `Alt-0` and `Alt-Shift-0`. Ctrl-Enter is
+Ace's fullscreen upstream, but the pinned standalone bundle ships no such
+command, so nothing is displaced in practice.
 
-## Selection
+Alt-O and Alt-C, rather than Ctrl-O and Ctrl-Shift-C: **Ctrl-O** is free in
+Ace's own keymap but is a Vim binding in both insert and normal mode, and the
+editor can be switched to Vim in Settings; **Ctrl-Shift-C** is Chromium's
+element inspector. These two, the display toggle and the row keys apply
+outside the editor only, so Ctrl-C and its neighbours keep their ordinary
+meaning while editing.
 
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| Ctrl-A                         | Command-A                      | Select all                     |
-| Shift-Left                     | Shift-Left                     | Select left                    |
-| Shift-Right                    | Shift-Right                    | Select right                   |
-| Ctrl-Shift-Left                | Option-Shift-Left              | Select word left               |
-| Ctrl-Shift-Right               | Option-Shift-Right             | Select word right               |
-| Shift-Home                     | Shift-Home                     | Select line start              |
-| Shift-End                      | Shift-End                      | Select line end                |
-| Alt-Shift-Right                | Command-Shift-Right            | Select to line end             |
-| Alt-Shift-Left                 | Command-Shift-Left             | Select to line start           |
-| Shift-Up                       | Shift-Up                       | Select up                      |
-| Shift-Down                     | Shift-Down                     | Select down                    |
-| Shift-PageUp                   | Shift-PageUp                   | Select page up                 |
-| Shift-PageDown                 | Shift-PageDown                 | Select page down               |
-| Ctrl-Shift-Home                | Command-Shift-Up               | Select to start                |
-| Ctrl-Shift-End                 | Command-Shift-Down             | Select to end                  |
-| Ctrl-Shift-D                   | Command-Shift-D                | Duplicate selection            |
-| Ctrl-Shift-P                   | ---                            | Select to matching bracket     |
-| Ctrl-Shift-M                   | Ctrl-Shift-M                   | Expand to matching             |
-| Ctrl-\, Ctrl-P                 | Command-\                      | Jump to matching               |
-| Ctrl-Shift-\, Ctrl-Shift-P     | Command-Shift-\                | Select to matching             |
-| Ctrl-Shift-L                   | Command-Shift-L                | Expand to line                 |
+**Save As has no chord.** Ctrl-Shift-S is Save SVG here and Ctrl-Alt-S is
+Ace's Sort lines, so Save As stays on its button — the one place in the
+cross-app table where a sensible chord is already taken.
 
-## Multicursor
+Ctrl-Shift-0 is an alias for Reset. Ctrl-1 is delivered to the page and
+cancelable in Chromium, but Ctrl-1 through Ctrl-8 are the browser's tab
+switches, so the alias is there for any engine that keeps them.
 
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| Ctrl-Alt-Up                    | Ctrl-Option-Up                 | Add cursor above               |
-| Ctrl-Alt-Down                  | Ctrl-Option-Down               | Add cursor below               |
-| Ctrl-Alt-Right                 | Ctrl-Option-Right              | Add next occurrence to multi-selection |
-| Ctrl-Alt-Left                  | Ctrl-Option-Left               | Add previous occurrence to multi-selection |
-| Ctrl-Alt-Shift-Up              | Ctrl-Option-Shift-Up           | Move multicursor from current line to the line above |
-| Ctrl-Alt-Shift-Down            | Ctrl-Option-Shift-Down         | Move multicursor from current line to the line below |
-| Ctrl-Alt-Shift-Right           | Ctrl-Option-Shift-Right        | Remove current occurrence from multi-selection and move to next |
-| Ctrl-Alt-Shift-Left            | Ctrl-Option-Shift-Left         | Remove current occurrence from multi-selection and move to previous |
-| Ctrl-Shift-L                   | Ctrl-Shift-L                   | Select all from multi-selection |
-| Ctrl-Alt-A                     | Ctrl-Alt-A                     | Align cursors                  |
+The key badge on each control, and the binding in its tooltip, come from this
+same table at load: no binding is written into the markup.
 
-## Go to
+## Ace editor
 
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| Left                           | Left, Ctrl-B                   | Go to left                     |
-| Right                          | Right, Ctrl-F                  | Go to right                    |
-| Ctrl-Left                      | Option-Left                    | Go to word left                |
-| Ctrl-Right                     | Option-Right                   | Go to word right                |
-| Up                             | Up, Ctrl-P                     | Go line up                     |
-| Down                           | Down, Ctrl-N                   | Go line down                   |
-| Alt-Left, Home                 | Command-Left, Home, Ctrl-A     | Go to line start               |
-| Alt-Right, End                 | Command-Right, End, Ctrl-E     | Go to line end                 |
-| PageUp                         | Option-PageUp                  | Go to page up                  |
-| PageDown                       | Option-PageDown, Ctrl-V        | Go to page down                |
-| Ctrl-Home                      | Command-Home, Command-Up       | Go to start                    |
-| Ctrl-End                       | Command-End, Command-Down      | Go to end                      |
-| Ctrl-L                         | Command-L                      | Go to line...                  |
-| Ctrl-Down                      | Command-Down                   | Scroll line down               |
-| Ctrl-Up                        | ---                            | Scroll line up                 |
-| Ctrl-P                         | ---                            | Go to matching bracket         |
-| ---                            | Option-PageDown                | Scroll page down               |
-| ---                            | Option-PageUp                  | Scroll page up                 |
-| Alt-E                          | F4                             | Go to next error                |
-| Alt-Shift-E                    | Shift-F4                       | Go to previous error            |
+The DOT source pane uses the vendored Ace editor. Its full default keymap
+is in **[Ace editor keys](ace-keys.md)**, generated from the same manifest
+the cross-app conflict gate reads. **Settings → Keybindings** selects the
+default or the Vim keymap.
 
-## Find/Replace
+## Dialogs
 
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| Ctrl-F                         | Command-F                      | Find                            |
-| Ctrl-H                         | Command-Option-F               | Replace                         |
-| Ctrl-K                         | Command-G                      | Find next                       |
-| Ctrl-Shift-K                   | Command-Shift-G                | Find previous                   |
-| Ctrl-Alt-K                     | Ctrl-Alt-G                     | Find all                        |
-| Alt-K                          | Ctrl-G                         | Select or find next              |
-| Alt-Shift-K                    | Ctrl-Shift-G                   | Select or find previous          |
+Help and Settings navigate the same way in every app on this shell; see
+**[Dialog keyboard contract](modal-keys.md)**.
 
-## Folding
+## Policy
 
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| F2                             | F2                             | Toggle fold widget              |
-| Alt-F2                         | Alt-F2                         | Toggle parent fold widget        |
-| Alt-L, Ctrl-F1                 | Command-Option-L, Command-F1   | Fold selection                  |
-| Alt-Shift-L, Ctrl-Shift-F1     | Command-Option-Shift-L, Command-Shift-F1 | Unfold                |
-| Alt-0                          | Command-Option-0               | Fold all                        |
-| Alt-Shift-0                    | Command-Option-Shift-0         | Unfold all                       |
-| ---                            | Ctrl-Command-Option-0          | Fold all comments                |
-
-## Other
-
-| Windows/Linux                  | Mac                            | Action                         |
-|:-------------------------------|:-------------------------------|:-------------------------------|
-| F1                             | F1                              | Open command palette            |
-| Tab                            | Tab                             | Indent                          |
-| Ctrl-]                         | Ctrl-]                          | Block indent                    |
-| Shift-Tab                      | Shift-Tab                       | Outdent                         |
-| Ctrl-[                         | Ctrl-[                           | Block outdent                   |
-| Ctrl-Z                         | Command-Z                       | Undo                            |
-| Ctrl-Shift-Z, Ctrl-Y           | Command-Shift-Z, Command-Y      | Redo                            |
-| Ctrl-,                         | Command-,                       | Show the settings menu          |
-| Ctrl-/                         | Command-/                       | Toggle comment                  |
-| Ctrl-Shift-/                   | Command-Shift-/                 | Toggle block comment            |
-| Ctrl-T                         | Ctrl-T                          | Transpose letters                |
-| Ctrl-Enter                     | Command-Enter                   | Enter full screen                |
-| Ctrl-Shift-U                   | Ctrl-Shift-U                     | Change to lower case             |
-| Ctrl-U                         | Ctrl-U                          | Change to upper case             |
-| Insert                         | Insert                          | Overwrite                        |
-| Ctrl-Shift-E                   | Command-Shift-E                 | Macros replay                    |
-| Ctrl-Alt-E                     | ---                             | Macros recording                 |
-| Delete                         | ---                             | Delete                          |
-| ---                            | Ctrl-L                          | Center selection                 |
-| Ctrl-Alt-S                     | Command-Alt-S                   | Sort lines                       |
-| Ctrl-Shift-Up                  | Alt-Shift-Up                    | Modify number up                 |
-| Ctrl-Shift-Down                | Alt-Shift-Down                  | Modify number down               |
-| Ctrl-Shift-B                   | Ctrl-Shift-B                    | Format selection (Beautify)      |
-
-</details>
+Why a chord is or is not available, and what it may displace:
+**[Key policy](key-policy.md)**.

@@ -2,7 +2,7 @@
   title+'Graph Viz'
   info+'Pure Hoon Graphviz DOT renderer and browser editor'
   color+0x57.6b95
-  version+[1 0 3]
+  version+[1 1 0]
   website+'https://github.com/jackfoxy/graph-viz'
   license+'Eclipse Public License - v 2.0 https://github.com/jackfoxy/graph-viz/blob/master/LICENSE.md'
   image+'https://www.graphviz.org/Resources/app.png'
