@@ -1,4 +1,4 @@
-Graph-viz for Urbit v1.0.3
+Graph-viz for Urbit v1.1.0
 
 Eclipse Public License - v 2.0
 
