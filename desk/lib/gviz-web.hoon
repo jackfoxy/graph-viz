@@ -677,6 +677,12 @@
   ::
   ^-  @t
   '''
+  /* Keep these pages indexed by %docs; link to them from About. */
+  #docs-help-nav [data-doc-path="release-notes"],
+  #docs-help-nav [data-doc-path="roadmap"] {
+    display: none;
+  }
+
   :root {
     --inspector-background: #fffbeb;
     --inspector-border: #fde68a;

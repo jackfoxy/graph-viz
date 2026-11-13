@@ -226,7 +226,7 @@
     /style/md                      style
     /view-port/md                  viewPort
     /xdot/md                       xdot
-/reference/md              Reference
+/reference/md              Graph-viz Reference
 /graph-noun/md             The positioned-graph noun
 /release-notes/md          Release Notes
 /roadmap/md                Graph-viz roadmap

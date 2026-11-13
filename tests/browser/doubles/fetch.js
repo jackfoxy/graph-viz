@@ -29,7 +29,6 @@ function tocResponse() {
     text: async () => [
       '/keyboard-shortcuts/md  Keyboard Shortcuts',
       '/users-guide/md         Users Guide',
-      '/dot-language/md        DOT Language',
       '/dot-language           DOT Language Reference',
       '  /attributes/md          Attributes',
       '  /attributes             Attributes Reference',
